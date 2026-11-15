@@ -4,7 +4,8 @@
 
 import { type Lineup, type Player, Role } from "./model";
 import { type LineupSector, lineupSector, playerPositionRating } from "./rating";
-import { DEV_SKILLS, type ProjectionPoint } from "./development";
+import { DEV_SKILLS, DEV_SKILL_DE, type DevSkill, type ProjectionPoint } from "./development";
+import { staminaFactor } from "./rating";
 
 export const GROUP_DE: Record<LineupSector, string> = {
   goal: "Torwart",
@@ -25,6 +26,89 @@ const GROUP_ROLE: Record<LineupSector, number> = {
   wing: Role.leftWinger,
   forward: Role.centralForward,
 };
+
+export const GROUP_SHORT: Record<LineupSector, string> = { goal: "TW", centralDefence: "IV", back: "AV", innerMidfield: "ZM", wing: "FL", forward: "ST" };
+
+/** Wichtigste Fertigkeiten je Gruppe laut Bewertungsformel (Hauptfertigkeit zuerst) */
+export const GROUP_SKILLS: Record<LineupSector, DevSkill[]> = {
+  goal: ["keeper", "defending"],
+  centralDefence: ["defending", "playmaking"],
+  back: ["defending", "winger"],
+  innerMidfield: ["playmaking", "passing", "defending"],
+  wing: ["winger", "playmaking"],
+  forward: ["scoring", "passing", "winger"],
+};
+export { DEV_SKILL_DE };
+
+/** Positionsstärke eines Spielers für eine Gruppe (stellvertretende Position, normales Verhalten) */
+export const groupValue = (p: Player, g: LineupSector) => playerPositionRating(p, GROUP_ROLE[g]);
+
+export interface Availability {
+  /** Faktor 0..1: 0 = nicht einsetzbar */
+  factor: number;
+  status: "fit" | "angeschlagen" | "verletzt" | "gesperrt";
+  label: string;
+}
+
+export function availability(p: Player): Availability {
+  if (p.injury > 0) return { factor: 0, status: "verletzt", label: `verletzt, ${p.injury} ${p.injury === 1 ? "Woche" : "Wochen"}` };
+  if (p.cards >= 3) return { factor: 0, status: "gesperrt", label: "gesperrt" };
+  if (p.injury === 0) return { factor: 0.95, status: "angeschlagen", label: "angeschlagen" };
+  return { factor: 1, status: "fit", label: "fit" };
+}
+
+/** Konditionsfaktor über 90 Minuten (1 = hält voll durch) */
+export function staminaShare(stamina: number): number {
+  let s = 0;
+  for (let m = 0; m < 90; m += 5) s += staminaFactor(stamina, m, 0, 0);
+  return Math.min(1, s / 18);
+}
+
+export interface GroupMember {
+  player: Player;
+  /** Positionsstärke ohne Kondition/Verletzung */
+  value: number;
+  /** Einsatzwert = Stärke × Kondition × Verfügbarkeit */
+  score: number;
+  /** relativ zum Besten der Gruppe, 0..1 */
+  share: number;
+  stamina: number;
+  availability: Availability;
+  /** ist das die beste Gruppe dieses Spielers? */
+  home: boolean;
+}
+
+export interface SquadGroup {
+  group: LineupSector;
+  name: string;
+  skills: DevSkill[];
+  members: GroupMember[];
+}
+
+/**
+ * Kader nach Mannschaftsteilen: jeder Spieler erscheint in seiner besten Gruppe und dort, wo er mindestens
+ * 85 % seiner relativen Bestleistung und 70 % des Gruppenbesten erreicht (Allrounder tauchen mehrfach auf).
+ */
+export function squadGroups(players: Player[]): SquadGroup[] {
+  const raw = new Map(players.map((p) => [p.id, Object.fromEntries(GROUPS.map((g) => [g, groupValue(p, g)])) as Record<LineupSector, number>]));
+  const max = Object.fromEntries(GROUPS.map((g) => [g, Math.max(1e-6, ...players.map((p) => raw.get(p.id)![g]))])) as Record<LineupSector, number>;
+  const rel = (p: Player, g: LineupSector) => raw.get(p.id)![g] / max[g];
+  const best = new Map(players.map((p) => [p.id, GROUPS.reduce((a, b) => (rel(p, b) > rel(p, a) ? b : a))]));
+  return GROUPS.map((g) => {
+    const members = players
+      .filter((p) => best.get(p.id) === g || (rel(p, g) >= 0.85 * rel(p, best.get(p.id)!) && rel(p, g) >= 0.7))
+      .map((p) => {
+        const av = availability(p);
+        const st = staminaShare(p.stamina);
+        const value = raw.get(p.id)![g];
+        return { player: p, value, score: value * st * av.factor, share: 0, stamina: st, availability: av, home: best.get(p.id) === g };
+      })
+      .sort((a, b) => b.score - a.score || b.value - a.value);
+    const top = Math.max(1e-6, ...members.map((m) => m.value));
+    for (const m of members) m.share = m.score / top;
+    return { group: g, name: GROUP_DE[g], skills: GROUP_SKILLS[g], members };
+  });
+}
 
 export const HORIZONS = [
   { label: "Jetzt", weeks: 0 },
