@@ -7,7 +7,8 @@ import { defaultMatchSettings } from "../src/core/model";
 import { HATSTATS_OBJECTIVE, optimizeLineup } from "../src/core/optimizer";
 import { assessSectors } from "../src/core/weakness";
 import { duels, htToLevel, opponentProfile, verdict } from "../src/core/opponent";
-import { planSquad } from "../src/core/squad";
+import { planSquad, squadGroups, staminaShare } from "../src/core/squad";
+import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems } from "../src/core/editor";
 import { budget, searchProfiles } from "../src/core/scouting";
 
 const ho = parseHoData(readFileSync("test/fixtures/tophatt-data.json", "utf8"));
@@ -126,5 +127,55 @@ describe("Gegner, Kaderplanung, Suchprofil", () => {
     const starters = plans.find((g) => g.group === "innerMidfield")!.horizons[0].starters.map((e) => hrf.players.find((p) => p.id === e.id)!);
     expect(mid.skills[0].min).toBeGreaterThanOrEqual(Math.min(...starters.map((p) => p.playmaking)) + 2);
     expect(budget(hrf.players, 100000).available).toBeLessThan(100000);
+  });
+});
+
+describe("Kader-Gruppen und Aufstellungs-Editor", () => {
+  const team = { teamSpirit: hrf.team.teamSpirit, confidence: hrf.team.confidence };
+  const L = optimizeLineup(hrf.players, defaultMatchSettings, team, {
+    minFormationExperience: 0,
+    formationExperience: hrf.team.formationExperience,
+    objective: HATSTATS_OBJECTIVE,
+    allowBruised: true,
+    tryBehaviours: false,
+  });
+  const byId = new Map(hrf.players.map((p) => [p.id, p]));
+
+  it("Gruppen: jeder Spieler hat eine Heimgruppe, Verletzte haben Einsatzwert 0", () => {
+    const G = squadGroups(hrf.players);
+    expect(G).toHaveLength(6);
+    const homes = G.flatMap((g) => g.members.filter((m) => m.home).map((m) => m.player.id));
+    expect(new Set(homes).size).toBe(hrf.players.length);
+    for (const m of G.flatMap((g) => g.members)) {
+      if (m.player.injury > 0) expect(m.score).toBe(0);
+      expect(m.share).toBeLessThanOrEqual(1);
+    }
+    expect(staminaShare(8)).toBeGreaterThan(staminaShare(4));
+  });
+  it("Editor: gleiche Aufstellung ergibt gleiche Bewertung und keine Änderungen", () => {
+    const mine = evaluatePositions(L.lineup.positions, byId, defaultMatchSettings, team);
+    expect(mine.hatStats).toBeCloseTo(L.hatStats, 5);
+    expect(formationCode(L.lineup.positions)).toBe(L.lineup.formation);
+    const E = explain({ positions: L.lineup.positions, ...mine }, { positions: L.lineup.positions, ...mine }, hrf.players, hrf.team.formationExperience);
+    expect(E.same).toBe(true);
+  });
+  it("Editor: Spieler herausnehmen senkt die Bewertung und wird erklärt", () => {
+    const auto = { positions: L.lineup.positions, ratings: L.ratings, hatStats: L.hatStats };
+    const pos = L.lineup.positions.filter((p) => p.role !== L.lineup.positions.find((x) => x.role >= 107 && x.role <= 109)!.role);
+    const mine = { positions: pos, ...evaluatePositions(pos, byId, defaultMatchSettings, team) };
+    const E = explain(auto, mine, hrf.players, hrf.team.formationExperience);
+    expect(E.same).toBe(false);
+    expect(E.hatStatsMine).toBeLessThan(E.hatStatsAuto);
+    expect(E.sectors.find((s) => s.sector === "midfield")!.delta).toBeLessThan(0);
+    expect(E.changes.some((c) => c.includes("sitzt draußen"))).toBe(true);
+    expect(E.warnings.some((w) => w.includes("10 von 11"))).toBe(true);
+    expect(lineupProblems(pos, byId).length).toBeGreaterThan(0);
+  });
+  it("Editor: fertige Aufstellung hat Kapitän, Standards und Bank ohne Feldspieler", () => {
+    const C = completeLineup(L.lineup.positions, hrf.players, defaultMatchSettings, true);
+    const field = new Set(L.lineup.positions.map((p) => p.playerId));
+    expect(field.has(C.captainId)).toBe(true);
+    expect(field.has(C.setPiecesId)).toBe(true);
+    for (const id of Object.values(C.bench)) expect(field.has(id!)).toBe(false);
   });
 });

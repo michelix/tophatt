@@ -3,6 +3,9 @@
 TopHatt ist ein Spieltags-Cockpit für Hattrick. Es liest die Daten von Hattrick Organizer (HO) und zeigt:
 
 - das **nächste Spiel** mit Aufstellungsvorschlag, Formation und erwarteten HatStats,
+- ein **Spielfeld zum Ziehen**: Spieler per Drag-and-drop (am Handy per Antippen) auf- und abstellen, „Automatisch aufstellen“
+  füllt das Feld, und TopHatt erklärt, was sich gegenüber dem Vorschlag ändert,
+- den **Kader nach Mannschaftsteilen** mit Einsatzwert aus Positionsstärke, Kondition und Verletzung,
 - die **Schwachstellen** je Mannschaftsteil (Abwehr links/mitte/rechts, Mittelfeld, Angriff links/mitte/rechts),
 - die **Spielerentwicklung** als Graph mit Prognose aus dem HO-Trainingsmodell und Alterswarnung,
 - den **Gegner-Check**: Stärke des Gegners aus seinen letzten Pflichtspielen, Duell für Duell gegen die eigene Elf,
@@ -34,7 +37,8 @@ Die Pfade zu HO stehen oben in `TopHatt.bat` und lassen sich dort anpassen.
 | `src/core/weakness.ts` | Schwachstellen je Mannschaftsteil und stärkster Hebel |
 | `src/core/development.ts` | Trainingszuwachs und Altersabbau (Formeln aus HO) |
 | `src/core/opponent.ts` | Gegnerstärke aus den Spielbewertungen des Gegners (Gegnercheck in HO), direkte Duelle |
-| `src/core/squad.ts` | Kaderplanung: Stammspieler je Mannschaftsteil jetzt, in einer und in zwei Saisons |
+| `src/core/editor.ts` | Manuelle Aufstellung bewerten, vervollständigen und mit dem Vorschlag vergleichen |
+| `src/core/squad.ts` | Kader nach Mannschaftsteilen (Einsatzwert) und Kaderplanung jetzt, in einer und in zwei Saisons |
 | `src/core/scouting.ts` | Suchprofile für den Transfermarkt und Budget |
 | `src/core/training.ts`, `advisor.ts` | Freundschaftsspiel-Plan, Transfer- und Trainingshinweise |
 | `src/ui/` | Oberfläche (eine HTML-Datei) |

@@ -11,7 +11,10 @@ import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roun
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
 import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
-import { type GroupPlan, planSquad } from "../core/squad";
+import { type GroupPlan, GROUP_SHORT, planSquad, squadGroups } from "../core/squad";
+import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
+import { behavioursFor } from "../core/optimizer";
+import { Behaviour, type FieldPosition } from "../core/model";
 import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -107,6 +110,10 @@ interface State {
   devPlayer: number;
   settings: MatchSettings;
   opponent: OpponentProfile | null;
+  /** Aufstellung im Editor (manuell oder automatisch) */
+  manual: FieldPosition[];
+  manualEdited: boolean;
+  pick: { kind: "pool"; id: number } | { kind: "slot"; role: number } | null;
   plans: GroupPlan[];
   profiles: SearchProfile[];
 }
@@ -126,6 +133,9 @@ const state: State = {
   setup: null,
   devPlayer: 0,
   opponent: null,
+  manual: [],
+  manualEdited: false,
+  pick: null,
   plans: [],
   profiles: [],
   settings: { location: Location.home, tactic: Tactic.normal, attitude: Attitude.normal, styleOfPlay: 0, teamSpiritSubIndex: 2 },
@@ -211,6 +221,7 @@ function afterLoad(resetMatch: boolean) {
   const hrf = state.hrf;
   if (!hrf) return;
   if (resetMatch) {
+    state.manualEdited = false;
     const up = state.ho ? upcomingMatches(state.ho).filter((m) => [1, 2, 3].includes(m.type)) : [];
     state.match = up[0] ?? null;
     const m = state.match;
@@ -267,6 +278,7 @@ function compute() {
       allowBruised: $<HTMLInputElement>("#bruised").checked,
       tryBehaviours: $<HTMLInputElement>("#behaviours").checked,
     });
+    if (!state.manualEdited) state.manual = state.league.lineup.positions.map((p) => ({ ...p }));
     state.friendly = planFriendly(hrf.players, state.league.lineup, hrf.team.trainingType, $<HTMLInputElement>("#bruised").checked);
     state.advice = advise(hrf.players, state.league.lineup, state.settings, team, hrf.team.trainingType);
     state.weak = assessSectors(hrf.players, state.league.lineup, state.league.ratings, state.settings, team);
@@ -305,11 +317,14 @@ function render() {
   const hrf = state.hrf;
   $("#empty").hidden = !!hrf;
   $("#app").hidden = !hrf;
-  $("#sectionNav").hidden = !hrf;
+  $("#sideNav").hidden = !hrf;
+  $("#menuBtn").hidden = !hrf;
+  document.querySelector(".layout")!.classList.toggle("noapp", !hrf);
   if (!hrf) return;
   $("#teamName").textContent = hrf.team.teamName;
   renderDataChip();
   renderHero();
+  renderTiles();
   renderOpponent();
   renderLineup();
   renderWeakness();
@@ -319,6 +334,8 @@ function render() {
   renderFriendly();
   renderAdvice();
   renderSquad();
+  renderGroups();
+  route();
 }
 
 function renderDataChip() {
@@ -477,30 +494,254 @@ function pitch(lineup: Lineup, highlightTraining = false): string {
     .join("")}</div>`;
 }
 
+// --- Aufstellungs-Editor -------------------------------------------------------------
+
+const unavailable = (p: Player) => p.injury > 0 || p.cards >= 3;
+
+function manualEval() {
+  return evaluatePositions(state.manual, playersById(), state.settings, teamState());
+}
+
+function editPitch(): string {
+  const byId = playersById();
+  const L = state.league!;
+  const C = completeLineup(state.manual, state.hrf!.players, state.settings, $<HTMLInputElement>("#bruised").checked);
+  const pick = state.pick;
+  const slots = Object.entries(GRID).map(([r, [row, col]]) => {
+    const role = Number(r);
+    const pos = state.manual.find((x) => x.role === role);
+    const style = `grid-row:${row + 1};grid-column:${col + 1}`;
+    const picked = pick?.kind === "slot" && pick.role === role ? " picked" : "";
+    if (!pos) return `<div class="slot empty${picked}" data-role="${role}" style="${style}"><div class="role">${ROLE_DE[role]}</div><div class="pname">frei</div></div>`;
+    const p = byId.get(pos.playerId);
+    const auto = L.lineup.positions.find((x) => x.role === role);
+    const changed = !auto || auto.playerId !== pos.playerId || auto.behaviour !== pos.behaviour;
+    const opts = behavioursFor(role);
+    const tags = [pos.playerId === C.captainId ? `<span class="tag">C</span>` : "", pos.playerId === C.setPiecesId ? `<span class="tag">St</span>` : "", changed ? `<span class="tag train">geändert</span>` : ""].join("");
+    const warn = p && (p.injury === 0 || p.cards === 2 || p.stamina <= 5);
+    return `<div class="slot${picked}" draggable="true" data-role="${role}" data-pid="${pos.playerId}" style="${style}">
+      <button class="x" data-remove="${role}" title="Vom Feld nehmen" aria-label="Vom Feld nehmen">×</button>
+      <div class="role">${ROLE_DE[role]}</div>
+      <div class="pname"><span class="full">${esc(p?.name ?? "?")}</span><span class="last">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</span>${warn ? ` <span class="status warning"><i>!</i></span>` : ""}</div>
+      <div class="meta">${p ? `${playerPositionRating(p, role, pos.behaviour).toFixed(1)} · Form ${p.form} · Kond. ${p.stamina}` : ""} ${tags}</div>
+      ${opts.length > 1 ? `<select data-behaviour="${role}" aria-label="Verhalten">${opts.map((b) => `<option value="${b}"${b === pos.behaviour ? " selected" : ""}>${BEHAVIOUR_DE[b] || "normal"}</option>`).join("")}</select>` : ""}
+    </div>`;
+  });
+  return `<div class="pitch-wrap"><div class="pitch edit">${slots.join("")}</div></div>`;
+}
+
+function poolHtml(): string {
+  const onField = new Set(state.manual.map((p) => p.playerId));
+  const groups = squadGroups(state.hrf!.players);
+  const pick = state.pick;
+  const chip = (m: ReturnType<typeof squadGroups>[number]["members"][number], g: string) => {
+    const p = m.player;
+    const off = unavailable(p);
+    const st = m.availability.status !== "fit" ? ` · <span class="status ${off ? "critical" : "warning"}"><i>${off ? "+" : "!"}</i>${esc(m.availability.label)}</span>` : "";
+    return `<div class="pchip${off ? " off" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off ? "" : `draggable="true"`} data-pid="${p.id}">
+      <span class="n">${esc(p.name)}</span><span class="muted">${p.age} J.</span>
+      <span class="m">${g} ${m.value.toFixed(1)} · Form ${p.form} · Kond. ${p.stamina}${st}</span></div>`;
+  };
+  const out: string[] = [];
+  const shown = new Set<number>();
+  for (const g of groups) {
+    const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !unavailable(m.player));
+    if (!ms.length) continue;
+    out.push(`<h4>${esc(g.name)}</h4>${ms.map((m) => chip(m, GROUP_SHORT[g.group])).join("")}`);
+    ms.forEach((m) => shown.add(m.player.id));
+  }
+  const off = groups.flatMap((g) => g.members.filter((m) => m.home && unavailable(m.player)).map((m) => chip(m, GROUP_SHORT[g.group])));
+  if (off.length) out.push(`<h4>Nicht einsetzbar</h4>${off.join("")}`);
+  return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${state.hrf!.players.length - onField.size}). Hierher ziehen = vom Feld nehmen.</div>${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
+}
+
+function renderExplain() {
+  const L = state.league!;
+  const mine = manualEval();
+  const E = explain({ positions: L.lineup.positions, ratings: L.ratings, hatStats: L.hatStats }, { positions: state.manual, ...mine }, state.hrf!.players, state.hrf!.team.formationExperience);
+  const d = E.hatStatsMine - E.hatStatsAuto;
+  const arrow = (v: number) => (Math.abs(v) < 0.05 ? `<span class="muted">±0</span>` : `<span class="delta ${v > 0 ? "up" : "down"}">${v > 0 ? "▲ +" : "▼ "}${v.toFixed(2)}</span>`);
+  const head = E.same
+    ? `<div class="focus ok"><b>Entspricht dem automatischen Vorschlag.</b> Ziehe Spieler um, dann siehst du hier, was sich ändert.</div>`
+    : `<div class="focus ${d >= 0 ? "ok" : ""}"><b>Deine Aufstellung: ${E.hatStatsMine.toFixed(0)} HatStats</b>, automatisch ${E.hatStatsAuto.toFixed(0)} (${d >= 0 ? "+" : ""}${d.toFixed(0)}). ${
+        E.formationMine !== E.formationAuto ? `Formation ${formationLabel(E.formationMine)} statt ${formationLabel(E.formationAuto)}.` : ""
+      }</div>`;
+  const big = [...E.sectors].filter((x) => Math.abs(x.delta) >= 0.1).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  $("#explainOut").innerHTML = `<div class="explain">
+    <h3 style="margin-top:0">Was sich ändert</h3>
+    ${head}
+    ${big.length ? `<p>${big.map((x) => `<b>${esc(x.name)}</b> ${x.delta > 0 ? "steigt" : "sinkt"} von ${esc(ratingLabel(x.auto))} auf ${esc(ratingLabel(x.mine))}`).join("; ")}.</p>` : ""}
+    <table class="cmp"><thead><tr><th>Mannschaftsteil</th><th class="num">Automatisch</th><th class="num">Deine</th><th class="num">Änderung</th></tr></thead><tbody>
+      ${E.sectors.map((x) => `<tr title="${esc(ratingLabel(x.mine))}"><td>${esc(x.name)}</td><td class="num">${x.auto.toFixed(2)}</td><td class="num">${x.mine.toFixed(2)}</td><td class="num">${arrow(x.delta)}</td></tr>`).join("")}
+      <tr><td><b>HatStats</b></td><td class="num">${E.hatStatsAuto.toFixed(0)}</td><td class="num"><b>${E.hatStatsMine.toFixed(0)}</b></td><td class="num">${arrow(d)}</td></tr>
+    </tbody></table>
+    ${E.changes.length ? `<h3>Deine Änderungen</h3><ul>${E.changes.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}
+    ${E.warnings.length ? `<h3>Achtung</h3><ul>${E.warnings.map((w) => `<li>${statusChip("warning", "", "!")} ${esc(w)}</li>`).join("")}</ul>` : ""}
+  </div>`;
+}
+
 function renderLineup() {
   const L = state.league;
   if (!L) return;
   const byId = playersById();
   const m = state.match;
   $("#lineupSub").textContent = m ? `für ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : "";
-  $("#pitchOut").innerHTML = pitch(L.lineup) + `<p class="sub">Roter Rand: Spieler in einem schwachen Mannschaftsteil, gelb: leicht unter dem Durchschnitt.</p>`;
-  const bench = Object.entries(L.lineup.bench)
+  $("#pitchOut").innerHTML = editPitch();
+  $("#poolOut").innerHTML = poolHtml();
+  renderExplain();
+  const C = completeLineup(state.manual, state.hrf!.players, state.settings, $<HTMLInputElement>("#bruised").checked);
+  const mine = manualEval();
+  const bench = Object.entries(C.bench)
     .map(([slot, id]) => `<tr><td class="muted">${BENCH_DE[slot]}</td><td>${esc(byId.get(id!)?.name ?? "-")}</td></tr>`)
     .join("");
   $("#lineupSide").innerHTML = `
+    <h3 style="margin-top:0">Deine Aufstellung</h3>
     <table><tbody>
-      <tr><td class="muted">Formation</td><td><b>${formationLabel(L.lineup.formation)}</b></td></tr>
-      <tr><td class="muted">HatStats</td><td><b>${L.hatStats.toFixed(0)}</b> <span class="muted">Ø über 90 Minuten</span></td></tr>
-      <tr><td class="muted">Kapitän</td><td>${esc(byId.get(L.lineup.captainId)?.name ?? "-")}</td></tr>
-      <tr><td class="muted">Standards</td><td>${esc(byId.get(L.lineup.setPiecesId)?.name ?? "-")}</td></tr>
+      <tr><td class="muted">Formation</td><td><b>${formationLabel(formationCode(state.manual))}</b> <span class="muted">Erfahrung ${state.hrf!.team.formationExperience[formationCode(state.manual)] ?? 0}</span></td></tr>
+      <tr><td class="muted">HatStats</td><td><b>${mine.hatStats.toFixed(0)}</b> <span class="muted">Ø über 90 Minuten</span></td></tr>
+      <tr><td class="muted">Kapitän</td><td>${esc(byId.get(C.captainId)?.name ?? "-")}</td></tr>
+      <tr><td class="muted">Standards</td><td>${esc(byId.get(C.setPiecesId)?.name ?? "-")}</td></tr>
     </tbody></table>
     <h3>Ersatzbank</h3>
     <table><tbody>${bench}</tbody></table>
-    <details><summary>Formationen im Vergleich</summary>
+    <details><summary>Formationen im Vergleich (automatisch)</summary>
       <table><thead><tr><th>Formation</th><th class="num">Erfahrung</th><th class="num">HatStats</th></tr></thead><tbody>
       ${L.perFormation.map((f) => `<tr><td>${formationLabel(f.formation)}</td><td class="num">${f.experience}</td><td class="num">${f.hatStats.toFixed(0)}</td></tr>`).join("")}
       </tbody></table>
     </details>`;
+}
+
+/** Spieler auf eine Position setzen: tauscht, wenn dort schon jemand steht */
+function placePlayer(pid: number, role: number) {
+  const p = playersById().get(pid);
+  if (!p) return;
+  if (unavailable(p)) return toast(`${p.name} ist ${p.injury > 0 ? "verletzt" : "gesperrt"}.`);
+  const M = state.manual;
+  const from = M.find((x) => x.playerId === pid);
+  const occupant = M.find((x) => x.role === role);
+  const fit = (r: number, b: number) => (behavioursFor(r).includes(b as never) ? b : Behaviour.normal);
+  if (from) {
+    if (from.role === role) return;
+    if (occupant) {
+      occupant.role = from.role as never;
+      occupant.behaviour = fit(from.role, occupant.behaviour) as never;
+    }
+    from.role = role as never;
+    from.behaviour = fit(role, from.behaviour) as never;
+  } else if (occupant) {
+    occupant.playerId = pid;
+    occupant.behaviour = Behaviour.normal;
+  } else {
+    if (M.length >= 11) return toast("Schon 11 Spieler auf dem Feld. Erst einen herausnehmen.");
+    M.push({ role: role as never, playerId: pid, behaviour: Behaviour.normal });
+  }
+  editorChanged();
+}
+
+function removeRole(role: number) {
+  state.manual = state.manual.filter((x) => x.role !== role);
+  editorChanged();
+}
+
+function editorChanged() {
+  state.manualEdited = true;
+  state.pick = null;
+  renderLineup();
+}
+
+function initEditor() {
+  const root = $("#aufstellung");
+  const target = (e: Event) => (e.target as HTMLElement).closest<HTMLElement>(".pitch.edit .slot, .pool");
+  root.addEventListener("dragstart", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[draggable=true]");
+    if (!el || !e.dataTransfer) return;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", el.classList.contains("slot") ? `r:${el.dataset.role}` : `p:${el.dataset.pid}`);
+  });
+  root.addEventListener("dragover", (e) => {
+    const t = target(e);
+    if (!t) return;
+    e.preventDefault();
+    root.querySelectorAll(".over").forEach((x) => x !== t && x.classList.remove("over"));
+    t.classList.add("over");
+  });
+  root.addEventListener("dragleave", (e) => target(e)?.classList.remove("over"));
+  root.addEventListener("drop", (e) => {
+    const t = target(e);
+    if (!t) return;
+    e.preventDefault();
+    t.classList.remove("over");
+    const [kind, v] = (e.dataTransfer?.getData("text/plain") ?? "").split(":");
+    const n = Number(v);
+    if (!n) return;
+    if (t.classList.contains("pool")) {
+      if (kind === "r") removeRole(n);
+      return;
+    }
+    const role = Number(t.dataset.role);
+    if (kind === "p") placePlayer(n, role);
+    else {
+      const pos = state.manual.find((x) => x.role === n);
+      if (pos) placePlayer(pos.playerId, role);
+    }
+  });
+  // Tippen statt Ziehen (Handy): erst Spieler, dann Ziel
+  root.addEventListener("click", (e) => {
+    const el = e.target as HTMLElement;
+    const rm = el.closest<HTMLElement>("[data-remove]");
+    if (rm) return removeRole(Number(rm.dataset.remove));
+    if (el.closest("select")) return;
+    const chip = el.closest<HTMLElement>(".pchip");
+    const slot = el.closest<HTMLElement>(".pitch.edit .slot");
+    const pick = state.pick;
+    if (chip) {
+      const id = Number(chip.dataset.pid);
+      if (chip.classList.contains("off")) return;
+      if (pick?.kind === "slot") {
+        const pos = state.manual.find((x) => x.role === pick.role);
+        if (pos) return placePlayer(id, pick.role);
+      }
+      state.pick = pick?.kind === "pool" && pick.id === id ? null : { kind: "pool", id };
+      return renderLineup();
+    }
+    if (slot) {
+      const role = Number(slot.dataset.role);
+      if (pick?.kind === "pool") return placePlayer(pick.id, role);
+      if (pick?.kind === "slot") {
+        if (pick.role === role) {
+          state.pick = null;
+          return renderLineup();
+        }
+        const pos = state.manual.find((x) => x.role === pick.role);
+        if (pos) return placePlayer(pos.playerId, role);
+      }
+      if (slot.dataset.pid) {
+        state.pick = { kind: "slot", role };
+        return renderLineup();
+      }
+      return;
+    }
+    if (el.closest(".pool") && pick?.kind === "slot") removeRole(pick.role);
+  });
+  root.addEventListener("change", (e) => {
+    const sel = (e.target as HTMLElement).closest<HTMLSelectElement>("select[data-behaviour]");
+    if (!sel) return;
+    const pos = state.manual.find((x) => x.role === Number(sel.dataset.behaviour));
+    if (pos) pos.behaviour = Number(sel.value) as never;
+    editorChanged();
+  });
+  $("#autoFill").addEventListener("click", () => {
+    if (!state.league) return;
+    state.manual = state.league.lineup.positions.map((p) => ({ ...p }));
+    state.manualEdited = false;
+    state.pick = null;
+    renderLineup();
+    toast("Feld automatisch aufgestellt.");
+  });
+  $("#clearField").addEventListener("click", () => {
+    state.manual = [];
+    editorChanged();
+  });
 }
 
 const STATUS_LABEL = { critical: ["!", "Schwach"], warning: ["–", "Ausbaufähig"], good: ["✓", "Solide"], serious: ["↓", ""] } as const;
@@ -855,6 +1096,106 @@ function renderSquad() {
     </tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+// --- Navigation ------------------------------------------------------------------------
+
+const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "spielplan"];
+const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag" };
+let currentView = "";
+
+function route() {
+  let v = decodeURIComponent(location.hash.slice(1));
+  v = VIEW_ALIAS[v] ?? v;
+  if (!VIEWS.includes(v)) v = "spieltag";
+  document.querySelectorAll<HTMLElement>("main [data-view]").forEach((el) => el.classList.toggle("show", el.dataset.view === v));
+  document.querySelectorAll<HTMLElement>(".sidenav a").forEach((a) => a.classList.toggle("active", a.dataset.view === v));
+  if (v !== currentView) window.scrollTo(0, 0);
+  currentView = v;
+  closeMenu();
+}
+
+function closeMenu() {
+  $("#sideNav").classList.remove("open");
+  $("#scrim").hidden = true;
+}
+
+function initNav() {
+  window.addEventListener("hashchange", route);
+  $("#menuBtn").addEventListener("click", () => {
+    const open = !$("#sideNav").classList.contains("open");
+    $("#sideNav").classList.toggle("open", open);
+    $("#scrim").hidden = !open;
+  });
+  $("#scrim").addEventListener("click", closeMenu);
+  document.querySelectorAll<HTMLButtonElement>("[data-kview]").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.querySelectorAll("[data-kview]").forEach((x) => x.classList.toggle("on", x === b));
+      $("#groupsOut").hidden = b.dataset.kview !== "groups";
+      $("#squadOut").hidden = b.dataset.kview !== "table";
+    }),
+  );
+}
+
+// --- Übersicht ------------------------------------------------------------------------
+
+function renderTiles() {
+  const hrf = state.hrf!;
+  const L = state.league;
+  const tiles: string[] = [];
+  const tile = (href: string, k: string, v: string, sub: string) => `<a class="tile" href="#${href}"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></a>`;
+  if (L) {
+    const mine = manualEval();
+    tiles.push(tile("aufstellung", "Aufstellung", `${formationLabel(formationCode(state.manual))} · ${mine.hatStats.toFixed(0)} HatStats`, state.manualEdited ? "deine Aufstellung (geändert)" : "automatischer Vorschlag"));
+    const O = state.opponent;
+    tiles.push(
+      O
+        ? tile("gegner", "Gegner-Check", esc(verdict(duels(L.ratings, O.average)).text), `aus ${O.matches.length} Spielen des Gegners`)
+        : tile("gegner", "Gegner-Check", "keine Daten", "in HO den Gegnercheck machen"),
+    );
+  }
+  const worst = [...state.weak].sort((a, b) => a.delta - b.delta)[0];
+  if (worst) tiles.push(tile("schwachstellen", "Größte Schwachstelle", esc(worst.name), esc(ratingLabel(worst.rating))));
+  const injured = hrf.players.filter((p) => p.injury > 0).length;
+  const bruised = hrf.players.filter((p) => p.injury === 0).length;
+  const banned = hrf.players.filter((p) => p.cards >= 3).length;
+  tiles.push(tile("kader", "Kader", `${hrf.players.length - injured - banned} von ${hrf.players.length} einsatzbereit`, [injured ? `${injured} verletzt` : "", bruised ? `${bruised} angeschlagen` : "", banned ? `${banned} gesperrt` : ""].filter(Boolean).join(", ") || "alle fit"));
+  const gaps = state.plans.filter((g) => g.severity !== "good");
+  tiles.push(tile("kaderplanung", "Kaderplanung", gaps.length ? `${gaps.length} ${gaps.length === 1 ? "Baustelle" : "Baustellen"}` : "gut besetzt", gaps.map((g) => esc(g.name)).join(", ") || "auch in zwei Saisons"));
+  if (state.profiles[0]) tiles.push(tile("transfers", "Transfer-Tipp", esc(state.profiles[0].title.split(":")[0]), esc(state.profiles[0].title.split(":")[1] ?? "")));
+  $("#tiles").innerHTML = tiles.join("");
+}
+
+// --- Kader nach Mannschaftsteilen -------------------------------------------------------
+
+const SKILL_SHORT: Record<string, string> = { keeper: "TW", defending: "VE", playmaking: "SA", winger: "FL", passing: "PS", scoring: "TS", setPieces: "ST" };
+
+function renderGroups() {
+  const inLineup = new Map(state.manual.map((p) => [p.playerId, lineupSector(p.role)]));
+  const G = squadGroups(state.hrf!.players);
+  const member = (m: (typeof G)[number]["members"][number], g: (typeof G)[number]) => {
+    const p = m.player;
+    const off = m.availability.factor === 0;
+    const plays = inLineup.get(p.id) === g.group;
+    const status =
+      m.availability.status === "fit" ? "" : statusChip(off ? "critical" : "warning", m.availability.label, off ? "+" : "!");
+    return `<div class="member${off ? " out" : ""}" title="Positionsstärke ${m.value.toFixed(2)} · Kondition hält ${Math.round(m.stamina * 100)} % · ${esc(m.availability.label)}">
+      <div class="nm">${esc(p.name)} <small>${p.age} J.</small>${plays ? `<span class="inxi">spielt</span>` : ""}</div>
+      <div class="fit" aria-label="Einsatzwert ${Math.round(m.share * 100)} %"><i style="width:${(m.share * 100).toFixed(0)}%"></i></div>
+      <div class="attrs">${g.skills.map((k) => `<span>${SKILL_SHORT[k]} <b>${p[k]}</b></span>`).join("")}<span>Form <b>${p.form}</b></span><span>Kond. <b>${p.stamina}</b></span>${p.cards ? `<span>Gelb <b>${p.cards}</b></span>` : ""}${status}</div>
+    </div>`;
+  };
+  $("#groupsOut").innerHTML = `<p class="sub">Je Mannschaftsteil die passenden Spieler, sortiert nach Einsatzwert. Balken = Positionsstärke (Fertigkeiten, Form, Erfahrung) × Kondition × Verfügbarkeit, relativ zum Besten der Gruppe. Verletzte und Gesperrte stehen durchgestrichen am Ende. Allrounder erscheinen in mehreren Gruppen.</p>
+    <div class="groups">${G.map((g) => {
+      const top = g.members.slice(0, 6);
+      const more = g.members.slice(6);
+      const ready = g.members.filter((m) => m.availability.factor > 0).length;
+      return `<div class="group"><h3>${esc(g.name)}<span class="sub">${ready} einsatzbereit</span></h3>
+        <div class="keys">Wichtig: ${g.skills.map((k) => DEV_SKILL_DE[k]).join(", ")}</div>
+        ${top.map((m) => member(m, g)).join("")}
+        ${more.length ? `<details><summary>${more.length} weitere</summary>${more.map((m) => member(m, g)).join("")}</details>` : ""}
+      </div>`;
+    }).join("")}</div>`;
+}
+
 // --- HRF für HO speichern --------------------------------------------------------------
 
 function download(lineup: Lineup, kind: "liga" | "freundschaft") {
@@ -949,7 +1290,17 @@ function init() {
     state.devPlayer = Number($<HTMLSelectElement>("#devPlayer").value);
     renderDevChart();
   });
-  $("#dlLeague").addEventListener("click", () => state.league && download(state.league.lineup, "liga"));
+  $("#dlLeague").addEventListener("click", () => {
+    if (!state.hrf) return;
+    const problems = lineupProblems(state.manual, playersById());
+    if (problems.length) {
+      $("#error").textContent = problems.join(" ");
+      return;
+    }
+    download(completeLineup(state.manual, state.hrf.players, state.settings, $<HTMLInputElement>("#bruised").checked), "liga");
+  });
+  initEditor();
+  initNav();
   $("#dlFriendly").addEventListener("click", () => state.friendly && download(state.friendly.lineup, "freundschaft"));
   // Countdown und Datenstand jede Minute auffrischen
   setInterval(() => state.hrf && (renderHero(), renderDataChip()), 60_000);
