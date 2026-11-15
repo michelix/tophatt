@@ -1,6 +1,8 @@
 // Daten aus der HO-Datenbank, die TopHatt-Sync als tophatt-data.json exportiert:
 // Spielplan, Tabelle, Spielerhistorie, Training.
 
+import { type MatchRating, parseMatchRatings } from "./opponent";
+
 export interface HoMatch {
   id: number;
   type: number; // 1 Liga, 2 Quali, 3 Pokal, 4/5/8/9 Freundschaft ...
@@ -80,6 +82,8 @@ export interface HoData {
   history: Map<number, SkillSnapshot[]>;
   training: TrainingWeek[];
   futureTraining: TrainingWeek[];
+  /** Bewertungen aus HO-Spielberichten, auch die der Gegner (Gegnercheck), neueste zuerst */
+  matchRatings: MatchRating[];
 }
 
 type Row = Record<string, unknown>;
@@ -176,6 +180,7 @@ export function parseHoData(json: string): HoData {
     history,
     training: training("training"),
     futureTraining: training("futureTraining"),
+    matchRatings: parseMatchRatings(rows("matchRatings")),
   };
 }
 

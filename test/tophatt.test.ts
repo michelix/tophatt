@@ -6,6 +6,9 @@ import { parseHrf } from "../src/core/hrf";
 import { defaultMatchSettings } from "../src/core/model";
 import { HATSTATS_OBJECTIVE, optimizeLineup } from "../src/core/optimizer";
 import { assessSectors } from "../src/core/weakness";
+import { duels, htToLevel, opponentProfile, verdict } from "../src/core/opponent";
+import { planSquad } from "../src/core/squad";
+import { budget, searchProfiles } from "../src/core/scouting";
 
 const ho = parseHoData(readFileSync("test/fixtures/tophatt-data.json", "utf8"));
 const hrf = parseHrf(readFileSync("test/fixtures/team.hrf", "utf8"));
@@ -64,5 +67,64 @@ describe("Schwachstellen", () => {
     const w = assessSectors(hrf.players, r.lineup, r.ratings, s, team);
     expect(w.find((x) => x.sector === "midfield")!.severity).toBe("critical");
     expect(w.find((x) => x.sector === "midfield")!.lever).not.toBeNull();
+  });
+});
+
+describe("Gegner, Kaderplanung, Suchprofil", () => {
+  const team = { teamSpirit: hrf.team.teamSpirit, confidence: hrf.team.confidence };
+  const L = optimizeLineup(hrf.players, defaultMatchSettings, team, {
+    minFormationExperience: 0,
+    formationExperience: hrf.team.formationExperience,
+    objective: HATSTATS_OBJECTIVE,
+    allowBruised: false,
+    tryBehaviours: false,
+  });
+  const setup = { type: hrf.team.trainingType, intensity: 100, staminaShare: 15, coachLevel: 6, assistantsLevel: 1 };
+  const plans = planSquad(hrf.players, L.lineup, (p) => project(skillsOf(p), p.age, p.ageDays, setup, 0, 32));
+
+  it("liest die Spielbewertungen aus HO und mittelt die Pflichtspiele des Gegners", () => {
+    expect(ho.matchRatings.length).toBeGreaterThan(10);
+    expect(htToLevel(1)).toBe(1);
+    expect(htToLevel(17)).toBe(5);
+    const opp = opponentProfile(ho.matchRatings, 700203)!;
+    expect(opp.matches.length).toBe(5);
+    expect(opp.matches.every((m) => [1, 2, 3].includes(m.type))).toBe(true);
+    expect(opp.formation).toMatch(/^\d-\d-\d$/);
+    expect(opponentProfile(ho.matchRatings, 1)).toBeNull();
+  });
+  it("Duelle: unser rechter Angriff gegen ihre linke Abwehr, Einschätzung symmetrisch", () => {
+    const opp = opponentProfile(ho.matchRatings, 700203)!;
+    const d = duels(L.ratings, opp.average);
+    expect(d).toHaveLength(7);
+    expect(d[1].ours).toBe(L.ratings.attackRight);
+    expect(d[1].theirs).toBe(opp.average.defenceLeft);
+    expect(verdict(duels(L.ratings, L.ratings)).text).toBe("ausgeglichen");
+    expect(verdict(d).edge).toBeLessThan(0.5);
+  });
+  it("Kaderplanung: Stammplätze laut Formation, drei Zeitpunkte, Spieler nur einmal Stammspieler", () => {
+    expect(plans.reduce((s, g) => s + g.needed, 0)).toBe(11);
+    for (const g of plans) {
+      expect(g.horizons).toHaveLength(3);
+      expect(g.horizons[0].starters).toHaveLength(g.needed);
+    }
+    const ids = plans.flatMap((g) => g.horizons[0].starters.map((e) => e.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(plans.find((g) => g.group === "goal")!.horizons[2].starters[0].age).toBe(plans.find((g) => g.group === "goal")!.horizons[0].starters[0].age + 2);
+  });
+  it("Kaderplanung erkennt eine Lücke, wenn der einzige Torwart altert", () => {
+    const old = hrf.players.map((p) => (p.keeper >= 6 ? { ...p, age: 34 } : p));
+    const pl = planSquad(old, L.lineup, (p) => project(skillsOf(p), p.age, p.ageDays, setup, 0, 32));
+    expect(pl.find((g) => g.group === "goal")!.severity).not.toBe("good");
+  });
+  it("Suchprofil für schwache Mannschaftsteile mit Zielwerten über den Stammspielern", () => {
+    const weak = assessSectors(hrf.players, L.lineup, L.ratings, defaultMatchSettings, team);
+    const prof = searchProfiles(hrf.players, weak, plans);
+    expect(prof.length).toBeGreaterThan(0);
+    const mid = prof.find((p) => p.group === "innerMidfield")!;
+    expect(mid.kind).toBe("sofort");
+    expect(mid.age).toEqual([27, 30]);
+    const starters = plans.find((g) => g.group === "innerMidfield")!.horizons[0].starters.map((e) => hrf.players.find((p) => p.id === e.id)!);
+    expect(mid.skills[0].min).toBeGreaterThanOrEqual(Math.min(...starters.map((p) => p.playmaking)) + 2);
+    expect(budget(hrf.players, 100000).available).toBeLessThan(100000);
   });
 });

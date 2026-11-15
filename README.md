@@ -5,6 +5,9 @@ TopHatt ist ein Spieltags-Cockpit für Hattrick. Es liest die Daten von Hattrick
 - das **nächste Spiel** mit Aufstellungsvorschlag, Formation und erwarteten HatStats,
 - die **Schwachstellen** je Mannschaftsteil (Abwehr links/mitte/rechts, Mittelfeld, Angriff links/mitte/rechts),
 - die **Spielerentwicklung** als Graph mit Prognose aus dem HO-Trainingsmodell und Alterswarnung,
+- den **Gegner-Check**: Stärke des Gegners aus seinen letzten Pflichtspielen, Duell für Duell gegen die eigene Elf,
+- die **Kaderplanung**: wer trägt welchen Mannschaftsteil jetzt, in einer und in zwei Saisons, wo droht eine Lücke,
+- **Suchprofile** für den Transfermarkt (Alter, Fertigkeiten von/bis, Budget),
 - Spielplan und Tabelle, eine Freundschaftsspiel-Aufstellung fürs Training, Transfer- und Kaderhinweise.
 
 Alles läuft lokal im Browser. Up- und Download zu Hattrick macht weiterhin HO.
@@ -30,6 +33,9 @@ Die Pfade zu HO stehen oben in `TopHatt.bat` und lassen sich dort anpassen.
 | `src/core/rating.ts`, `optimizer.ts` | Bewertungsformel aus HO und Aufstellungs-Optimierung |
 | `src/core/weakness.ts` | Schwachstellen je Mannschaftsteil und stärkster Hebel |
 | `src/core/development.ts` | Trainingszuwachs und Altersabbau (Formeln aus HO) |
+| `src/core/opponent.ts` | Gegnerstärke aus den Spielbewertungen des Gegners (Gegnercheck in HO), direkte Duelle |
+| `src/core/squad.ts` | Kaderplanung: Stammspieler je Mannschaftsteil jetzt, in einer und in zwei Saisons |
+| `src/core/scouting.ts` | Suchprofile für den Transfermarkt und Budget |
 | `src/core/training.ts`, `advisor.ts` | Freundschaftsspiel-Plan, Transfer- und Trainingshinweise |
 | `src/ui/` | Oberfläche (eine HTML-Datei) |
 
