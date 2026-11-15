@@ -677,6 +677,24 @@ function kickoffAnimation() {
 
 // --- Linien vom gewählten Spieler zu seinen passenden Positionen --------------------------
 
+/** Linien bis 70 % der besten Eignung; Farbe nach Abstand zur besten Position */
+const FLOW_CUT = 0.7;
+function flowClass(share: number): string {
+  if (share >= 0.97) return "fq1"; // optimal (grün)
+  if (share >= 0.88) return "fq2"; // gut (gelb)
+  if (share >= 0.79) return "fq3"; // mäßig (rot)
+  return "fq4"; // Notlösung (grau)
+}
+
+/** Linien ausblenden und Auswahl aufheben */
+function clearFlow() {
+  state.flowPid = null;
+  if (state.pick) {
+    state.pick = null;
+    renderLineup();
+  } else drawFlow();
+}
+
 function drawFlow() {
   const ed = document.querySelector<HTMLElement>("#aufstellung .editor");
   if (!ed) return;
@@ -695,14 +713,14 @@ function drawFlow() {
   const fit = fitTable(state.hrf.players);
   const groups = [...new Set(Object.keys(GRID).map((r) => lineupSector(Number(r))))];
   const best = Math.max(...groups.map((g) => fit.rel(p, g)));
-  const cut = best * 0.8;
+  const cut = best * FLOW_CUT;
   const cands = Object.keys(GRID)
     .map(Number)
     .filter((role) => role !== fromSlot?.role)
     .map((role) => ({ role, rel: fit.rel(p, lineupSector(role)) }))
     .filter((c) => c.rel >= cut)
     .sort((a, b) => b.rel - a.rel)
-    .slice(0, 7);
+    .slice(0, 9);
   if (!cands.length) return;
   const box = ed.getBoundingClientRect();
   const sr = srcEl.getBoundingClientRect();
@@ -725,7 +743,8 @@ function drawFlow() {
       y1 = tr.top + tr.height / 2 - box.top;
     const k = Math.max(0, Math.min(1, (c.rel - cut) / Math.max(1e-6, best - cut)));
     const w = 1.2 + 4.3 * k;
-    const op = 0.3 + 0.7 * k;
+    const op = 0.55 + 0.45 * k;
+    const q = flowClass(c.rel / best);
     const horizontal = Math.abs(x1 - x0) > Math.abs(y1 - y0);
     const d = horizontal
       ? `M${x0},${y0} C${(x0 + x1) / 2},${y0} ${(x0 + x1) / 2},${y1} ${x1},${y1}`
@@ -739,8 +758,8 @@ function drawFlow() {
     const ly = u ** 3 * y0 + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t ** 3 * y1;
     parts.push(
       onlyTargets
-        ? `<g opacity="${op.toFixed(2)}"><circle cx="${x1}" cy="${y1}" r="${(4 + 3 * k).toFixed(1)}"/><text x="${x1}" y="${y1 - tr.height / 2 - 4}" text-anchor="middle">${val}</text></g>`
-        : `<g opacity="${op.toFixed(2)}"><path d="${d}" stroke-width="${w.toFixed(1)}"/><circle cx="${x1}" cy="${y1}" r="${(3 + 2 * k).toFixed(1)}"/><text x="${lx}" y="${ly - 6}" text-anchor="middle">${val}</text></g>`,
+        ? `<g class="${q}" opacity="${op.toFixed(2)}"><circle cx="${x1}" cy="${y1}" r="${(4 + 3 * k).toFixed(1)}"/><text x="${x1}" y="${y1 - tr.height / 2 - 4}" text-anchor="middle">${val}</text></g>`
+        : `<g class="${q}" opacity="${op.toFixed(2)}"><path d="${d}" stroke-width="${w.toFixed(1)}"/><circle cx="${x1}" cy="${y1}" r="${(3 + 2 * k).toFixed(1)}"/><text x="${lx}" y="${ly - 6}" text-anchor="middle">${val}</text></g>`,
     );
   }
   ed.insertAdjacentHTML("beforeend", `<svg class="flow" aria-hidden="true">${parts.join("")}</svg>`);
@@ -912,8 +931,14 @@ function initEditor() {
   $("#poolOut").addEventListener("scroll", () => drawFlow(), { passive: true });
   window.addEventListener("resize", () => drawFlow());
   root.addEventListener("drop", (e) => {
+    // dragend kommt nicht mehr an, wenn das gezogene Element beim Neuzeichnen ersetzt wird
+    state.flowPid = null;
+    root.querySelectorAll(".dragging, .over").forEach((x) => x.classList.remove("dragging", "over"));
     const t = target(e);
-    if (!t) return;
+    if (!t) {
+      drawFlow();
+      return;
+    }
     e.preventDefault();
     t.classList.remove("over");
     const [kind, v] = (e.dataTransfer?.getData("text/plain") ?? "").split(":");
@@ -939,6 +964,7 @@ function initEditor() {
     const chip = el.closest<HTMLElement>(".pchip");
     const slot = el.closest<HTMLElement>(".pitch.edit .slot");
     const pick = state.pick;
+    state.flowPid = null;
     if (chip) {
       const id = Number(chip.dataset.pid);
       if (chip.classList.contains("off")) return;
@@ -966,7 +992,18 @@ function initEditor() {
       }
       return;
     }
-    if (el.closest(".pool") && pick?.kind === "slot") removeRole(pick.role);
+    if (el.closest(".pool") && pick?.kind === "slot") return removeRole(pick.role);
+    // Klick daneben: Auswahl und Linien zurücksetzen
+    clearFlow();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && (state.pick || state.flowPid)) clearFlow();
+  });
+  // Klick außerhalb des Editors setzt ebenfalls zurück
+  document.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    if (!t.isConnected) return; // Element wurde beim Neuzeichnen ersetzt
+    if ((state.pick || state.flowPid) && !(e.target as HTMLElement).closest("#aufstellung .editor, #aufstellung .editor-bar")) clearFlow();
   });
   root.addEventListener("change", (e) => {
     const sel = (e.target as HTMLElement).closest<HTMLSelectElement>("select[data-behaviour]");
