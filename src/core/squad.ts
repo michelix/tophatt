@@ -110,6 +110,14 @@ export function squadGroups(players: Player[]): SquadGroup[] {
   });
 }
 
+/** Relative Eignung je Gruppe (1 = bester Spieler des Kaders dort) und beste Gruppe je Spieler */
+export function fitTable(players: Player[]) {
+  const max = Object.fromEntries(GROUPS.map((g) => [g, Math.max(1e-6, ...players.map((p) => groupValue(p, g)))])) as Record<LineupSector, number>;
+  const rel = (p: Player, g: LineupSector) => groupValue(p, g) / max[g];
+  const home = (p: Player) => GROUPS.reduce((a, b) => (rel(p, b) > rel(p, a) ? b : a));
+  return { rel, home };
+}
+
 export const HORIZONS = [
   { label: "Jetzt", weeks: 0 },
   { label: "In 1 Saison", weeks: 16 },
