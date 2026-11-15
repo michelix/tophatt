@@ -160,6 +160,23 @@ dialog .body{padding:20px}
 dialog h3:first-child{margin-top:0}
 #drop{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:14px}
 #drop.over{border-color:var(--brand);color:var(--ink)}
+.duel{display:grid;grid-template-columns:minmax(0,1.3fr) 52px minmax(0,1fr) 52px;gap:10px;align-items:center;padding:5px 0}
+.duel .dl{font-size:14px}
+.duel .dv{font-size:13px;color:var(--ink-2);text-align:center;font-variant-numeric:tabular-nums}
+.split{display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--surface-2);position:relative}
+.split .us{background:var(--s1)}.split .them{background:var(--s2)}
+.split::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:var(--surface)}
+@media (max-width:560px){.duel{grid-template-columns:44px minmax(0,1fr) 44px}.duel .dl{grid-column:1/-1}}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--ink-2);margin:6px 0 4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.profiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:8px 0 6px}
+.profile{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface-2)}
+.profile h4{margin:0 0 4px;font-size:15px}
+.profile dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:8px 0 0;font-size:13px}
+.profile dt{color:var(--muted)}.profile dd{margin:0;font-weight:600}
+.plan td.st{font-size:13px}
+.plan .val{font-weight:600;font-variant-numeric:tabular-nums}
+.plan .down{color:var(--critical)}.plan .up{color:var(--good)}
 #error{color:var(--critical);font-weight:600}
 .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:14px;z-index:10}
 </style>
@@ -181,8 +198,8 @@ dialog h3:first-child{margin-top:0}
   </div>
   <div class="wrap" id="sectionNav" hidden>
     <nav class="sections">
-      <a href="#spiel">Nächstes Spiel</a><a href="#aufstellung">Aufstellung</a><a href="#schwachstellen">Schwachstellen</a>
-      <a href="#entwicklung">Entwicklung</a><a href="#spielplan">Spielplan &amp; Tabelle</a><a href="#training">Freundschaftsspiel</a>
+      <a href="#spiel">Nächstes Spiel</a><a href="#gegner">Gegner</a><a href="#aufstellung">Aufstellung</a><a href="#schwachstellen">Schwachstellen</a>
+      <a href="#entwicklung">Entwicklung</a><a href="#kaderplanung">Kaderplanung</a><a href="#spielplan">Spielplan &amp; Tabelle</a><a href="#training">Freundschaftsspiel</a>
       <a href="#transfers">Transfers</a><a href="#kader">Kader</a>
     </nav>
   </div>
@@ -207,6 +224,11 @@ dialog h3:first-child{margin-top:0}
 
   <div id="app" hidden>
     <section class="card hero" id="spiel"></section>
+
+    <section class="card" id="gegner">
+      <header><h2>Gegner-Check</h2><span class="sub" id="oppSub"></span></header>
+      <div id="oppOut"></div>
+    </section>
 
     <section class="card" id="aufstellung">
       <header><h2>Aufstellung für dieses Spiel</h2><span class="sub" id="lineupSub"></span></header>
@@ -240,6 +262,11 @@ dialog h3:first-child{margin-top:0}
       <h3>Kader-Ausblick</h3>
       <p class="sub">Hauptfertigkeit jetzt, in einer und in zwei Saisons (16 Wochen = 1 Hattrick-Saison), mit dem aktuellen Training und dem Altersabbau aus HO. Annahme: jede Woche Liga- und Freundschaftsspiel wie oben geplant.</p>
       <div class="scroll" id="outlookOut"></div>
+    </section>
+
+    <section class="card" id="kaderplanung">
+      <header><h2>Kaderplanung</h2><span class="sub">Wer trägt welchen Mannschaftsteil jetzt, in einer und in zwei Saisons?</span></header>
+      <div id="planOut"></div>
     </section>
 
     <section class="card" id="spielplan">

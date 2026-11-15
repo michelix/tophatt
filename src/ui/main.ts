@@ -10,6 +10,9 @@ import { advise, type Advice } from "../core/advisor";
 import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
 import { type SectorAssessment, assessSectors } from "../core/weakness";
+import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
+import { type GroupPlan, planSquad } from "../core/squad";
+import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -103,6 +106,9 @@ interface State {
   setup: TrainingSetup | null;
   devPlayer: number;
   settings: MatchSettings;
+  opponent: OpponentProfile | null;
+  plans: GroupPlan[];
+  profiles: SearchProfile[];
 }
 
 const state: State = {
@@ -119,6 +125,9 @@ const state: State = {
   outlooks: new Map(),
   setup: null,
   devPlayer: 0,
+  opponent: null,
+  plans: [],
+  profiles: [],
   settings: { location: Location.home, tactic: Tactic.normal, attitude: Attitude.normal, styleOfPlay: 0, teamSpiritSubIndex: 2 },
 };
 
@@ -263,6 +272,10 @@ function compute() {
     state.weak = assessSectors(hrf.players, state.league.lineup, state.league.ratings, state.settings, team);
     state.setup = trainingSetup();
     state.outlooks = new Map(hrf.players.map((p) => [p.id, outlookFor(p, startSkills(p), state.setup!, trainingShare(p.id))]));
+    state.plans = planSquad(hrf.players, state.league.lineup, (p) => project(startSkills(p), p.age, p.ageDays, state.setup!, trainingShare(p.id), 32));
+    state.profiles = searchProfiles(hrf.players, state.weak, state.plans);
+    const m = state.match;
+    state.opponent = m && state.ho ? opponentProfile(state.ho.matchRatings, m.homeId === hrf.team.teamId ? m.awayId : m.homeId) : null;
     $("#error").textContent = "";
   } catch (e) {
     $("#error").textContent = (e as Error).message;
@@ -297,9 +310,11 @@ function render() {
   $("#teamName").textContent = hrf.team.teamName;
   renderDataChip();
   renderHero();
+  renderOpponent();
   renderLineup();
   renderWeakness();
   renderDevelopment();
+  renderPlan();
   renderSchedule();
   renderFriendly();
   renderAdvice();
@@ -376,9 +391,65 @@ function renderHero() {
     ${stats}
     <div class="hero-actions">
       <a class="btn primary" href="#aufstellung">Aufstellung ansehen</a>
-      <span class="hero-note">Stärke von ${esc(home ? m.awayName : m.homeName)} ist noch nicht bekannt (kommt mit dem Gegnercheck).</span>
+      <a class="btn" href="#gegner">Gegner-Check</a>
+      <span class="hero-note">${heroOpponentNote(home ? m.awayName : m.homeName)}</span>
     </div>
     ${later.length ? `<div class="next-list">${later.map((x) => `<span class="chip">${fmtDate(x.date)} · ${esc(opp(x))}${x.type === 3 ? " · Pokal" : x.type !== 1 ? " · FS" : ""}</span>`).join("")}</div>` : ""}`;
+}
+
+function heroOpponentNote(name: string): string {
+  const O = state.opponent;
+  if (!O || !state.league) return `Stärke von ${esc(name)} ist noch nicht bekannt. In HO den Gegnercheck machen und TopHatt.bat starten.`;
+  const v = verdict(duels(state.league.ratings, O.average));
+  return `Gegen ${esc(name)}: <b>${esc(v.text)}</b> (aus ${O.matches.length} Spielen des Gegners).`;
+}
+
+function renderOpponent() {
+  const m = state.match;
+  const L = state.league;
+  const O = state.opponent;
+  const teamId = state.hrf!.team.teamId;
+  const name = m ? (m.homeId === teamId ? m.awayName : m.homeName) : "";
+  $("#oppSub").textContent = name ? `${name} · Bewertungen aus den letzten Pflichtspielen` : "";
+  if (!m || !L) {
+    $("#oppOut").innerHTML = `<p class="sub">Kein anstehendes Spiel bekannt.</p>`;
+    return;
+  }
+  if (!O) {
+    $("#oppOut").innerHTML = `<div class="focus"><b>Noch keine Spiele von ${esc(name)} in HO.</b> In HO unter „Gegnercheck“ die letzten Spiele des Gegners herunterladen, dann TopHatt.bat starten und „Aktualisieren“ klicken.</div>`;
+    return;
+  }
+  const D = duels(L.ratings, O.average);
+  const v = verdict(D);
+  const cls = v.edge > 0.52 ? "ok" : "";
+  const row = (d: (typeof D)[number]) => `<div class="duel" title="${esc(ratingLabel(d.ours))} gegen ${esc(ratingLabel(d.theirs))}">
+      <div class="dl">${esc(d.label)}</div>
+      <div class="dv">${d.ours.toFixed(2)}</div>
+      <div class="split" aria-label="${Math.round(d.share * 100)} % für uns"><div class="us" style="width:${(d.share * 100).toFixed(1)}%"></div><div class="them" style="flex:1"></div></div>
+      <div class="dv">${d.theirs.toFixed(2)}</div>
+    </div>`;
+  const bestAttack = [...D.slice(1, 4)].sort((a, b) => b.share - a.share)[0];
+  const danger = [...D.slice(4)].sort((a, b) => a.share - b.share)[0];
+  $("#oppOut").innerHTML = `
+    <div class="focus ${cls}"><b>Einschätzung: ${esc(v.text)}.</b> Ballbesitz etwa ${Math.round(D[0].share * 100)} %. Bester Angriffsweg: ${esc(bestAttack.label.replace("Unser Angriff ", ""))}. Größte Gefahr: ${esc(danger.label)}.</div>
+    <div class="grid2">
+      <div>
+        <div class="legend"><span><i style="background:var(--s1)"></i>Wir (erwartet)</span><span><i style="background:var(--s2)"></i>${esc(name)} (Ø)</span></div>
+        ${row(D[0])}<h3>Unser Angriff</h3>${D.slice(1, 4).map(row).join("")}<h3>Unsere Abwehr</h3>${D.slice(4).map(row).join("")}
+        <p class="sub">Balken = unser Anteil im direkten Duell, Mitte = ausgeglichen. Ballbesitz nach Mittelfeld³, Chancen vereinfacht nach Angriff/(Angriff+Abwehr). Keine Spielsimulation.</p>
+      </div>
+      <div>
+        <table><tbody>
+          <tr><td class="muted">Formation meist</td><td><b>${esc(O.formation || "?")}</b></td></tr>
+          <tr><td class="muted">Taktik meist</td><td><b>${esc(TACTIC_DE[O.tactic] ?? String(O.tactic))}</b></td></tr>
+          <tr><td class="muted">HatStats Ø</td><td><b>${(4 * (3 * O.average.midfield + O.average.defenceLeft + O.average.defenceCentral + O.average.defenceRight + O.average.attackLeft + O.average.attackCentral + O.average.attackRight)).toFixed(0)}</b> <span class="muted">wir: ${L.hatStats.toFixed(0)}</span></td></tr>
+        </tbody></table>
+        <h3>Ausgewertete Spiele</h3>
+        <div class="scroll"><table class="nowrap"><thead><tr><th>Datum</th><th>Gegner</th><th class="num">Ergebnis</th><th>Formation</th><th class="num">Mittelfeld</th></tr></thead><tbody>
+        ${O.matches.map((x) => `<tr><td>${fmtDate(x.date)}</td><td>${esc(x.opponentName)}${x.home ? " (H)" : " (A)"}</td><td class="num">${x.goalsFor}:${x.goalsAgainst}</td><td>${esc(x.formation)}</td><td class="num">${x.ratings.midfield.toFixed(2)}</td></tr>`).join("")}
+        </tbody></table></div>
+      </div>
+    </div>`;
 }
 
 function pitch(lineup: Lineup, highlightTraining = false): string {
@@ -629,6 +700,24 @@ function renderDevChart() {
 
 // --- Spielplan, Freundschaftsspiel, Transfers, Kader ------------------------------------
 
+function renderPlan() {
+  const P = state.plans;
+  if (!P.length) return;
+  const label: Record<string, [string, string]> = { critical: ["!", "Lücke"], warning: ["–", "dünn"], good: ["✓", "gut besetzt"] };
+  const cell = (h: GroupPlan["horizons"][number], base: number, i: number) => {
+    const diff = base ? h.average / base - 1 : 0;
+    const trend = i === 0 || Math.abs(diff) < 0.03 ? "" : `<span class="${diff < 0 ? "down" : "up"}"> ${diff > 0 ? "+" : ""}${Math.round(diff * 100)} %</span>`;
+    return `<td class="st"><span class="val">${h.average.toFixed(1)}</span>${trend}<br>${h.starters.map((e) => `${esc(e.name.split(" ").slice(-1)[0])} <span class="muted">${e.age}</span>`).join(", ")}${h.backup ? `<br><span class="muted">Ersatz: ${esc(h.backup.name.split(" ").slice(-1)[0])} (${h.backup.value.toFixed(1)})</span>` : ""}</td>`;
+  };
+  $("#planOut").innerHTML = `<div class="scroll"><table class="plan"><thead><tr><th>Mannschaftsteil</th><th>Jetzt</th><th>In 1 Saison</th><th>In 2 Saisons</th><th>Bewertung</th></tr></thead><tbody>
+    ${P.map((g) => {
+      const [icon, l] = label[g.severity];
+      return `<tr><td><b>${esc(g.name)}</b><br><span class="muted">${g.needed} ${g.needed === 1 ? "Platz" : "Plätze"}</span></td>${g.horizons.map((h, i) => cell(h, g.horizons[0].average, i)).join("")}<td>${statusChip(g.severity, l, icon)}<br><span class="sub">${esc(g.note)}</span></td></tr>`;
+    }).join("")}
+    </tbody></table></div>
+    <p class="sub">Zahl = durchschnittliche Positionsstärke der Stammspieler (HO-Formel), Alter zum jeweiligen Zeitpunkt. Plätze laut empfohlener Formation. Training und Altersabbau wie in der Spielerentwicklung; Form und Erfahrung bleiben gleich.</p>`;
+}
+
 function renderSchedule() {
   const ho = state.ho;
   const teamId = state.hrf!.team.teamId;
@@ -688,7 +777,26 @@ function renderFriendly() {
 function renderAdvice() {
   const A = state.advice;
   if (!A) return;
+  const hrf = state.hrf!;
+  const B = budget(hrf.players, hrf.team.cash);
+  const euro = (v: number) => `${Math.round(v).toLocaleString("de-DE")} €`;
+  const profiles = state.profiles.length
+    ? `<div class="profiles">${state.profiles
+        .map(
+          (p) => `<div class="profile"><h4>${esc(p.title)}</h4><div class="sub">${esc(p.reason)}</div><dl>
+            <dt>Alter</dt><dd>${p.age[0]} bis ${p.age[1]} Jahre</dd>
+            ${p.skills.map((k) => `<dt>${esc(k.name)}</dt><dd>${k.max ? `${k.min} bis ${k.max}` : `ab ${k.min}`}</dd>`).join("")}
+            ${B.cash > 0 ? `<dt>Budget</dt><dd>bis ${euro(B.available)}</dd>` : ""}
+          </dl></div>`,
+        )
+        .join("")}</div>
+      <p class="sub">Werte so im Transfermarkt eintragen (Fertigkeit von/bis, Alter von/bis). Hauptfertigkeit zwei Stufen über dem schwächsten Stammspieler, weil gekaufte Spieler anfangs keine Treue haben. ${
+        B.cash > 0 ? `Budget = Kontostand ${euro(B.cash)} minus fünf Wochen Gehälter (${euro(B.reserve)}).` : "Kontostand ist in der Datei nicht enthalten, deshalb ohne Budget."
+      }</p>`
+    : `<p class="focus ok">Kein dringender Transferbedarf: keine deutliche Schwachstelle und keine Lücke in der Kaderplanung.</p>`;
   $("#adviceOut").innerHTML = `
+    <h3>Suchprofile für den Transfermarkt</h3>
+    ${profiles}
     ${A.summary.map((s) => `<p class="focus ok">${esc(s)}</p>`).join("")}
     <h3>Wo eine Verstärkung am meisten bringt</h3>
     <div class="scroll"><table class="nowrap"><thead><tr><th>Position</th><th>Fertigkeit</th><th>Spielt jetzt</th><th class="num">+1 Stufe</th><th class="num">+2 Stufen</th></tr></thead><tbody>
