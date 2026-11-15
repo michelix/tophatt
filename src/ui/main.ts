@@ -13,7 +13,7 @@ import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
 import { type GroupPlan, GROUP_SHORT, fitTable, planSquad, squadGroups } from "../core/squad";
 import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
-import { behavioursFor } from "../core/optimizer";
+import { FORMATIONS, behavioursFor } from "../core/optimizer";
 import { centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
 import { Behaviour, type FieldPosition } from "../core/model";
 import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
@@ -115,6 +115,11 @@ interface State {
   manual: FieldPosition[];
   manualEdited: boolean;
   pick: { kind: "pool"; id: number } | { kind: "slot"; role: number } | null;
+  /** gewählte Formation im Editor ("" = beste) und die beste Aufstellung je Formation */
+  formation: string;
+  formations: { code: string; hatStats: number; experience: number; positions: FieldPosition[] }[];
+  /** Spieler, für den die Linien zu passenden Positionen gezeigt werden */
+  flowPid: number | null;
   plans: GroupPlan[];
   profiles: SearchProfile[];
 }
@@ -137,6 +142,9 @@ const state: State = {
   manual: [],
   manualEdited: false,
   pick: null,
+  formation: "",
+  formations: [],
+  flowPid: null,
   plans: [],
   profiles: [],
   settings: { location: Location.home, tactic: Tactic.normal, attitude: Attitude.normal, styleOfPlay: 0, teamSpiritSubIndex: 2 },
@@ -279,7 +287,10 @@ function compute() {
       allowBruised: $<HTMLInputElement>("#bruised").checked,
       tryBehaviours: $<HTMLInputElement>("#behaviours").checked,
     });
-    if (!state.manualEdited) state.manual = state.league.lineup.positions.map((p) => ({ ...p }));
+    state.formations = [];
+    if (state.formation) state.formations.push(...bestPerFormation([state.formation]));
+    scheduleFormations();
+    if (!state.manualEdited) state.manual = formationPositions();
     state.friendly = planFriendly(hrf.players, state.league.lineup, hrf.team.trainingType, $<HTMLInputElement>("#bruised").checked);
     state.advice = advise(hrf.players, state.league.lineup, state.settings, team, hrf.team.trainingType);
     state.weak = assessSectors(hrf.players, state.league.lineup, state.league.ratings, state.settings, team);
@@ -508,6 +519,57 @@ function pitch(lineup: Lineup, highlightTraining = false): string {
 
 const unavailable = (p: Player) => p.injury > 0 || p.cards >= 3;
 
+/** Beste Elf je Formation (für die Formationsauswahl) */
+function bestPerFormation(codes: readonly string[]) {
+  const hrf = state.hrf!;
+  const out: State["formations"] = [];
+  for (const f of codes) {
+    try {
+      const r = optimizeLineup(hrf.players, state.settings, teamState(), {
+        minFormationExperience: 0,
+        formationExperience: hrf.team.formationExperience,
+        objective: HATSTATS_OBJECTIVE,
+        allowBruised: $<HTMLInputElement>("#bruised").checked,
+        tryBehaviours: false,
+        formations: [f],
+      });
+      out.push({ code: f, hatStats: r.hatStats, experience: hrf.team.formationExperience[f] ?? 0, positions: r.lineup.positions });
+    } catch {
+      /* zu wenige Spieler für diese Formation */
+    }
+  }
+  return out;
+}
+
+let formationTimer = 0;
+/** Alle Formationen im Hintergrund rechnen, damit die Seite sofort reagiert */
+function scheduleFormations() {
+  clearTimeout(formationTimer);
+  formationTimer = window.setTimeout(() => {
+    if (!state.hrf) return;
+    state.formations = bestPerFormation(FORMATIONS);
+    renderFormationPick();
+  }, 30);
+}
+
+/** Aufstellung für die gewählte Formation (oder die beste) */
+function formationPositions(): FieldPosition[] {
+  const f = state.formations.find((x) => x.code === state.formation);
+  return (f ? f.positions : state.league!.lineup.positions).map((p) => ({ ...p }));
+}
+
+function renderFormationPick() {
+  const sel = $<HTMLSelectElement>("#formationPick");
+  const best = state.league?.lineup.formation;
+  sel.innerHTML =
+    `<option value="">Beste${best ? `: ${formationLabel(best)}` : ""} (automatisch)</option>` +
+    [...state.formations]
+      .sort((a, b) => b.hatStats - a.hatStats)
+      .map((f) => `<option value="${f.code}"${f.code === state.formation ? " selected" : ""}>${formationLabel(f.code)} · ${f.hatStats.toFixed(0)} HatStats · Erfahrung ${f.experience}${f.experience < 6 ? " ⚠" : ""}</option>`)
+      .join("");
+  sel.value = state.formation;
+}
+
 function manualEval() {
   return evaluatePositions(state.manual, playersById(), state.settings, teamState());
 }
@@ -613,6 +675,77 @@ function kickoffAnimation() {
   });
 }
 
+// --- Linien vom gewählten Spieler zu seinen passenden Positionen --------------------------
+
+function drawFlow() {
+  const ed = document.querySelector<HTMLElement>("#aufstellung .editor");
+  if (!ed) return;
+  ed.querySelector("svg.flow")?.remove();
+  ed.querySelectorAll(".flow-target").forEach((x) => x.classList.remove("flow-target"));
+  const pick = state.pick;
+  const pid = state.flowPid ?? (pick?.kind === "pool" ? pick.id : pick?.kind === "slot" ? (state.manual.find((x) => x.role === pick.role)?.playerId ?? null) : null);
+  if (!pid || !state.hrf || ed.offsetParent === null) return;
+  const p = playersById().get(pid);
+  if (!p) return;
+  const fromSlot = state.manual.find((x) => x.playerId === pid);
+  const srcEl = fromSlot
+    ? ed.querySelector<HTMLElement>(`#pitchOut .slot[data-pid="${pid}"] .token`)
+    : ed.querySelector<HTMLElement>(`#poolOut .pchip[data-pid="${pid}"]`);
+  if (!srcEl) return;
+  const fit = fitTable(state.hrf.players);
+  const groups = [...new Set(Object.keys(GRID).map((r) => lineupSector(Number(r))))];
+  const best = Math.max(...groups.map((g) => fit.rel(p, g)));
+  const cut = best * 0.8;
+  const cands = Object.keys(GRID)
+    .map(Number)
+    .filter((role) => role !== fromSlot?.role)
+    .map((role) => ({ role, rel: fit.rel(p, lineupSector(role)) }))
+    .filter((c) => c.rel >= cut)
+    .sort((a, b) => b.rel - a.rel)
+    .slice(0, 7);
+  if (!cands.length) return;
+  const box = ed.getBoundingClientRect();
+  const sr = srcEl.getBoundingClientRect();
+  const field = ed.querySelector<HTMLElement>(".field")!.getBoundingClientRect();
+  // Startpunkt: linke Kante der Karte (Liste rechts vom Feld), sonst Oberkante (Liste unter dem Feld) oder Trikotmitte
+  const sx = fromSlot ? sr.left + sr.width / 2 : sr.left > field.right - 10 ? sr.left : sr.left + sr.width / 2;
+  const sy = fromSlot ? sr.top + sr.height / 2 : sr.left > field.right - 10 ? sr.top + sr.height / 2 : sr.top;
+  // Liste unter dem Feld (Handy): keine langen Linien quer über die Seite, nur Ziele markieren
+  const onlyTargets = !fromSlot && sr.left <= field.right - 10;
+  const x0 = sx - box.left,
+    y0 = sy - box.top;
+  const parts: string[] = [];
+  for (const c of cands) {
+    const slot = ed.querySelector<HTMLElement>(`#pitchOut .slot[data-role="${c.role}"]`);
+    const tok = slot?.querySelector<HTMLElement>(".token");
+    if (!slot || !tok) continue;
+    slot.classList.add("flow-target");
+    const tr = tok.getBoundingClientRect();
+    const x1 = tr.left + tr.width / 2 - box.left,
+      y1 = tr.top + tr.height / 2 - box.top;
+    const k = Math.max(0, Math.min(1, (c.rel - cut) / Math.max(1e-6, best - cut)));
+    const w = 1.2 + 4.3 * k;
+    const op = 0.3 + 0.7 * k;
+    const horizontal = Math.abs(x1 - x0) > Math.abs(y1 - y0);
+    const d = horizontal
+      ? `M${x0},${y0} C${(x0 + x1) / 2},${y0} ${(x0 + x1) / 2},${y1} ${x1},${y1}`
+      : `M${x0},${y0} C${x0},${(y0 + y1) / 2} ${x1},${(y0 + y1) / 2} ${x1},${y1}`;
+    const val = playerPositionRating(p, c.role).toFixed(1);
+    // Beschriftung kurz vor dem Ziel auf der Kurve
+    const t = 0.72,
+      u = 1 - t;
+    const [c1x, c1y, c2x, c2y] = horizontal ? [(x0 + x1) / 2, y0, (x0 + x1) / 2, y1] : [x0, (y0 + y1) / 2, x1, (y0 + y1) / 2];
+    const lx = u ** 3 * x0 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t ** 3 * x1;
+    const ly = u ** 3 * y0 + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t ** 3 * y1;
+    parts.push(
+      onlyTargets
+        ? `<g opacity="${op.toFixed(2)}"><circle cx="${x1}" cy="${y1}" r="${(4 + 3 * k).toFixed(1)}"/><text x="${x1}" y="${y1 - tr.height / 2 - 4}" text-anchor="middle">${val}</text></g>`
+        : `<g opacity="${op.toFixed(2)}"><path d="${d}" stroke-width="${w.toFixed(1)}"/><circle cx="${x1}" cy="${y1}" r="${(3 + 2 * k).toFixed(1)}"/><text x="${lx}" y="${ly - 6}" text-anchor="middle">${val}</text></g>`,
+    );
+  }
+  ed.insertAdjacentHTML("beforeend", `<svg class="flow" aria-hidden="true">${parts.join("")}</svg>`);
+}
+
 function poolHtml(): string {
   const onField = new Set(state.manual.map((p) => p.playerId));
   const groups = squadGroups(state.hrf!.players);
@@ -683,8 +816,11 @@ function renderLineup() {
   const m = state.match;
   $("#lineupSub").textContent = m ? `für ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : "";
   const prev = tokenRects();
+  renderFormationPick();
   $("#pitchOut").innerHTML = editPitch();
   animateTokens(prev);
+  drawFlow();
+  setTimeout(drawFlow, 450);
   $("#poolOut").innerHTML = poolHtml();
   renderExplain();
   const C = completeLineup(state.manual, state.hrf!.players, state.settings, $<HTMLInputElement>("#bruised").checked);
@@ -757,6 +893,8 @@ function initEditor() {
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", el.classList.contains("slot") ? `r:${el.dataset.role}` : `p:${el.dataset.pid}`);
     requestAnimationFrame(() => el.classList.add("dragging"));
+    state.flowPid = Number(el.dataset.pid) || null;
+    drawFlow();
   });
   root.addEventListener("dragover", (e) => {
     const t = target(e);
@@ -766,7 +904,13 @@ function initEditor() {
     t.classList.add("over");
   });
   root.addEventListener("dragleave", (e) => target(e)?.classList.remove("over"));
-  root.addEventListener("dragend", () => root.querySelectorAll(".dragging, .over").forEach((x) => x.classList.remove("dragging", "over")));
+  root.addEventListener("dragend", () => {
+    root.querySelectorAll(".dragging, .over").forEach((x) => x.classList.remove("dragging", "over"));
+    state.flowPid = null;
+    drawFlow();
+  });
+  $("#poolOut").addEventListener("scroll", () => drawFlow(), { passive: true });
+  window.addEventListener("resize", () => drawFlow());
   root.addEventListener("drop", (e) => {
     const t = target(e);
     if (!t) return;
@@ -833,11 +977,18 @@ function initEditor() {
   });
   $("#autoFill").addEventListener("click", () => {
     if (!state.league) return;
-    state.manual = state.league.lineup.positions.map((p) => ({ ...p }));
-    state.manualEdited = false;
+    state.manual = formationPositions();
+    state.manualEdited = !!state.formation;
     state.pick = null;
     renderLineup();
-    toast("Feld automatisch aufgestellt.");
+    toast(state.formation ? `Beste Elf für ${formationLabel(state.formation)} aufgestellt.` : "Feld automatisch aufgestellt.");
+  });
+  $("#formationPick").addEventListener("change", () => {
+    state.formation = $<HTMLSelectElement>("#formationPick").value;
+    state.manual = formationPositions();
+    state.manualEdited = !!state.formation;
+    state.pick = null;
+    renderLineup();
   });
   $("#clearField").addEventListener("click", () => {
     state.manual = [];
