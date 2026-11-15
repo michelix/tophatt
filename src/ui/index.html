@@ -232,9 +232,13 @@ main .tiles.show{display:grid}
 .editor-bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:14px 0 10px}
 .editor{position:relative}
 svg.flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:visible}
-svg.flow path{fill:none;stroke:var(--flow);stroke-linecap:round;stroke-dasharray:7 7;animation:flow .7s linear infinite;filter:drop-shadow(0 0 3px rgba(0,0,0,.35))}
-svg.flow circle{fill:var(--flow);stroke:#fff;stroke-width:1.5}
+svg.flow g{--c:var(--flow)}
+svg.flow g.fq1{--c:#3ddc6a}svg.flow g.fq2{--c:#ffd23f}svg.flow g.fq3{--c:#ff5a4a}svg.flow g.fq4{--c:#b4bcc4}
+svg.flow path{fill:none;stroke:var(--c);stroke-linecap:round;stroke-dasharray:7 7;animation:flow .7s linear infinite;filter:drop-shadow(0 0 3px rgba(0,0,0,.45))}
+svg.flow circle{fill:var(--c);stroke:#fff;stroke-width:1.5}
 svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-order:stroke;stroke:#fff;stroke-width:3px}
+.flow-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin-top:6px}
+.flow-legend i{display:inline-block;width:18px;height:0;border-top:3px dashed;vertical-align:middle;margin-right:5px}
 @keyframes flow{to{stroke-dashoffset:-14}}
 @media (prefers-reduced-motion:reduce){svg.flow path{animation:none}}
 .field .slot.flow-target .token{box-shadow:0 0 0 3px var(--flow),0 0 16px 4px rgba(243,215,122,.6)}
@@ -394,7 +398,8 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
         <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
         <button class="btn primary" id="autoFill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Automatisch aufstellen</button>
         <button class="btn" id="clearField">Feld leeren</button>
-        <span class="sub" id="editorHint">Spieler aus der Liste aufs Feld ziehen, auf dem Feld tauschen oder zurück in die Liste ziehen. Antippen zeigt Linien zu den passenden Positionen (dicker = besser), dann Position antippen.</span>
+        <span class="sub" id="editorHint">Spieler aus der Liste aufs Feld ziehen, auf dem Feld tauschen oder zurück in die Liste ziehen. Antippen zeigt Linien zu den passenden Positionen, dann Position antippen. Klick daneben oder Esc blendet sie aus.</span>
+        <div class="flow-legend"><span><i style="color:#3ddc6a"></i>optimal</span><span><i style="color:#ffd23f"></i>gut</span><span><i style="color:#ff5a4a"></i>mäßig</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>dicker = stärker, Zahl = Positionsstärke</span></div>
       </div>
       <div class="editor">
         <div id="pitchOut"></div>
