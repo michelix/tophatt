@@ -233,13 +233,13 @@ function isRestricted(role: number, side: Side, r: SideRestriction): boolean {
 // --- Spielerstärke ------------------------------------------------------------
 
 /** HO: calcSkillRating – "hervorragend" (8) ohne Nachkommastellen ergibt 7,0 */
-const skillRating = (skill: number) => Math.max(0, skill - 1);
+export const skillRating = (skill: number) => Math.max(0, skill - 1);
 
 function formFactor(p: Player) {
   return 0.378 * Math.sqrt(Math.min(7, skillRating(p.form + (p.formSub ?? 0))));
 }
 
-function loyaltyBonus(p: Player) {
+export function loyaltyBonus(p: Player) {
   if (p.homegrown) return 1.5;
   return skillRating(p.loyalty) / 19;
 }

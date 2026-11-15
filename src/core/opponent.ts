@@ -117,9 +117,10 @@ export function duels(ours: SectorRatings, theirs: SectorRatings): Duel[] {
 }
 
 /** Grobe Einschätzung aus Ballbesitz und Chancenverwertung, keine Simulation */
-export function verdict(d: Duel[]): { text: string; edge: number } {
+export function verdict(d: Duel[], central = 1 / 3): { text: string; edge: number } {
   const poss = d[0].share;
-  const attack = (d[1].share + d[2].share + d[3].share) / 3;
+  // Angriffe verteilt nach Taktik: central = Anteil durch die Mitte (Angriff über die Mitte/Flügel verschiebt ihn)
+  const attack = central * d[2].share + ((1 - central) / 2) * (d[1].share + d[3].share);
   const defence = (d[4].share + d[5].share + d[6].share) / 3;
   // Chancen für uns ~ Ballbesitz × Angriff, Chancen für sie ~ (1-Ballbesitz) × (1-Abwehrquote)
   const us = poss * attack;

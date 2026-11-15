@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { parseHoData, standings, upcomingMatches, roundOf } from "../src/core/hodata";
 import { project, weeklyIncrease, weeklyAgeDrop, outlookFor, skillsOf } from "../src/core/development";
 import { parseHrf } from "../src/core/hrf";
-import { defaultMatchSettings } from "../src/core/model";
+import { Tactic, defaultMatchSettings } from "../src/core/model";
+import { centralShare, loddarStats, settingsEffect, tacticLevel } from "../src/core/tactics";
 import { HATSTATS_OBJECTIVE, optimizeLineup } from "../src/core/optimizer";
 import { assessSectors } from "../src/core/weakness";
 import { duels, htToLevel, opponentProfile, verdict } from "../src/core/opponent";
@@ -177,5 +178,39 @@ describe("Kader-Gruppen und Aufstellungs-Editor", () => {
     expect(field.has(C.captainId)).toBe(true);
     expect(field.has(C.setPiecesId)).toBe(true);
     for (const id of Object.values(C.bench)) expect(field.has(id!)).toBe(false);
+  });
+});
+
+describe("Taktik und Einstellungen", () => {
+  const team = { teamSpirit: hrf.team.teamSpirit, confidence: hrf.team.confidence };
+  const L = optimizeLineup(hrf.players, defaultMatchSettings, team, {
+    minFormationExperience: 0,
+    formationExperience: hrf.team.formationExperience,
+    objective: HATSTATS_OBJECTIVE,
+    allowBruised: true,
+    tryBehaviours: false,
+  });
+  const byId = new Map(hrf.players.map((p) => [p.id, p]));
+  const field = L.lineup.positions.map((p) => ({ player: byId.get(p.playerId)!, role: p.role }));
+
+  it("Angriff über die Mitte lenkt mehr Angriffe durch die Mitte, über die Flügel weniger", () => {
+    const lvl = tacticLevel(field, Tactic.attackMiddle)!;
+    expect(lvl).toBeGreaterThan(0);
+    expect(centralShare(Tactic.normal, 1)).toBeCloseTo(0.37);
+    expect(centralShare(Tactic.attackMiddle, lvl)).toBeGreaterThan(0.57);
+    expect(centralShare(Tactic.attackWings, lvl)).toBeLessThan(0.17);
+  });
+  it("Wirkung gegenüber Normal: Kontern senkt das Mittelfeld, Normal ändert nichts", () => {
+    const none = settingsEffect(L.lineup.positions, byId, defaultMatchSettings, team);
+    expect(none.changed).toHaveLength(0);
+    expect(none.hatStatsNow).toBeCloseTo(none.hatStatsBase, 6);
+    const ca = settingsEffect(L.lineup.positions, byId, { ...defaultMatchSettings, tactic: Tactic.counter }, team);
+    expect(ca.sectors.find((s) => s.sector === "midfield")!.delta).toBeLessThan(0);
+    expect(ca.level).toBeGreaterThan(0);
+    expect(ca.changed[0]).toContain("Kontern");
+  });
+  it("LoddarStats steigen mit besseren Bewertungen", () => {
+    const better = Object.fromEntries(Object.entries(L.ratings).map(([k, v]) => [k, v + 1])) as typeof L.ratings;
+    expect(loddarStats(better, Tactic.normal, 1)).toBeGreaterThan(loddarStats(L.ratings, Tactic.normal, 1));
   });
 });

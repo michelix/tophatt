@@ -11,9 +11,10 @@ import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roun
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
 import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
-import { type GroupPlan, GROUP_SHORT, planSquad, squadGroups } from "../core/squad";
+import { type GroupPlan, GROUP_SHORT, fitTable, planSquad, squadGroups } from "../core/squad";
 import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
 import { behavioursFor } from "../core/optimizer";
+import { centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
 import { Behaviour, type FieldPosition } from "../core/model";
 import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 
@@ -414,10 +415,19 @@ function renderHero() {
     ${later.length ? `<div class="next-list">${later.map((x) => `<span class="chip">${fmtDate(x.date)} · ${esc(opp(x))}${x.type === 3 ? " · Pokal" : x.type !== 1 ? " · FS" : ""}</span>`).join("")}</div>` : ""}`;
 }
 
+/** Anteil der Angriffe durch die Mitte mit der gewählten Taktik (für den Gegner-Check) */
+function attackCentral(): number {
+  const byId = playersById();
+  const field = state.manual.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role }));
+  const c = centralShare(state.settings.tactic, tacticLevel(field, state.settings.tactic));
+  // auf drei Angriffswege umrechnen: normal 37 % Mitte entspricht einer gleichmäßigen Verteilung
+  return (c / 0.37) * (1 / 3);
+}
+
 function heroOpponentNote(name: string): string {
   const O = state.opponent;
   if (!O || !state.league) return `Stärke von ${esc(name)} ist noch nicht bekannt. In HO den Gegnercheck machen und TopHatt.bat starten.`;
-  const v = verdict(duels(state.league.ratings, O.average));
+  const v = verdict(duels(state.league.ratings, O.average), attackCentral());
   return `Gegen ${esc(name)}: <b>${esc(v.text)}</b> (aus ${O.matches.length} Spielen des Gegners).`;
 }
 
@@ -437,7 +447,7 @@ function renderOpponent() {
     return;
   }
   const D = duels(L.ratings, O.average);
-  const v = verdict(D);
+  const v = verdict(D, attackCentral());
   const cls = v.edge > 0.52 ? "ok" : "";
   const row = (d: (typeof D)[number]) => `<div class="duel" title="${esc(ratingLabel(d.ours))} gegen ${esc(ratingLabel(d.theirs))}">
       <div class="dl">${esc(d.label)}</div>
@@ -502,32 +512,105 @@ function manualEval() {
   return evaluatePositions(state.manual, playersById(), state.settings, teamState());
 }
 
+const initials = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+};
+
+const FIELD_LINES = `<svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+  <rect x="2" y="1.5" width="96" height="97" rx="0.5"/>
+  <path d="M2 1.5 H98"/><path d="M38 1.5 A12 9 0 0 0 62 1.5"/><circle class="dot" cx="50" cy="1.5" r="0.7"/>
+  <rect x="22" y="80" width="56" height="18.5"/><rect x="36" y="91.5" width="28" height="7"/>
+  <path d="M40 80 A11 6 0 0 1 60 80"/><circle class="dot" cx="50" cy="87.5" r="0.6"/>
+  <path d="M44 98.5 v1.2 h12 v-1.2"/>
+</svg>`;
+
 function editPitch(): string {
   const byId = playersById();
   const L = state.league!;
   const C = completeLineup(state.manual, state.hrf!.players, state.settings, $<HTMLInputElement>("#bruised").checked);
+  const fit = fitTable(state.hrf!.players);
   const pick = state.pick;
   const slots = Object.entries(GRID).map(([r, [row, col]]) => {
     const role = Number(r);
     const pos = state.manual.find((x) => x.role === role);
     const style = `grid-row:${row + 1};grid-column:${col + 1}`;
     const picked = pick?.kind === "slot" && pick.role === role ? " picked" : "";
-    if (!pos) return `<div class="slot empty${picked}" data-role="${role}" style="${style}"><div class="role">${ROLE_DE[role]}</div><div class="pname">frei</div></div>`;
+    if (!pos) return `<div class="slot empty${picked}" data-role="${role}" style="${style}"><div class="role">${ROLE_DE[role]}</div><div class="token">+</div><div class="pname">frei</div></div>`;
     const p = byId.get(pos.playerId);
     const auto = L.lineup.positions.find((x) => x.role === role);
     const changed = !auto || auto.playerId !== pos.playerId || auto.behaviour !== pos.behaviour;
     const opts = behavioursFor(role);
-    const tags = [pos.playerId === C.captainId ? `<span class="tag">C</span>` : "", pos.playerId === C.setPiecesId ? `<span class="tag">St</span>` : "", changed ? `<span class="tag train">geändert</span>` : ""].join("");
+    const tags = [pos.playerId === C.captainId ? `<span class="tag">C</span>` : "", pos.playerId === C.setPiecesId ? `<span class="tag">St</span>` : "", changed ? `<span class="tag train">neu</span>` : ""].join("");
     const warn = p && (p.injury === 0 || p.cards === 2 || p.stamina <= 5);
-    return `<div class="slot${picked}" draggable="true" data-role="${role}" data-pid="${pos.playerId}" style="${style}">
+    const g = lineupSector(role);
+    let fc = "fit-good";
+    if (p) {
+      const home = fit.home(p);
+      const gap = fit.rel(p, home) - fit.rel(p, g);
+      fc = home === g || gap < 0.1 ? "fit-good" : gap < 0.25 ? "fit-mid" : "fit-bad";
+    }
+    const ratingTitle = p ? `${p.name}: Positionsstärke ${playerPositionRating(p, role, pos.behaviour).toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${fc === "fit-good" ? "" : fc === "fit-mid" ? " · nicht ganz seine Position" : " · falsche Position"}` : "";
+    return `<div class="slot${picked}" draggable="true" data-role="${role}" data-pid="${pos.playerId}" style="${style}" title="${esc(ratingTitle)}">
       <button class="x" data-remove="${role}" title="Vom Feld nehmen" aria-label="Vom Feld nehmen">×</button>
-      <div class="role">${ROLE_DE[role]}</div>
-      <div class="pname"><span class="full">${esc(p?.name ?? "?")}</span><span class="last">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</span>${warn ? ` <span class="status warning"><i>!</i></span>` : ""}</div>
-      <div class="meta">${p ? `${playerPositionRating(p, role, pos.behaviour).toFixed(1)} · Form ${p.form} · Kond. ${p.stamina}` : ""} ${tags}</div>
+      <div class="role">${ROLE_DE[role]}${pos.behaviour ? ` · ${BEHAVIOUR_DE[pos.behaviour]}` : ""}</div>
+      <div class="token ${role === Role.keeper ? "gk " : ""}${fc}">${esc(initials(p?.name ?? "?"))}${p ? `<span class="stat">${playerPositionRating(p, role, pos.behaviour).toFixed(1)}</span>` : ""}${warn ? `<span class="warn">!</span>` : ""}</div>
+      <div class="pname">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
+      <div class="meta">Form ${p?.form ?? "-"} · Kond. ${p?.stamina ?? "-"} ${tags}</div>
       ${opts.length > 1 ? `<select data-behaviour="${role}" aria-label="Verhalten">${opts.map((b) => `<option value="${b}"${b === pos.behaviour ? " selected" : ""}>${BEHAVIOUR_DE[b] || "normal"}</option>`).join("")}</select>` : ""}
     </div>`;
   });
-  return `<div class="pitch-wrap"><div class="pitch edit">${slots.join("")}</div></div>`;
+  const mine = manualEval();
+  return `<div class="field">${FIELD_LINES}<div class="pitch edit">${slots.join("")}</div>
+    <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats</span><span>${state.manual.length}/11</span></div></div>
+    <p class="sub">Ring um das Trikot: grün = passende Position, gelb = geht, rot = falsche Position. Zahl = Positionsstärke.</p>`;
+}
+
+// --- Animation (FLIP): Spieler gleiten an ihre neue Position -----------------------------
+
+const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+function tokenRects(): Map<number, DOMRect> {
+  const m = new Map<number, DOMRect>();
+  document.querySelectorAll<HTMLElement>("#pitchOut .slot[data-pid]").forEach((el) => {
+    const t = el.querySelector(".token");
+    if (t) m.set(Number(el.dataset.pid), t.getBoundingClientRect());
+  });
+  document.querySelectorAll<HTMLElement>("#poolOut .pchip[data-pid]").forEach((el) => {
+    if (!m.has(Number(el.dataset.pid))) m.set(Number(el.dataset.pid), el.getBoundingClientRect());
+  });
+  return m;
+}
+
+function animateTokens(prev: Map<number, DOMRect>) {
+  if (reducedMotion() || !prev.size) return;
+  document.querySelectorAll<HTMLElement>("#pitchOut .slot[data-pid]").forEach((el) => {
+    const t = el.querySelector<HTMLElement>(".token");
+    if (!t) return;
+    const before = prev.get(Number(el.dataset.pid));
+    const now = t.getBoundingClientRect();
+    if (!before) {
+      t.classList.add("pop");
+      return;
+    }
+    const dx = before.left + before.width / 2 - (now.left + now.width / 2);
+    const dy = before.top + before.height / 2 - (now.top + now.height / 2);
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    t.animate?.([{ transform: `translate(${dx}px, ${dy}px) scale(1.1)` }, { transform: "none" }], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)" });
+  });
+}
+
+/** Einlaufen: Spieler laufen beim Öffnen der Seite von unten aufs Feld */
+function kickoffAnimation() {
+  if (reducedMotion()) return;
+  document.querySelectorAll<HTMLElement>("#pitchOut .slot[data-pid] .token").forEach((t, i) => {
+    t.animate?.([{ transform: "translateY(70px) scale(.5)", opacity: 0 }, { transform: "none", opacity: 1 }], {
+      duration: 520,
+      delay: 40 * i,
+      easing: "cubic-bezier(.2,.9,.3,1.2)",
+      fill: "backwards",
+    });
+  });
 }
 
 function poolHtml(): string {
@@ -567,8 +650,21 @@ function renderExplain() {
         E.formationMine !== E.formationAuto ? `Formation ${formationLabel(E.formationMine)} statt ${formationLabel(E.formationAuto)}.` : ""
       }</div>`;
   const big = [...E.sectors].filter((x) => Math.abs(x.delta) >= 0.1).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  const S = settingsEffect(state.manual, playersById(), state.settings, teamState());
+  const sBig = S.sectors.filter((x) => Math.abs(x.delta) >= 0.05);
+  const dh = S.hatStatsNow - S.hatStatsBase;
+  const settingsBlock = `<h3 style="margin-top:0">Wirkung von Taktik und Einstellung</h3>
+    ${
+      S.changed.length
+        ? `<div class="focus ${dh >= 0 && S.loddarNow >= S.loddarBase ? "ok" : ""}"><b>${esc(S.changed.join(", "))}</b> gegenüber Normal: HatStats ${S.hatStatsNow.toFixed(0)} statt ${S.hatStatsBase.toFixed(0)} (${dh >= 0 ? "+" : ""}${dh.toFixed(0)}), LoddarStats ${S.loddarNow.toFixed(1)} statt ${S.loddarBase.toFixed(1)}.</div>
+           ${sBig.length ? `<p>${sBig.map((x) => `<b>${esc(x.name)}</b> ${x.delta > 0 ? "+" : ""}${x.delta.toFixed(2)}`).join(", ")}.</p>` : `<p>Die Bewertungen der Mannschaftsteile ändern sich dadurch nicht.</p>`}`
+        : `<p>Taktik, Einstellung und Ausrichtung stehen auf Normal. Wähle oben eine andere Taktik, dann siehst du hier, was sie bringt oder kostet.</p>`
+    }
+    <ul>${S.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
+    <p class="sub">LoddarStats (aus HO) gewichten wie HatStats die Mannschaftsteile, berücksichtigen aber auch, wohin die Angriffe laufen und die Konterstärke. Höher ist besser.</p>`;
   $("#explainOut").innerHTML = `<div class="explain">
-    <h3 style="margin-top:0">Was sich ändert</h3>
+    ${settingsBlock}
+    <h3>Was sich gegenüber dem Vorschlag ändert</h3>
     ${head}
     ${big.length ? `<p>${big.map((x) => `<b>${esc(x.name)}</b> ${x.delta > 0 ? "steigt" : "sinkt"} von ${esc(ratingLabel(x.auto))} auf ${esc(ratingLabel(x.mine))}`).join("; ")}.</p>` : ""}
     <table class="cmp"><thead><tr><th>Mannschaftsteil</th><th class="num">Automatisch</th><th class="num">Deine</th><th class="num">Änderung</th></tr></thead><tbody>
@@ -586,7 +682,9 @@ function renderLineup() {
   const byId = playersById();
   const m = state.match;
   $("#lineupSub").textContent = m ? `für ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : "";
+  const prev = tokenRects();
   $("#pitchOut").innerHTML = editPitch();
+  animateTokens(prev);
   $("#poolOut").innerHTML = poolHtml();
   renderExplain();
   const C = completeLineup(state.manual, state.hrf!.players, state.settings, $<HTMLInputElement>("#bruised").checked);
@@ -599,6 +697,7 @@ function renderLineup() {
     <table><tbody>
       <tr><td class="muted">Formation</td><td><b>${formationLabel(formationCode(state.manual))}</b> <span class="muted">Erfahrung ${state.hrf!.team.formationExperience[formationCode(state.manual)] ?? 0}</span></td></tr>
       <tr><td class="muted">HatStats</td><td><b>${mine.hatStats.toFixed(0)}</b> <span class="muted">Ø über 90 Minuten</span></td></tr>
+      <tr><td class="muted">LoddarStats</td><td><b>${loddarStats(mine.ratings, state.settings.tactic, tacticLevel(state.manual.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role })), state.settings.tactic)).toFixed(1)}</b></td></tr>
       <tr><td class="muted">Kapitän</td><td>${esc(byId.get(C.captainId)?.name ?? "-")}</td></tr>
       <tr><td class="muted">Standards</td><td>${esc(byId.get(C.setPiecesId)?.name ?? "-")}</td></tr>
     </tbody></table>
@@ -657,6 +756,7 @@ function initEditor() {
     if (!el || !e.dataTransfer) return;
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", el.classList.contains("slot") ? `r:${el.dataset.role}` : `p:${el.dataset.pid}`);
+    requestAnimationFrame(() => el.classList.add("dragging"));
   });
   root.addEventListener("dragover", (e) => {
     const t = target(e);
@@ -666,6 +766,7 @@ function initEditor() {
     t.classList.add("over");
   });
   root.addEventListener("dragleave", (e) => target(e)?.classList.remove("over"));
+  root.addEventListener("dragend", () => root.querySelectorAll(".dragging, .over").forEach((x) => x.classList.remove("dragging", "over")));
   root.addEventListener("drop", (e) => {
     const t = target(e);
     if (!t) return;
@@ -1108,7 +1209,10 @@ function route() {
   if (!VIEWS.includes(v)) v = "spieltag";
   document.querySelectorAll<HTMLElement>("main [data-view]").forEach((el) => el.classList.toggle("show", el.dataset.view === v));
   document.querySelectorAll<HTMLElement>(".sidenav a").forEach((a) => a.classList.toggle("active", a.dataset.view === v));
-  if (v !== currentView) window.scrollTo(0, 0);
+  if (v !== currentView) {
+    window.scrollTo(0, 0);
+    if (v === "aufstellung") requestAnimationFrame(kickoffAnimation);
+  }
   currentView = v;
   closeMenu();
 }
@@ -1148,7 +1252,7 @@ function renderTiles() {
     const O = state.opponent;
     tiles.push(
       O
-        ? tile("gegner", "Gegner-Check", esc(verdict(duels(L.ratings, O.average)).text), `aus ${O.matches.length} Spielen des Gegners`)
+        ? tile("gegner", "Gegner-Check", esc(verdict(duels(L.ratings, O.average), attackCentral()).text), `aus ${O.matches.length} Spielen des Gegners`)
         : tile("gegner", "Gegner-Check", "keine Daten", "in HO den Gegnercheck machen"),
     );
   }
