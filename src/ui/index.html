@@ -9,7 +9,7 @@
 :root{
   color-scheme:light;
   --bg:#f3f4ef;--surface:#fcfcfb;--surface-2:#eef0ea;--ink:#141a16;--ink-2:#4b544e;--muted:#6f7872;--line:#dadfd7;
-  --brand:#1f4a2c;--brand-ink:#fff;--gold:#b58a12;--pitch:#e3eedf;--pitch-line:#c2d6bc;--grass-a:#3f8a3c;--grass-b:#47963f;--kit-a:#6a3a9c;--kit-b:#3f1f66;--kit-ink:#f3d77a;--gold-2:#f3d77a;
+  --brand:#1f4a2c;--brand-ink:#fff;--gold:#b58a12;--pitch:#e3eedf;--pitch-line:#c2d6bc;--grass-a:#3f8a3c;--grass-b:#47963f;--kit-a:#6a3a9c;--kit-b:#3f1f66;--kit-ink:#f3d77a;--gold-2:#f3d77a;--flow:#f3c84a;
   --good:#0ca30c;--warning:#fab219;--serious:#ec835a;--critical:#d03b3b;
   --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--grid:#e4e7e1;
   --hero-a:#1f4a2c;--hero-b:#163521;--hero-ink:#f4f6f1;--hero-muted:#b9c9bc;
@@ -17,14 +17,14 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   color-scheme:dark;
   --bg:#111412;--surface:#1a1a19;--surface-2:#222623;--ink:#f0efec;--ink-2:#c3c2b7;--muted:#9a9f99;--line:#2f3430;
-  --brand:#5fb874;--brand-ink:#0d130f;--gold:#e0b84a;--pitch:#17231a;--pitch-line:#2a3d2e;--grass-a:#25502a;--grass-b:#2b5a2f;--kit-a:#6a3a9c;--kit-b:#3f1f66;--kit-ink:#f3d77a;--gold-2:#f3d77a;
+  --brand:#5fb874;--brand-ink:#0d130f;--gold:#e0b84a;--pitch:#17231a;--pitch-line:#2a3d2e;--grass-a:#25502a;--grass-b:#2b5a2f;--kit-a:#6a3a9c;--kit-b:#3f1f66;--kit-ink:#f3d77a;--gold-2:#f3d77a;--flow:#f3c84a;
   --s1:#3987e5;--s2:#d95926;--s3:#199e70;--grid:#2a2e2b;
   --hero-a:#1b3a24;--hero-b:#122a19;--hero-ink:#f0efec;--hero-muted:#a9bbad;
 }}
 :root[data-theme="dark"]{
   color-scheme:dark;
   --bg:#111412;--surface:#1a1a19;--surface-2:#222623;--ink:#f0efec;--ink-2:#c3c2b7;--muted:#9a9f99;--line:#2f3430;
-  --brand:#5fb874;--brand-ink:#0d130f;--gold:#e0b84a;--pitch:#17231a;--pitch-line:#2a3d2e;--grass-a:#25502a;--grass-b:#2b5a2f;--kit-a:#6a3a9c;--kit-b:#3f1f66;--kit-ink:#f3d77a;--gold-2:#f3d77a;
+  --brand:#5fb874;--brand-ink:#0d130f;--gold:#e0b84a;--pitch:#17231a;--pitch-line:#2a3d2e;--grass-a:#25502a;--grass-b:#2b5a2f;--kit-a:#6a3a9c;--kit-b:#3f1f66;--kit-ink:#f3d77a;--gold-2:#f3d77a;--flow:#f3c84a;
   --s1:#3987e5;--s2:#d95926;--s3:#199e70;--grid:#2a2e2b;
   --hero-a:#1b3a24;--hero-b:#122a19;--hero-ink:#f0efec;--hero-muted:#a9bbad;
 }
@@ -229,7 +229,15 @@ main .tiles.show{display:grid}
 .member .inxi{font-size:10px;border:1px solid var(--brand);color:var(--brand);border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:1px}
 
 /* Aufstellungs-Editor */
-.editor-bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:14px 0 10px}
+.editor-bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:14px 0 10px}
+.editor{position:relative}
+svg.flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:visible}
+svg.flow path{fill:none;stroke:var(--flow);stroke-linecap:round;stroke-dasharray:7 7;animation:flow .7s linear infinite;filter:drop-shadow(0 0 3px rgba(0,0,0,.35))}
+svg.flow circle{fill:var(--flow);stroke:#fff;stroke-width:1.5}
+svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-order:stroke;stroke:#fff;stroke-width:3px}
+@keyframes flow{to{stroke-dashoffset:-14}}
+@media (prefers-reduced-motion:reduce){svg.flow path{animation:none}}
+.field .slot.flow-target .token{box-shadow:0 0 0 3px var(--flow),0 0 16px 4px rgba(243,215,122,.6)}
 .editor{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(240px,1fr);gap:16px;align-items:start}
 @media (max-width:860px){.editor{grid-template-columns:minmax(0,1fr)}}
 .pitch.edit .slot{cursor:grab;transition:outline-color .1s}
@@ -383,9 +391,10 @@ main .tiles.show{display:grid}
         <label>Ausrichtung<select id="style"><option value="-10">Defensiv</option><option value="-5">Eher defensiv</option><option value="0" selected>Ausgewogen</option><option value="5">Eher offensiv</option><option value="10">Offensiv</option></select></label>
       </div>
       <div class="editor-bar">
+        <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
         <button class="btn primary" id="autoFill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Automatisch aufstellen</button>
         <button class="btn" id="clearField">Feld leeren</button>
-        <span class="sub" id="editorHint">Spieler aus der Liste aufs Feld ziehen, auf dem Feld tauschen oder zurück in die Liste ziehen. Am Handy: Spieler antippen, dann Position antippen.</span>
+        <span class="sub" id="editorHint">Spieler aus der Liste aufs Feld ziehen, auf dem Feld tauschen oder zurück in die Liste ziehen. Antippen zeigt Linien zu den passenden Positionen (dicker = besser), dann Position antippen.</span>
       </div>
       <div class="editor">
         <div id="pitchOut"></div>
