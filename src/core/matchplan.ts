@@ -48,6 +48,17 @@ function rng(seed: number) {
 }
 
 const ratio = (a: number, b: number) => (a + b > 0 ? a / (a + b) : 0.5);
+/** HO rechnet mit den Hattrick-Zahlen (1 = katastrophal (sehr niedrig) … 80), nicht mit Stufen; TopHatt-Stufe → Hattrick-Zahl */
+const ht = (level: number) => Math.max(1, 4 * level - 3);
+const toHt = (r: SectorRatings): SectorRatings => ({
+  midfield: ht(r.midfield),
+  defenceLeft: ht(r.defenceLeft),
+  defenceCentral: ht(r.defenceCentral),
+  defenceRight: ht(r.defenceRight),
+  attackLeft: ht(r.attackLeft),
+  attackCentral: ht(r.attackCentral),
+  attackRight: ht(r.attackRight),
+});
 
 interface Game {
   poss: number;
@@ -93,6 +104,8 @@ const scores = (g: Game, where: 0 | 1 | 2, r: () => number) => Math.floor(r() * 
  */
 export function predict(us: Side, them: Side, n = 3000, seed = 7): Prediction {
   const r = rng(seed);
+  us = { ...us, ratings: toHt(us.ratings) };
+  them = { ...them, ratings: toHt(them.ratings) };
   const a = game(us, them);
   const b = game(them, us);
   const caUs = counterActions(us, them);

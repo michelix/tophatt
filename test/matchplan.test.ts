@@ -19,4 +19,15 @@ describe("Spielvorhersage", () => {
     expect(p.win).toBeGreaterThan(0.8);
     expect(p.goalsFor).toBeGreaterThan(p.goalsAgainst);
   });
+  it("stimmt mit HOs Simulation überein (Hartplatz gegen BF, HO: 88 % / 9 % / 2 %, mit Kontern gleich)", () => {
+    const R = (m: number, dl: number, dc: number, dr: number, al: number, ac: number, ar: number) => ({ midfield: m, defenceLeft: dl, defenceCentral: dc, defenceRight: dr, attackLeft: al, attackCentral: ac, attackRight: ar });
+    const hart = R(7.75, 8.25, 9.25, 8.25, 5.5, 4.75, 5.5);
+    const bf = R(4.0, 7.25, 6.75, 6.75, 5.0, 5.5, 6.75);
+    for (const [tactic, level] of [[Tactic.normal, null], [Tactic.counter, 6]] as const) {
+      const p = predict({ ratings: hart, tactic: Tactic.normal, level: null }, { ratings: bf, tactic, level }, 20000);
+      expect(p.win).toBeCloseTo(0.88, 1);
+      expect(p.draw).toBeCloseTo(0.09, 1);
+      expect(p.loss).toBeLessThan(0.04);
+    }
+  });
 });
