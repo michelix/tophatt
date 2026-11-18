@@ -16,6 +16,10 @@ const ho = parseHoData(readFileSync("test/fixtures/tophatt-data.json", "utf8"));
 const hrf = parseHrf(readFileSync("test/fixtures/team.hrf", "utf8"));
 
 describe("HO-Daten", () => {
+  it("kennt die Herkunft der Trainingswochen und die Co-Trainer aus der HRF", () => {
+    expect(ho.futureTraining.every((t) => [1, 2, 3].includes(t.source))).toBe(true);
+    expect(hrf.team.assistantsLevel).toBeGreaterThanOrEqual(-1);
+  });
   it("findet das nächste Ligaspiel und den Spielplan", () => {
     const up = upcomingMatches(ho, new Date("2026-11-18T12:00:00"));
     expect(up[0].awayId === ho.teamId || up[0].homeId === ho.teamId).toBe(true);

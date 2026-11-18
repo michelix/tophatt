@@ -261,16 +261,22 @@ function readSettings() {
   };
 }
 
+/**
+ * Training für die Prognose. Maßgeblich ist das aktuelle Training aus dem HO-Download (HRF). Ein Wochenplan
+ * aus HO zählt nur, wenn er dort von Hand eingetragen wurde; die von HO geschätzten Wochen bleiben auf dem
+ * Stand, an dem sie angelegt wurden, und würden ein umgestelltes Training überdecken.
+ */
 function trainingSetup(): TrainingSetup {
   const hrf = state.hrf!;
   const ho = state.ho;
-  const planned = ho?.futureTraining.find((t) => t.type >= 0) ?? [...(ho?.training ?? [])].reverse().find((t) => t.type >= 0);
+  const manual = ho?.futureTraining.find((t) => t.type >= 0 && t.source === 2);
+  const measured = [...(ho?.training ?? [])].reverse().find((t) => t.type >= 0 && t.source === 1 && t.coachLevel > 0);
   return {
-    type: planned?.type ?? hrf.team.trainingType,
-    intensity: planned?.intensity || hrf.team.trainingLevel || 100,
-    staminaShare: planned?.staminaShare ?? hrf.team.staminaTrainingPart ?? 15,
-    coachLevel: planned?.coachLevel || 6,
-    assistantsLevel: planned?.assistantsLevel ?? 0,
+    type: manual?.type ?? hrf.team.trainingType,
+    intensity: manual?.intensity || hrf.team.trainingLevel || 100,
+    staminaShare: manual?.staminaShare ?? hrf.team.staminaTrainingPart ?? 15,
+    coachLevel: measured?.coachLevel || 6,
+    assistantsLevel: hrf.team.assistantsLevel >= 0 ? hrf.team.assistantsLevel : (measured?.assistantsLevel ?? 0),
   };
 }
 

@@ -83,6 +83,7 @@ export function parseHrf(text: string): Hrf {
   const xtra = get("xtra");
   const economy = get("economy");
   const lineup = get("lineup");
+  const club = get("club");
 
   const formationExperience: Record<string, number> = {};
   for (const [k, v] of team) {
@@ -105,6 +106,7 @@ export function parseHrf(text: string): Hrf {
     trainingTypeName: str(team, "trtype"),
     trainingLevel: num(team, "trlevel"),
     staminaTrainingPart: num(team, "staminatrainingpart"),
+    assistantsLevel: num(club, "hjtranare", -1),
     formationExperience,
     trainerId,
     cash: num(economy, "cash") / currencyRate,
