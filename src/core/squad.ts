@@ -234,3 +234,40 @@ export function planSquad(players: Player[], lineup: Lineup, projection: (p: Pla
     return { group: g, name: GROUP_DE[g], needed: needed.get(g)!, horizons: hs, severity, note: notes.join(" ") };
   });
 }
+
+/**
+ * Ausgewogene Zuordnung für die Kaderansicht. Stammspieler (aus der Aufstellung) stehen dort, wo sie spielen.
+ * Danach bekommt jede Gruppe je Platz einen Ersatz. Maßstab ist die Stärke relativ zum Durchschnitt der
+ * Stammspieler dieser Gruppe, also „wie nah kommt er an die, die dort spielen“, nicht relativ zum Einzelbesten
+ * des Kaders; so drängt ein Ausreißer (z. B. Verteidiger mit Flügelspiel 10) nicht alle anderen aus der Gruppe.
+ * Wer danach übrig ist, steht in seiner relativ stärksten Gruppe.
+ */
+export function balancedHome(players: Player[], starters: Map<number, LineupSector>): Map<number, LineupSector> {
+  const needed = Object.fromEntries(GROUPS.map((g) => [g, 0])) as Record<LineupSector, number>;
+  for (const g of starters.values()) needed[g]++;
+  const val = new Map(players.map((p) => [p.id, Object.fromEntries(GROUPS.map((g) => [g, groupValue(p, g)])) as Record<LineupSector, number>]));
+  const ref = Object.fromEntries(
+    GROUPS.map((g) => {
+      const st = players.filter((p) => starters.get(p.id) === g).map((p) => val.get(p.id)![g]);
+      const top = st.length ? st : players.map((p) => val.get(p.id)![g]).sort((a, b) => b - a).slice(0, 2);
+      return [g, Math.max(1e-6, top.reduce((s, v) => s + v, 0) / top.length)];
+    }),
+  ) as Record<LineupSector, number>;
+  const rel = (p: Player, g: LineupSector) => val.get(p.id)![g] / ref[g];
+  const out = new Map<number, LineupSector>();
+  const backups = Object.fromEntries(GROUPS.map((g) => [g, 0])) as Record<LineupSector, number>;
+  for (const p of players) if (starters.has(p.id)) out.set(p.id, starters.get(p.id)!);
+  const pairs = players
+    .filter((p) => !out.has(p.id))
+    .flatMap((p) => GROUPS.filter((g) => needed[g] > 0).map((g) => ({ p, g, r: rel(p, g) })))
+    .sort((a, b) => b.r - a.r);
+  for (const { p, g, r } of pairs) {
+    if (out.has(p.id) || backups[g] >= needed[g]) continue;
+    // nur zuordnen, wenn die Gruppe für ihn nicht deutlich schlechter ist als seine beste
+    if (r < 0.8 * Math.max(...GROUPS.map((x) => rel(p, x)))) continue;
+    out.set(p.id, g);
+    backups[g]++;
+  }
+  for (const p of players) if (!out.has(p.id)) out.set(p.id, GROUPS.reduce((a, b) => (rel(p, b) > rel(p, a) ? b : a)));
+  return out;
+}

@@ -4,14 +4,14 @@ import { DATA_FILE, type DirHandle, askPermission, chooseFolder, fileByName, fol
 import { parseHrf, writeLineupToHrf } from "../core/hrf";
 import { Attitude, Location, Role, Tactic, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
 import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
-import { RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
+import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
 import { TRAININGS, planFriendly, trainingFor, trainingPriority, type FriendlyPlan } from "../core/training";
 import { advise, type Advice } from "../core/advisor";
 import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
 import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
-import { type GroupPlan, GROUPS, GROUP_DE, GROUP_SHORT, GROUP_SKILLS, availability, fitTable, groupValue, planSquad, squadGroups, staminaShare } from "../core/squad";
+import { type GroupPlan, GROUPS, GROUP_DE, GROUP_SHORT, GROUP_SKILLS, availability, balancedHome, fitTable, groupValue, planSquad, squadGroups, staminaShare } from "../core/squad";
 import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
 import { FORMATIONS, behavioursFor } from "../core/optimizer";
 import { centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
@@ -1583,7 +1583,7 @@ function renderTiles() {
 
 const SKILL_SHORT: Record<string, string> = { keeper: "TW", defending: "VE", playmaking: "SA", winger: "FL", passing: "PS", scoring: "TS", setPieces: "ST" };
 
-let groupMode: "best" | "lineup" = "best";
+let groupMode: "balanced" | "best" | "lineup" = "balanced";
 
 /**
  * Kader nach Mannschaftsteilen, jeder Spieler genau einmal: in seiner besten Gruppe oder (Option) dort,
@@ -1594,7 +1594,12 @@ function renderGroups() {
   const inLineup = new Map(state.manual.map((p) => [p.playerId, lineupSector(p.role)]));
   const fit = fitTable(players);
   const groupMax = new Map(GROUPS.map((g) => [g, Math.max(1e-6, ...players.map((p) => groupValue(p, g)))]));
-  const home = (p: Player) => (groupMode === "lineup" && inLineup.has(p.id) ? inLineup.get(p.id)! : fit.home(p));
+  const field = state.manual.length ? state.manual : (state.league?.lineup.positions ?? []);
+  const needed = Object.fromEntries(GROUPS.map((g) => [g, 0])) as Record<LineupSector, number>;
+  for (const pos of field) needed[lineupSector(pos.role)]++;
+  const balanced = balancedHome(players, new Map(field.map((pos) => [pos.playerId, lineupSector(pos.role)])));
+  const home = (p: Player) =>
+    groupMode === "lineup" && inLineup.has(p.id) ? inLineup.get(p.id)! : groupMode === "balanced" ? balanced.get(p.id)! : fit.home(p);
   const rows = players.map((p) => {
     const g = home(p);
     const av = availability(p);
@@ -1604,8 +1609,19 @@ function renderGroups() {
     const alts = GROUPS.filter((x) => x !== g && fit.rel(p, x) >= 0.7 && fit.rel(p, x) >= 0.85 * fit.rel(p, best))
       .sort((a, b) => fit.rel(p, b) - fit.rel(p, a))
       .slice(0, 3);
-    return { p, g, value, score: value * st * av.factor, share: (value * st * av.factor) / groupMax.get(g)!, stamina: st, av, alts, plays: inLineup.has(p.id), offPos: groupMode === "lineup" && inLineup.has(p.id) && best !== g };
+    return { p, g, value, score: value * st * av.factor, share: (value * st * av.factor) / groupMax.get(g)!, stamina: st, av, alts, plays: inLineup.has(p.id), offPos: groupMode !== "best" && inLineup.has(p.id) && fit.rel(p, g) < 0.8 * fit.rel(p, best) };
   });
+  // bester Aushilfskandidat aus einer anderen Gruppe, gemessen an den Stammspielern dieser Gruppe
+  const stand = (g: LineupSector) => {
+    const st = rows.filter((r) => r.g === g && r.plays).map((r) => groupValue(r.p, g));
+    if (!st.length) return "";
+    const avg = st.reduce((a, v) => a + v, 0) / st.length;
+    const c = rows
+      .filter((r) => r.g !== g && !r.plays && r.av.factor > 0)
+      .map((r) => ({ r, v: groupValue(r.p, g) }))
+      .sort((a, b) => b.v - a.v)[0];
+    return c ? ` Bester Aushelfer: ${esc(c.r.p.name)} (${GROUP_SHORT[c.r.g]}), ${Math.round((c.v / avg) * 100)} % der Stammspieler hier.` : "";
+  };
   const member = (m: (typeof rows)[number]) => {
     const p = m.p;
     const off = m.av.factor === 0;
@@ -1617,17 +1633,23 @@ function renderGroups() {
       <div class="attrs">${GROUP_SKILLS[m.g].map((k) => `<span>${SKILL_SHORT[k]} <b>${p[k]}</b></span>`).join("")}<span>Form <b>${p.form}</b></span><span>Kond. <b>${p.stamina}</b></span>${p.cards ? `<span>Gelb <b>${p.cards}</b></span>` : ""}${status}${alts}</div>
     </div>`;
   };
+  const fm = formationLabel(formationCode(state.manual.length ? state.manual : (state.league?.lineup.positions ?? [])));
   const intro =
-    groupMode === "best"
-      ? "Jeder Spieler steht einmal, in seiner besten Gruppe (gemessen am Besten des Kaders dort)."
-      : "Jeder Spieler steht einmal: wer in deiner Aufstellung spielt, dort, wo er spielt; alle anderen in ihrer besten Gruppe.";
-  $("#groupsOut").innerHTML = `<div class="controls"><div class="seg" role="tablist" aria-label="Zuordnung"><button data-gmode="best" class="${groupMode === "best" ? "on" : ""}">Beste Position</button><button data-gmode="lineup" class="${groupMode === "lineup" ? "on" : ""}">Wie aufgestellt</button></div></div>
+    groupMode === "balanced"
+      ? `Jeder Spieler steht einmal. Ausgewogen: deine Stammelf (${fm}) steht, wo sie spielt; dazu bekommt jede Gruppe je Platz einen Ersatz, gemessen daran, wie nah er an die Stammspieler dort herankommt. Übrige Spieler stehen in ihrer stärksten Gruppe.`
+      : groupMode === "best"
+        ? "Jeder Spieler steht einmal, in der Gruppe, in der er dem Kaderbesten am nächsten kommt. Ein Ausreißer (z. B. ein Verteidiger mit Flügelspiel 10) kann dabei alle anderen aus einer Gruppe drängen."
+        : "Jeder Spieler steht einmal: wer in deiner Aufstellung spielt, dort, wo er spielt; alle anderen in ihrer besten Gruppe.";
+  $("#groupsOut").innerHTML = `<div class="controls"><div class="seg" role="tablist" aria-label="Zuordnung"><button data-gmode="balanced" class="${groupMode === "balanced" ? "on" : ""}">Ausgewogen</button><button data-gmode="best" class="${groupMode === "best" ? "on" : ""}">Beste Position</button><button data-gmode="lineup" class="${groupMode === "lineup" ? "on" : ""}">Wie aufgestellt</button></div></div>
     <p class="sub">${intro} Balken = Positionsstärke × Kondition × Verfügbarkeit, relativ zum Kaderbesten in dieser Gruppe. „auch“ = Gruppen, in denen er fast genauso gut ist. Verletzte und Gesperrte stehen durchgestrichen am Ende.</p>
     <div class="groups">${GROUPS.map((g) => {
       const ms = rows.filter((r) => r.g === g).sort((a, b) => (groupMode === "lineup" ? Number(b.plays) - Number(a.plays) : 0) || b.score - a.score || b.value - a.value);
       const ready = ms.filter((m) => m.av.factor > 0).length;
       const playing = ms.filter((m) => m.plays).length;
-      return `<div class="group"><h3>${esc(GROUP_DE[g])}<span class="sub">${ready} einsatzbereit${playing ? ` · ${playing} spielen` : ""}</span></h3>
+      const need = needed[g];
+      const thin = need > 0 && ready < need * 2;
+      return `<div class="group${thin ? " thin" : ""}"><h3>${esc(GROUP_DE[g])}<span class="sub">${ready} einsatzbereit${need ? ` · ${need} ${need === 1 ? "Platz" : "Plätze"}` : ""}${playing ? ` · ${playing} spielen` : ""}</span></h3>
+        ${thin ? `<div class="thin-note">Dünn besetzt: ${ready} einsatzbereit für ${need} ${need === 1 ? "Platz" : "Plätze"} (Ziel: ${need * 2} mit Ersatz).${stand(g)}</div>` : ""}
         <div class="keys">Wichtig: ${GROUP_SKILLS[g].map((k) => DEV_SKILL_DE[k]).join(", ")}</div>
         ${ms.map(member).join("") || '<p class="sub">Niemand mit dieser Stärke im Kader.</p>'}
       </div>`;
