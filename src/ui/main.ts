@@ -3,8 +3,8 @@
 import { DATA_FILE, type DirHandle, askPermission, chooseFolder, fileByName, folderApiAvailable, hasPermission, newestFile, storedFolder } from "./folder";
 import { parseHrf, writeLineupToHrf } from "../core/hrf";
 import { Attitude, Location, Role, Tactic, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
-import { HATSTATS_OBJECTIVE, formationLabel, optimizeLineup, type OptimizeResult } from "../core/optimizer";
-import { type RatingSector, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
+import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
+import { RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
 import { TRAININGS, planFriendly, trainingFor, trainingPriority, type FriendlyPlan } from "../core/training";
 import { advise, type Advice } from "../core/advisor";
 import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
@@ -117,7 +117,9 @@ interface State {
   pick: { kind: "pool"; id: number } | { kind: "slot"; role: number } | null;
   /** gewählte Formation im Editor ("" = beste) und die beste Aufstellung je Formation */
   formation: string;
-  formations: { code: string; hatStats: number; experience: number; positions: FieldPosition[] }[];
+  formations: { code: string; hatStats: number; experience: number; positions: FieldPosition[]; ratings: SectorRatings }[];
+  /** Grundlage der Schwachstellen: "mine" (Aufstellungsseite), "auto" oder ein Formationscode */
+  weakBasis: string;
   /** Spieler, für den die Linien zu passenden Positionen gezeigt werden */
   flowPid: number | null;
   plans: GroupPlan[];
@@ -144,6 +146,7 @@ const state: State = {
   pick: null,
   formation: "",
   formations: [],
+  weakBasis: "mine",
   flowPid: null,
   plans: [],
   profiles: [],
@@ -345,7 +348,6 @@ function render() {
   renderTiles();
   renderOpponent();
   renderLineup();
-  renderWeakness();
   renderDevelopment();
   renderPlan();
   renderSchedule();
@@ -539,7 +541,7 @@ function bestPerFormation(codes: readonly string[]) {
         tryBehaviours: false,
         formations: [f],
       });
-      out.push({ code: f, hatStats: r.hatStats, experience: hrf.team.formationExperience[f] ?? 0, positions: r.lineup.positions });
+      out.push({ code: f, hatStats: r.hatStats, experience: hrf.team.formationExperience[f] ?? 0, positions: r.lineup.positions, ratings: r.ratings });
     } catch {
       /* zu wenige Spieler für diese Formation */
     }
@@ -555,6 +557,7 @@ function scheduleFormations() {
     if (!state.hrf) return;
     state.formations = bestPerFormation(FORMATIONS);
     renderFormationPick();
+    renderWeakness();
   }, 30);
 }
 
@@ -907,6 +910,21 @@ function editorChanged() {
   state.manualEdited = true;
   state.pick = null;
   renderLineup();
+  renderWeakness();
+}
+
+function initWeakness() {
+  $("#weakBasis").addEventListener("change", () => {
+    state.weakBasis = $<HTMLSelectElement>("#weakBasis").value;
+    renderWeakness();
+  });
+  $("#weakOut").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-weakbasis]");
+    if (!b) return;
+    state.weakBasis = b.dataset.weakbasis!;
+    renderWeakness();
+    $("#schwachstellen").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 function initEditor() {
@@ -1042,9 +1060,67 @@ function initEditor() {
 const STATUS_LABEL = { critical: ["!", "Schwach"], warning: ["–", "Ausbaufähig"], good: ["✓", "Solide"], serious: ["↓", ""] } as const;
 const statusChip = (cls: "good" | "warning" | "serious" | "critical", label: string, icon: string) => `<span class="status ${cls}"><i>${icon}</i>${esc(label)}</span>`;
 
+/** Grundlage der Schwachstellen: eigene Elf, automatischer Vorschlag oder beste Elf einer Formation */
+function weakBasis(): { label: string; positions: FieldPosition[]; ratings: SectorRatings; formation: string } | null {
+  const L = state.league;
+  if (!L) return null;
+  const b = state.weakBasis;
+  if (b === "mine" && state.manual.length === 11) {
+    return { label: "deiner Aufstellung", positions: state.manual, ratings: manualEval().ratings, formation: formationCode(state.manual) };
+  }
+  const f = state.formations.find((x) => x.code === b);
+  if (f) return { label: `der besten Elf im ${formationLabel(f.code)}`, positions: f.positions, ratings: f.ratings, formation: f.code };
+  return { label: "dem automatischen Vorschlag", positions: L.lineup.positions, ratings: L.ratings, formation: L.lineup.formation };
+}
+
+function renderWeakBasisPick() {
+  const sel = document.querySelector<HTMLSelectElement>("#weakBasis");
+  if (!sel) return;
+  const exp = state.hrf?.team.formationExperience ?? {};
+  const mine = state.manual.length === 11 ? ` (${formationLabel(formationCode(state.manual))})` : " (unvollständig, nutzt Vorschlag)";
+  sel.innerHTML =
+    `<option value="mine">Meine Aufstellung${mine}</option><option value="auto">Automatischer Vorschlag${state.league ? ` (${formationLabel(state.league.lineup.formation)})` : ""}</option>` +
+    FORMATIONS.filter((f) => state.formations.some((x) => x.code === f))
+      .map((f) => `<option value="${f}">Formation ${formationLabel(f)} · Erfahrung ${exp[f] ?? 0}</option>`)
+      .join("");
+  sel.value = state.weakBasis;
+  if (sel.value !== state.weakBasis) sel.value = "mine";
+}
+
+/** Vergleich aller Formationen: Bewertung je Mannschaftsteil der jeweils besten Elf */
+function formationCompareHtml(current: string): string {
+  if (!state.formations.length) return `<p class="sub">Formationen werden berechnet …</p>`;
+  const exp = state.hrf?.team.formationExperience ?? {};
+  const rows = [...state.formations].sort((a, b) => b.hatStats - a.hatStats);
+  const colMax = Object.fromEntries(RATING_SECTORS.map((k) => [k, Math.max(...rows.map((r) => r.ratings[k]))])) as Record<RatingSector, number>;
+  const colMin = Object.fromEntries(RATING_SECTORS.map((k) => [k, Math.min(...rows.map((r) => r.ratings[k]))])) as Record<RatingSector, number>;
+  const cell = (r: (typeof rows)[number], k: RatingSector) => {
+    const span = colMax[k] - colMin[k];
+    const q = span < 0.05 ? 0.5 : (r.ratings[k] - colMin[k]) / span;
+    const avg = RATING_SECTORS.reduce((s, x) => s + r.ratings[x], 0) / RATING_SECTORS.length;
+    const weak = r.ratings[k] - avg <= (k === "midfield" ? -1 / 1.3 : -1);
+    return `<td class="num heat${weak ? " weakcell" : ""}" style="--q:${q.toFixed(2)}" title="${esc(ratingLabel(r.ratings[k]))}">${r.ratings[k].toFixed(2)}</td>`;
+  };
+  const SHORT: Record<RatingSector, string> = {
+    defenceRight: "Abw. r", defenceCentral: "Abw. z", defenceLeft: "Abw. l", midfield: "Mittelf.", attackRight: "Angr. r", attackCentral: "Angr. z", attackLeft: "Angr. l",
+  };
+  return `<div class="scroll"><table class="nowrap fcmp"><thead><tr><th>Formation</th><th class="num">Erfahrung</th><th class="num">HatStats</th>${RATING_SECTORS.map((k) => `<th class="num">${SHORT[k]}</th>`).join("")}</tr></thead><tbody>
+    ${rows
+      .map(
+        (r) => `<tr class="${r.code === current ? "cur" : ""}"><td><button class="linklike" data-weakbasis="${r.code}">${formationLabel(r.code)}</button></td>
+        <td class="num">${exp[r.code] ?? 0}${(exp[r.code] ?? 0) < 6 ? ' <span class="warnmark" title="Unter 6 droht Desorganisation">⚠</span>' : ""}</td>
+        <td class="num"><b>${r.hatStats.toFixed(0)}</b></td>${RATING_SECTORS.map((k) => cell(r, k)).join("")}</tr>`,
+      )
+      .join("")}
+  </tbody></table></div>
+  <p class="sub">Je Formation die beste Elf aus deinem Kader mit den Einstellungen der Aufstellungsseite. Grün = bester Wert dieser Spalte, rot umrandet = Schwachstelle in dieser Formation. ⚠ = Erfahrung unter 6, die Formation muss erst trainiert werden (Freundschaftsspiele in dieser Formation). Klick auf eine Formation zeigt oben ihre Schwachstellen.</p>`;
+}
+
 function renderWeakness() {
-  const W = state.weak;
-  if (!W.length) return;
+  const B = weakBasis();
+  if (!B || !state.hrf) return;
+  renderWeakBasisPick();
+  const W = assessSectors(state.hrf.players, { positions: B.positions } as Lineup, B.ratings, state.settings, teamState());
   const max = Math.max(8, ...W.map((w) => w.rating));
   const avg = W.reduce((s, w) => s + w.rating, 0) / W.length;
   const worst = [...W].sort((a, b) => a.delta - b.delta).filter((w) => w.severity !== "good");
@@ -1064,8 +1140,11 @@ function renderWeakness() {
       ${w.severity !== "good" ? `<div class="advice">${esc(ratingLabel(w.rating))}. ${esc(w.advice)}</div>` : ""}
     </div>`;
   }).join("");
-  $("#weakOut").innerHTML = `${focus}<div class="bars">${rows}</div>
-    <p class="sub" style="margin-top:12px">Senkrechter Strich = Durchschnitt (${avg.toFixed(2)}). Das Mittelfeld zählt in den HatStats dreifach und entscheidet über den Ballbesitz, deshalb wird es strenger bewertet.</p>`;
+  const exp = state.hrf.team.formationExperience[B.formation] ?? 0;
+  const basisNote = `<p class="sub">Grundlage: ${esc(B.label)}, Formation ${formationLabel(B.formation)} (Erfahrung ${exp}), ${hatStatsOf(B.ratings).toFixed(0)} HatStats.${state.weakBasis === "mine" && state.manual.length < 11 ? " Deine Aufstellung hat noch keine 11 Spieler, deshalb wird der Vorschlag gezeigt." : ""}</p>`;
+  $("#weakOut").innerHTML = `${basisNote}${focus}<div class="bars">${rows}</div>
+    <p class="sub" style="margin-top:12px">Senkrechter Strich = Durchschnitt (${avg.toFixed(2)}). Das Mittelfeld zählt in den HatStats dreifach und entscheidet über den Ballbesitz, deshalb wird es strenger bewertet.</p>
+    <h3>Welche Formation gleicht die Schwachstellen aus?</h3>${formationCompareHtml(B.formation)}`;
 }
 
 // --- Entwicklung ------------------------------------------------------------------
@@ -1406,6 +1485,7 @@ function route() {
   if (v !== currentView) {
     window.scrollTo(0, 0);
     if (v === "aufstellung") requestAnimationFrame(kickoffAnimation);
+    if (v === "schwachstellen") renderWeakness(); // eigene Aufstellung kann sich geändert haben
   }
   currentView = v;
   closeMenu();
@@ -1598,6 +1678,7 @@ function init() {
     download(completeLineup(state.manual, state.hrf.players, state.settings, $<HTMLInputElement>("#bruised").checked), "liga");
   });
   initEditor();
+  initWeakness();
   initNav();
   $("#dlFriendly").addEventListener("click", () => state.friendly && download(state.friendly.lineup, "freundschaft"));
   // Countdown und Datenstand jede Minute auffrischen
