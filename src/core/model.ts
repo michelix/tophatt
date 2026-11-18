@@ -61,6 +61,8 @@ export interface TeamInfo {
   trainingTypeName: string;
   trainingLevel: number;
   staminaTrainingPart: number;
+  /** Summe der Co-Trainer-Stufen (hjTranare), -1 = unbekannt */
+  assistantsLevel: number;
   /** Formationserfahrung, Schlüssel z. B. "442" */
   formationExperience: Record<string, number>;
   trainerId: number;

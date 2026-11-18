@@ -70,6 +70,8 @@ export interface TrainingWeek {
   staminaShare: number;
   coachLevel: number;
   assistantsLevel: number;
+  /** Herkunft laut HO: 1 = HRF-Download, 2 = von Hand geplant, 3 = von HO geschätzt */
+  source: number;
 }
 
 export interface HoData {
@@ -168,6 +170,7 @@ export function parseHoData(json: string): HoData {
         staminaShare: n(r.stamina_share),
         coachLevel: n(r.coach_level),
         assistantsLevel: n(r.training_assistants_level),
+        source: n(r.source, 1),
       }))
       .sort((a, z) => a.date.getTime() - z.date.getTime());
 
