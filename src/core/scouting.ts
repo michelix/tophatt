@@ -54,6 +54,10 @@ export interface Budget {
   available: number;
 }
 
+/**
+ * @param cash Kontostand; besser der erwartete Kontostand zum Wochenende (HRF ExpectedCash), denn Käufe
+ *   dieser Woche sind im Kontostand der HRF noch nicht abgezogen.
+ */
 export function budget(players: Player[], cash: number): Budget {
   const weeklyWages = players.reduce((s, p) => s + p.salary, 0);
   const reserve = weeklyWages * 5;

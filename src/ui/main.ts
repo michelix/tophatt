@@ -301,12 +301,10 @@ function compute() {
     scheduleFormations();
     if (!state.manualEdited) state.manual = formationPositions();
     state.friendly = planFriendly(hrf.players, state.league.lineup, hrf.team.trainingType, $<HTMLInputElement>("#bruised").checked);
-    state.advice = advise(hrf.players, state.league.lineup, state.settings, team, hrf.team.trainingType);
-    state.weak = assessSectors(hrf.players, state.league.lineup, state.league.ratings, state.settings, team);
     state.setup = trainingSetup();
     state.outlooks = new Map(hrf.players.map((p) => [p.id, outlookFor(p, startSkills(p), state.setup!, trainingShare(p.id))]));
     state.plans = planSquad(hrf.players, state.league.lineup, (p) => project(startSkills(p), p.age, p.ageDays, state.setup!, trainingShare(p.id), 32));
-    state.profiles = searchProfiles(hrf.players, state.weak, state.plans);
+    updateAnalysis();
     const m = state.match;
     state.opponent = m && state.ho ? opponentProfile(state.ho.matchRatings, m.homeId === hrf.team.teamId ? m.awayId : m.homeId) : null;
     $("#error").textContent = "";
@@ -557,6 +555,10 @@ function scheduleFormations() {
     if (!state.hrf) return;
     state.formations = bestPerFormation(FORMATIONS);
     renderFormationPick();
+    if (state.weakBasis !== "mine" && state.weakBasis !== "auto") {
+      updateAnalysis();
+      renderAdvice();
+    }
     renderWeakness();
   }, 30);
 }
@@ -916,13 +918,15 @@ function editorChanged() {
 function initWeakness() {
   $("#weakBasis").addEventListener("change", () => {
     state.weakBasis = $<HTMLSelectElement>("#weakBasis").value;
-    renderWeakness();
+    updateAnalysis();
+    render();
   });
   $("#weakOut").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-weakbasis]");
     if (!b) return;
     state.weakBasis = b.dataset.weakbasis!;
-    renderWeakness();
+    updateAnalysis();
+    render();
     $("#schwachstellen").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
@@ -1060,6 +1064,22 @@ function initEditor() {
 const STATUS_LABEL = { critical: ["!", "Schwach"], warning: ["–", "Ausbaufähig"], good: ["✓", "Solide"], serious: ["↓", ""] } as const;
 const statusChip = (cls: "good" | "warning" | "serious" | "critical", label: string, icon: string) => `<span class="status ${cls}"><i>${icon}</i>${esc(label)}</span>`;
 
+/**
+ * Schwachstellen, Verstärkungs-Hebel und Suchprofile für dieselbe Grundlage wie die Schwachstellen-Seite
+ * (Standard: deine Aufstellung), damit Transfers und Schwachstellen zusammenpassen.
+ */
+function updateAnalysis() {
+  const hrf = state.hrf;
+  const B = weakBasis();
+  if (!hrf || !B) return;
+  const team = teamState();
+  state.weak = assessSectors(hrf.players, { positions: B.positions } as Lineup, B.ratings, state.settings, team);
+  const weakSet = new Set(state.weak.filter((w) => w.severity !== "good").map((w) => w.sector));
+  const lineup = B.positions === state.league!.lineup.positions ? state.league!.lineup : { positions: B.positions, bench: completeLineup(B.positions, hrf.players, state.settings, $<HTMLInputElement>("#bruised").checked).bench };
+  state.advice = advise(hrf.players, lineup, state.settings, team, hrf.team.trainingType, weakSet);
+  state.profiles = searchProfiles(hrf.players, state.weak, state.plans);
+}
+
 /** Grundlage der Schwachstellen: eigene Elf, automatischer Vorschlag oder beste Elf einer Formation */
 function weakBasis(): { label: string; positions: FieldPosition[]; ratings: SectorRatings; formation: string } | null {
   const L = state.league;
@@ -1120,7 +1140,7 @@ function renderWeakness() {
   const B = weakBasis();
   if (!B || !state.hrf) return;
   renderWeakBasisPick();
-  const W = assessSectors(state.hrf.players, { positions: B.positions } as Lineup, B.ratings, state.settings, teamState());
+  const W = state.weak;
   const max = Math.max(8, ...W.map((w) => w.rating));
   const avg = W.reduce((s, w) => s + w.rating, 0) / W.length;
   const worst = [...W].sort((a, b) => a.delta - b.delta).filter((w) => w.severity !== "good");
@@ -1393,7 +1413,8 @@ function renderAdvice() {
   const A = state.advice;
   if (!A) return;
   const hrf = state.hrf!;
-  const B = budget(hrf.players, hrf.team.cash);
+  const cash = hrf.team.expectedCash ?? hrf.team.cash;
+  const B = budget(hrf.players, cash);
   const euro = (v: number) => `${Math.round(v).toLocaleString("de-DE")} €`;
   const profiles = state.profiles.length
     ? `<div class="profiles">${state.profiles
@@ -1406,7 +1427,11 @@ function renderAdvice() {
         )
         .join("")}</div>
       <p class="sub">Werte so im Transfermarkt eintragen (Fertigkeit von/bis, Alter von/bis). Hauptfertigkeit zwei Stufen über dem schwächsten Stammspieler, weil gekaufte Spieler anfangs keine Treue haben. ${
-        B.cash > 0 ? `Budget = Kontostand ${euro(B.cash)} minus fünf Wochen Gehälter (${euro(B.reserve)}).` : "Kontostand ist in der Datei nicht enthalten, deshalb ohne Budget."
+        B.cash > 0
+          ? hrf.team.expectedCash !== null
+            ? `Budget = erwarteter Kontostand zum Wochenende ${euro(B.cash)} (Kontostand ${euro(hrf.team.cash)}${hrf.team.costsBoughtPlayers > 0 ? `, Käufe dieser Woche ${euro(hrf.team.costsBoughtPlayers)}` : ""}) minus fünf Wochen Gehälter (${euro(B.reserve)}).`
+            : `Budget = Kontostand ${euro(B.cash)} minus fünf Wochen Gehälter (${euro(B.reserve)}).`
+          : "Kontostand ist in der Datei nicht enthalten, deshalb ohne Budget."
       }</p>`
     : `<p class="focus ok">Kein dringender Transferbedarf: keine deutliche Schwachstelle und keine Lücke in der Kaderplanung.</p>`;
   $("#adviceOut").innerHTML = `
@@ -1414,10 +1439,10 @@ function renderAdvice() {
     ${profiles}
     ${A.summary.map((s) => `<p class="focus ok">${esc(s)}</p>`).join("")}
     <h3>Wo eine Verstärkung am meisten bringt</h3>
-    <div class="scroll"><table class="nowrap"><thead><tr><th>Position</th><th>Fertigkeit</th><th>Spielt jetzt</th><th class="num">+1 Stufe</th><th class="num">+2 Stufen</th></tr></thead><tbody>
-    ${A.upgrades.map((u) => `<tr><td>${u.position}</td><td>${u.skill}</td><td>${esc(u.currentPlayer)}</td><td class="num">+${u.gainPlus1.toFixed(1)}</td><td class="num">+${u.gainPlus2.toFixed(1)}</td></tr>`).join("")}
+    <div class="scroll"><table class="nowrap"><thead><tr><th>Position</th><th>Fertigkeit</th><th>Spielt jetzt</th><th class="num">+1 Stufe</th><th class="num">+2 Stufen</th><th>Hilft bei Schwachstelle</th></tr></thead><tbody>
+    ${A.upgrades.map((u) => `<tr><td>${u.position}</td><td>${u.skill}</td><td>${esc(u.currentPlayer)}</td><td class="num">+${u.gainPlus1.toFixed(1)}</td><td class="num">+${u.gainPlus2.toFixed(1)}</td><td>${u.helps.length ? esc(u.helps.join(", ")) : '<span class="muted">nein</span>'}</td></tr>`).join("")}
     </tbody></table></div>
-    <p class="sub">Zuwachs an HatStats, wenn auf dieser Position ein sonst gleicher Spieler mit höherer Fertigkeit stünde. Gekaufte Spieler haben anfangs keine Treue, sie brauchen deshalb etwa eine Stufe mehr.</p>
+    <p class="sub">Zuwachs an HatStats, wenn auf dieser Position ein sonst gleicher Spieler mit höherer Fertigkeit stünde. Sortiert nach dem Zuwachs in den Schwachstellen (gleiche Grundlage wie die Seite Schwachstellen). Ein Torwart oder Innenverteidiger hebt alle drei Abwehrteile gleichzeitig und hat deshalb oft viele HatStats, hilft aber nur, wenn die Abwehr eine Schwachstelle ist. Gekaufte Spieler haben anfangs keine Treue, sie brauchen deshalb etwa eine Stufe mehr.</p>
     <h3>Verkauf prüfen</h3>
     <ul>${A.sellCandidates.map((s) => `<li><b>${esc(s.name)}</b>: ${esc(s.reason)}</li>`).join("") || "<li>Niemand auffällig.</li>"}</ul>
     <h3>Trainingskandidaten</h3>
@@ -1485,7 +1510,13 @@ function route() {
   if (v !== currentView) {
     window.scrollTo(0, 0);
     if (v === "aufstellung") requestAnimationFrame(kickoffAnimation);
-    if (v === "schwachstellen") renderWeakness(); // eigene Aufstellung kann sich geändert haben
+    // eigene Aufstellung kann sich geändert haben
+    if (v === "schwachstellen" || v === "transfers" || v === "spieltag") {
+      updateAnalysis();
+      renderWeakness();
+      renderAdvice();
+      renderTiles();
+    }
   }
   currentView = v;
   closeMenu();

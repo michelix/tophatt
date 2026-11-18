@@ -67,6 +67,10 @@ export interface TeamInfo {
   formationExperience: Record<string, number>;
   trainerId: number;
   cash: number;
+  /** erwarteter Kontostand zum Ende der Woche (inkl. Käufen/Verkäufen dieser Woche), null = unbekannt */
+  expectedCash: number | null;
+  /** Ausgaben für gekaufte Spieler in dieser Woche */
+  costsBoughtPlayers: number;
   hrfDate: string;
 }
 
