@@ -140,6 +140,14 @@ details > summary{cursor:pointer;color:var(--ink-2);font-weight:600;margin:10px 
 .advice{font-size:13px;color:var(--ink-2);grid-column:2 / -1;margin-top:-4px}
 .focus{border-left:4px solid var(--critical);background:var(--surface-2);border-radius:8px;padding:10px 14px;margin:6px 0 14px}
 .focus.ok{border-left-color:var(--good)}
+.mplan{border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:10px;padding:12px 14px;margin:4px 0 14px;background:var(--surface-2)}
+.mplan h3{margin:0 0 6px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.mplan .reco{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:6px 0}
+.mplan .reco b{font-size:15px}
+.mplan .wdl{display:flex;height:12px;border-radius:4px;overflow:hidden;min-width:180px;flex:1;max-width:320px}
+.mplan .wdl i{display:block}.mplan .wdl .w{background:var(--good)}.mplan .wdl .d{background:var(--warning)}.mplan .wdl .l{background:var(--critical)}
+.mplan details{margin-top:6px}.mplan table{font-size:13px}
+.mplan .applied{color:var(--good);font-weight:600}
 table.fcmp td.heat{background:color-mix(in srgb,var(--good) calc(var(--q)*38%),transparent)}
 table.fcmp td.weakcell{box-shadow:inset 0 0 0 2px var(--critical)}
 table.fcmp tr.cur td{font-weight:700}table.fcmp tr.cur td:first-child{border-left:3px solid var(--brand)}
@@ -403,6 +411,7 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
         <label>Einstellung<select id="attitude"><option value="0">Normal</option><option value="1">Spiel des Jahres</option><option value="-1">Nicht so ernst nehmen</option></select></label>
         <label>Ausrichtung<select id="style"><option value="-10">Defensiv</option><option value="-5">Eher defensiv</option><option value="0" selected>Ausgewogen</option><option value="5">Eher offensiv</option><option value="10">Offensiv</option></select></label>
       </div>
+      <div id="matchPlanOut"></div>
       <div class="editor-bar">
         <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
         <button class="btn primary" id="autoFill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Automatisch aufstellen</button>

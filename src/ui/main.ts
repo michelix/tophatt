@@ -3,7 +3,7 @@
 import { DATA_FILE, type DirHandle, askPermission, chooseFolder, fileByName, folderApiAvailable, hasPermission, newestFile, storedFolder } from "./folder";
 import { parseHrf, writeLineupToHrf } from "../core/hrf";
 import { Attitude, Location, Role, Tactic, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
-import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
+import { Evaluator, HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
 import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
 import { TRAININGS, planFriendly, trainingFor, trainingPriority, type FriendlyPlan } from "../core/training";
 import { advise, type Advice } from "../core/advisor";
@@ -11,10 +11,11 @@ import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roun
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
 import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
+import { planMatch, styleName, type MatchPlan } from "../core/matchplan";
 import { type GroupPlan, GROUPS, GROUP_DE, GROUP_SHORT, GROUP_SKILLS, availability, balancedHome, fitTable, groupValue, planSquad, squadGroups, staminaShare } from "../core/squad";
 import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
 import { FORMATIONS, behavioursFor } from "../core/optimizer";
-import { centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
+import { ATTITUDE_NAME, TACTIC_NAME, centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
 import { Behaviour, type FieldPosition } from "../core/model";
 import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 
@@ -840,6 +841,88 @@ function renderExplain() {
   </div>`;
 }
 
+let planKey = "";
+let planCache: { plan: MatchPlan; oppLabel: string } | null = null;
+
+/** Gegner für die Vorhersage: Profil aus dem Gegnercheck, sonst typischer Ligagegner aus allen bekannten Spielen */
+function planOpponent(): { ratings: SectorRatings; tactic: number; label: string; known: boolean } | null {
+  const O = state.opponent;
+  const m = state.match;
+  const teamId = state.hrf!.team.teamId;
+  const name = m ? (m.homeId === teamId ? m.awayName : m.homeName) : "Gegner";
+  if (O) return { ratings: O.average, tactic: O.tactic, label: `${name} (Ø aus ${O.matches.length} Spielen)`, known: true };
+  // nur Teams der eigenen Liga, sonst verzerren Gegner aus anderen Ligen (z. B. aus dem Gegnercheck) den Schnitt
+  const league = new Set(state.ho ? standings(state.ho).map((t) => t.teamId) : []);
+  const rs = (state.ho?.matchRatings ?? []).filter((r) => r.teamId !== teamId && r.type === 1 && league.has(r.teamId));
+  // erst ab drei verschiedenen Ligateams ist der Schnitt aussagekräftig
+  if (new Set(rs.map((r) => r.teamId)).size < 3) return null;
+  const avg = {} as SectorRatings;
+  for (const k of RATING_SECTORS) avg[k] = rs.reduce((a, r) => a + r.ratings[k], 0) / rs.length;
+  return { ratings: avg, tactic: Tactic.normal, label: `typischer Gegner deiner Liga (keine Daten zu ${name})`, known: false };
+}
+
+/** ohne Gegnerdaten: ein gleich starker Gegner (deine Elf mit Normal/ausgewogen) */
+function mirrorOpponent(positions: FieldPosition[]): { ratings: SectorRatings; tactic: number; label: string; known: boolean } | null {
+  const byId = playersById();
+  const field = positions.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role, behaviour: p.behaviour }));
+  if (field.length < 11) return null;
+  const ratings = new Evaluator({ ...state.settings, tactic: Tactic.normal, styleOfPlay: 0, attitude: Attitude.normal }, teamState()).ratings(field);
+  return { ratings, tactic: Tactic.normal, label: "einen gleich starken Gegner (keine Gegnerdaten)", known: false };
+}
+
+function renderMatchPlan() {
+  const out = document.querySelector<HTMLElement>("#matchPlanOut");
+  if (!out || !state.hrf) return;
+  const positions = state.manual.length === 11 ? state.manual : (state.league?.lineup.positions ?? []);
+  if (positions.length < 11) {
+    out.innerHTML = "";
+    return;
+  }
+  const opp = planOpponent() ?? mirrorOpponent(positions);
+  if (!opp) {
+    out.innerHTML = "";
+    return;
+  }
+  const key = JSON.stringify([positions.map((p) => [p.playerId, p.role, p.behaviour]), state.settings.location, opp.label, opp.ratings]);
+  if (key !== planKey) {
+    planKey = key;
+    const cup = state.match ? state.match.type === 3 : false;
+    planCache = { plan: planMatch(positions, playersById(), state.settings, teamState(), { ratings: opp.ratings, tactic: opp.tactic, level: 8 }, { cup }), oppLabel: opp.label };
+  }
+  const { plan: P, oppLabel } = planCache!;
+  const b = P.best;
+  const pr = b.prediction;
+  const pct = (x: number) => `${Math.round(x * 100)} %`;
+  const applied =
+    state.settings.tactic === b.settings.tactic && state.settings.styleOfPlay === b.settings.styleOfPlay && state.settings.attitude === P.attitude.advice;
+  const row = (o: MatchPlan["options"][number]) =>
+    `<tr${o === b ? ' class="cur"' : ""}><td>${esc(o.label)}</td><td class="num">${pct(o.prediction.win)}</td><td class="num">${pct(o.prediction.draw)}</td><td class="num">${pct(o.prediction.loss)}</td><td class="num">${o.prediction.goalsFor.toFixed(1)} : ${o.prediction.goalsAgainst.toFixed(1)}</td><td class="num">${o.prediction.points.toFixed(2)}</td><td class="num">${o.hatStats.toFixed(0)}</td></tr>`;
+  out.innerHTML = `<div class="mplan">
+    <h3>Empfehlung für dieses Spiel <span class="sub">gegen ${esc(oppLabel)}</span></h3>
+    ${opp.known ? "" : `<p class="sub">Für eine echte Empfehlung in HO den Gegnercheck machen, TopHatt.bat starten und „Aktualisieren“ klicken.</p>`}
+    <div class="reco">
+      <span>Taktik <b>${esc(TACTIC_NAME[b.settings.tactic])}</b></span>
+      <span>Ausrichtung <b>${esc(styleName(b.settings.styleOfPlay))}</b></span>
+      <span>Einstellung <b>${esc(ATTITUDE_NAME[P.attitude.advice])}</b></span>
+      ${applied ? '<span class="applied">✓ eingestellt</span>' : '<button class="btn primary" id="applyPlan">Übernehmen</button>'}
+    </div>
+    <div class="reco"><div class="wdl" title="Sieg ${pct(pr.win)}, Remis ${pct(pr.draw)}, Niederlage ${pct(pr.loss)}"><i class="w" style="width:${pr.win * 100}%"></i><i class="d" style="width:${pr.draw * 100}%"></i><i class="l" style="width:${pr.loss * 100}%"></i></div>
+      <span>Sieg <b>${pct(pr.win)}</b> · Remis ${pct(pr.draw)} · Niederlage ${pct(pr.loss)} · Tore ${pr.goalsFor.toFixed(1)} : ${pr.goalsAgainst.toFixed(1)}</span></div>
+    <ul class="sub" style="margin:4px 0 0 18px;padding:0">${[...P.notes, P.attitude.text].map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+    <details><summary>Alle Varianten (${P.options.length})</summary>
+      <div class="scroll"><table class="nowrap"><thead><tr><th>Taktik, Ausrichtung</th><th class="num">Sieg</th><th class="num">Remis</th><th class="num">Niederl.</th><th class="num">Tore</th><th class="num">Punkte</th><th class="num">HatStats</th></tr></thead><tbody>${P.options.map(row).join("")}</tbody></table></div>
+      <p class="sub">Simulation nach HOs Spielvorhersage (10 Angriffe, Ballbesitz aus dem Mittelfeld, Torchance aus Angriff gegen Abwehr, Konter), je 3000 Spiele. Grundlage: deine aktuelle Elf und der gewählte Spielort; Pressing, Kreativ und Fernschüsse sind in diesem Modell nicht abgebildet.</p>
+    </details>
+  </div>`;
+  document.querySelector("#applyPlan")?.addEventListener("click", () => {
+    $<HTMLSelectElement>("#tactic").value = String(b.settings.tactic);
+    $<HTMLSelectElement>("#style").value = String(b.settings.styleOfPlay);
+    $<HTMLSelectElement>("#attitude").value = String(P.attitude.advice);
+    compute();
+    toast("Empfohlene Einstellungen übernommen.");
+  });
+}
+
 function renderLineup() {
   const L = state.league;
   if (!L) return;
@@ -848,6 +931,7 @@ function renderLineup() {
   $("#lineupSub").textContent = m ? `für ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : "";
   const prev = tokenRects();
   renderFormationPick();
+  renderMatchPlan();
   $("#pitchOut").innerHTML = editPitch();
   animateTokens(prev);
   drawFlow();
