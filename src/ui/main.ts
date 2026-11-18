@@ -3,7 +3,7 @@
 import { DATA_FILE, type DirHandle, askPermission, chooseFolder, fileByName, folderApiAvailable, hasPermission, newestFile, storedFolder } from "./folder";
 import { parseHrf, writeLineupToHrf } from "../core/hrf";
 import { Attitude, Location, Role, Tactic, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
-import { Evaluator, HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
+import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
 import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
 import { TRAININGS, planFriendly, trainingFor, trainingPriority, type FriendlyPlan } from "../core/training";
 import { advise, type Advice } from "../core/advisor";
@@ -11,7 +11,7 @@ import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roun
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
 import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
-import { planMatch, styleName, type MatchPlan } from "../core/matchplan";
+import { MODELLED_TACTICS, evaluateSettings, planMatch, styleName, type MatchPlan } from "../core/matchplan";
 import { type GroupPlan, GROUPS, GROUP_DE, GROUP_SHORT, GROUP_SKILLS, availability, balancedHome, fitTable, groupValue, planSquad, squadGroups, staminaShare } from "../core/squad";
 import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
 import { FORMATIONS, behavioursFor } from "../core/optimizer";
@@ -861,15 +861,6 @@ function planOpponent(): { ratings: SectorRatings; tactic: number; label: string
   return { ratings: avg, tactic: Tactic.normal, label: `typischer Gegner deiner Liga (keine Daten zu ${name})`, known: false };
 }
 
-/** ohne Gegnerdaten: ein gleich starker Gegner (deine Elf mit Normal/ausgewogen) */
-function mirrorOpponent(positions: FieldPosition[]): { ratings: SectorRatings; tactic: number; label: string; known: boolean } | null {
-  const byId = playersById();
-  const field = positions.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role, behaviour: p.behaviour }));
-  if (field.length < 11) return null;
-  const ratings = new Evaluator({ ...state.settings, tactic: Tactic.normal, styleOfPlay: 0, attitude: Attitude.normal }, teamState()).ratings(field);
-  return { ratings, tactic: Tactic.normal, label: "einen gleich starken Gegner (keine Gegnerdaten)", known: false };
-}
-
 function renderMatchPlan() {
   const out = document.querySelector<HTMLElement>("#matchPlanOut");
   if (!out || !state.hrf) return;
@@ -878,40 +869,59 @@ function renderMatchPlan() {
     out.innerHTML = "";
     return;
   }
-  const opp = planOpponent() ?? mirrorOpponent(positions);
+  const m = state.match;
+  const oppName = m ? (m.homeId === state.hrf.team.teamId ? m.awayName : m.homeName) : "den Gegner";
+  const opp = planOpponent();
   if (!opp) {
-    out.innerHTML = "";
+    planKey = "";
+    out.innerHTML = `<div class="mplan">
+      <h3>Taktik-Empfehlung <span class="sub">gegen ${esc(oppName)}</span></h3>
+      <p><b>Keine Empfehlung möglich, weil die Stärke von ${esc(oppName)} unbekannt ist.</b> Welche Taktik und Ausrichtung am besten ist, hängt fast nur davon ab, wo der Gegner stärker oder schwächer ist als du. Bis dahin ist Normal, ausgewogen, Einstellung Normal die sichere Wahl.</p>
+      <p class="sub">So bekommst du eine Empfehlung: in HO den Gegnercheck für ${esc(oppName)} machen, TopHatt.bat starten und „Aktualisieren“ klicken.</p>
+    </div>`;
     return;
   }
+  const byId = playersById();
+  const oppSide = { ratings: opp.ratings, tactic: opp.tactic, level: 8 };
   const key = JSON.stringify([positions.map((p) => [p.playerId, p.role, p.behaviour]), state.settings.location, opp.label, opp.ratings]);
   if (key !== planKey) {
     planKey = key;
-    const cup = state.match ? state.match.type === 3 : false;
-    planCache = { plan: planMatch(positions, playersById(), state.settings, teamState(), { ratings: opp.ratings, tactic: opp.tactic, level: 8 }, { cup }), oppLabel: opp.label };
+    const cup = m ? m.type === 3 : false;
+    planCache = { plan: planMatch(positions, byId, state.settings, teamState(), oppSide, { cup }), oppLabel: opp.label };
   }
   const { plan: P, oppLabel } = planCache!;
   const b = P.best;
-  const pr = b.prediction;
+  const s = state.settings;
+  const cur = (MODELLED_TACTICS as number[]).includes(s.tactic) ? evaluateSettings(positions, byId, s, teamState(), oppSide) : null;
   const pct = (x: number) => `${Math.round(x * 100)} %`;
-  const applied =
-    state.settings.tactic === b.settings.tactic && state.settings.styleOfPlay === b.settings.styleOfPlay && state.settings.attitude === P.attitude.advice;
+  const isActive = (o: MatchPlan["options"][number]) => o.settings.tactic === s.tactic && o.settings.styleOfPlay === s.styleOfPlay;
+  const applied = s.tactic === b.settings.tactic && s.styleOfPlay === b.settings.styleOfPlay && s.attitude === P.attitude.advice;
+  const bar = (pr: MatchPlan["best"]["prediction"]) =>
+    `<div class="wdl" title="Sieg ${pct(pr.win)}, Remis ${pct(pr.draw)}, Niederlage ${pct(pr.loss)}"><i class="w" style="width:${pr.win * 100}%"></i><i class="d" style="width:${pr.draw * 100}%"></i><i class="l" style="width:${pr.loss * 100}%"></i></div>
+     <div class="sub">Sieg <b>${pct(pr.win)}</b> · Remis ${pct(pr.draw)} · Niederlage ${pct(pr.loss)} · Tore ${pr.goalsFor.toFixed(1)} : ${pr.goalsAgainst.toFixed(1)} · ${pr.points.toFixed(2)} Punkte</div>`;
+  const settingsLine = (tactic: number, style: number, att: number) =>
+    `<div class="mp-set"><span>Taktik <b>${esc(TACTIC_NAME[tactic])}</b></span><span>Ausrichtung <b>${esc(styleName(style))}</b></span><span>Einstellung <b>${esc(ATTITUDE_NAME[att])}</b></span></div>`;
+  const recoPred = P.attitude.advice === 0 ? b.prediction : evaluateSettings(positions, byId, { ...b.settings, attitude: P.attitude.advice as MatchSettings["attitude"] }, teamState(), oppSide).prediction;
   const row = (o: MatchPlan["options"][number]) =>
-    `<tr${o === b ? ' class="cur"' : ""}><td>${esc(o.label)}</td><td class="num">${pct(o.prediction.win)}</td><td class="num">${pct(o.prediction.draw)}</td><td class="num">${pct(o.prediction.loss)}</td><td class="num">${o.prediction.goalsFor.toFixed(1)} : ${o.prediction.goalsAgainst.toFixed(1)}</td><td class="num">${o.prediction.points.toFixed(2)}</td><td class="num">${o.hatStats.toFixed(0)}</td></tr>`;
+    `<tr class="${o === b ? "reco-row" : ""} ${isActive(o) ? "active-row" : ""}"><td>${esc(o.label)}${o === b ? ' <span class="mp-tag reco">empfohlen</span>' : ""}${isActive(o) ? ' <span class="mp-tag act">eingestellt</span>' : ""}</td><td class="num">${pct(o.prediction.win)}</td><td class="num">${pct(o.prediction.draw)}</td><td class="num">${pct(o.prediction.loss)}</td><td class="num">${o.prediction.goalsFor.toFixed(1)} : ${o.prediction.goalsAgainst.toFixed(1)}</td><td class="num">${o.prediction.points.toFixed(2)}</td><td class="num">${o.hatStats.toFixed(0)}</td></tr>`;
   out.innerHTML = `<div class="mplan">
-    <h3>Empfehlung für dieses Spiel <span class="sub">gegen ${esc(oppLabel)}</span></h3>
-    ${opp.known ? "" : `<p class="sub">Für eine echte Empfehlung in HO den Gegnercheck machen, TopHatt.bat starten und „Aktualisieren“ klicken.</p>`}
-    <div class="reco">
-      <span>Taktik <b>${esc(TACTIC_NAME[b.settings.tactic])}</b></span>
-      <span>Ausrichtung <b>${esc(styleName(b.settings.styleOfPlay))}</b></span>
-      <span>Einstellung <b>${esc(ATTITUDE_NAME[P.attitude.advice])}</b></span>
-      ${applied ? '<span class="applied">✓ eingestellt</span>' : '<button class="btn primary" id="applyPlan">Übernehmen</button>'}
+    <h3>Taktik-Empfehlung <span class="sub">gegen ${esc(oppLabel)}</span></h3>
+    ${opp.known ? "" : `<p class="sub warn-note">Geschätzt: Zu ${esc(oppName)} gibt es keine Daten, gerechnet wird mit dem Schnitt deiner Liga. Für eine echte Empfehlung in HO den Gegnercheck machen und „Aktualisieren“ klicken.</p>`}
+    <div class="mp-cols">
+      <div class="mp-box ${applied ? "same" : ""}"><div class="mp-head">Jetzt eingestellt</div>
+        ${settingsLine(s.tactic, s.styleOfPlay, s.attitude)}
+        ${cur ? bar(cur.prediction) : `<p class="sub">${esc(TACTIC_NAME[s.tactic])} kann das Spielmodell nicht bewerten.</p>`}
+      </div>
+      <div class="mp-box reco"><div class="mp-head">Empfehlung ${applied ? '<span class="applied">✓ ist eingestellt</span>' : ""}</div>
+        ${settingsLine(b.settings.tactic, b.settings.styleOfPlay, P.attitude.advice)}
+        ${bar(recoPred)}
+        ${applied ? "" : `<button class="btn primary" id="applyPlan">Empfehlung übernehmen</button>`}
+      </div>
     </div>
-    <div class="reco"><div class="wdl" title="Sieg ${pct(pr.win)}, Remis ${pct(pr.draw)}, Niederlage ${pct(pr.loss)}"><i class="w" style="width:${pr.win * 100}%"></i><i class="d" style="width:${pr.draw * 100}%"></i><i class="l" style="width:${pr.loss * 100}%"></i></div>
-      <span>Sieg <b>${pct(pr.win)}</b> · Remis ${pct(pr.draw)} · Niederlage ${pct(pr.loss)} · Tore ${pr.goalsFor.toFixed(1)} : ${pr.goalsAgainst.toFixed(1)}</span></div>
-    <ul class="sub" style="margin:4px 0 0 18px;padding:0">${[...P.notes, P.attitude.text].map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
-    <details><summary>Alle Varianten (${P.options.length})</summary>
-      <div class="scroll"><table class="nowrap"><thead><tr><th>Taktik, Ausrichtung</th><th class="num">Sieg</th><th class="num">Remis</th><th class="num">Niederl.</th><th class="num">Tore</th><th class="num">Punkte</th><th class="num">HatStats</th></tr></thead><tbody>${P.options.map(row).join("")}</tbody></table></div>
-      <p class="sub">Simulation nach HOs Spielvorhersage (10 Angriffe, Ballbesitz aus dem Mittelfeld, Torchance aus Angriff gegen Abwehr, Konter), je 3000 Spiele. Grundlage: deine aktuelle Elf und der gewählte Spielort; Pressing, Kreativ und Fernschüsse sind in diesem Modell nicht abgebildet.</p>
+    <ul class="sub mp-notes">${[...P.notes, P.attitude.text].map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+    <details><summary>Alle Varianten vergleichen (${P.options.length})</summary>
+      <div class="scroll"><table class="nowrap mp-table"><thead><tr><th>Taktik, Ausrichtung</th><th class="num">Sieg</th><th class="num">Remis</th><th class="num">Niederl.</th><th class="num">Tore</th><th class="num">Punkte</th><th class="num">HatStats</th></tr></thead><tbody>${P.options.map(row).join("")}</tbody></table></div>
+      <p class="sub">Berechnet von TopHatt mit HOs Spielvorhersage (10 Angriffe, Ballbesitz aus dem Mittelfeld, Torchance aus Angriff gegen Abwehr, Konter), je 3000 simulierte Spiele, alle mit Einstellung Normal. Pressing, Kreativ und Fernschüsse bildet das Modell nicht ab.</p>
     </details>
   </div>`;
   document.querySelector("#applyPlan")?.addEventListener("click", () => {

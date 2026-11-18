@@ -168,6 +168,21 @@ const pct = (x: number) => `${Math.round(x * 100)} %`;
  * erwarteten Punkten ordnen. Einstellung (Spiel des Jahres / Nicht so ernst nehmen) wird getrennt bewertet,
  * weil sie die Stimmung der folgenden Wochen verändert.
  */
+const fieldOf = (positions: FieldPosition[], byId: Map<number, Player>) =>
+  positions.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role, behaviour: p.behaviour }));
+
+/** Taktiken, die das Spielmodell abbildet (Pressing, Kreativ und Fernschüsse nicht) */
+export const MODELLED_TACTICS = [Tactic.normal, Tactic.counter, Tactic.attackMiddle, Tactic.attackWings];
+
+/** eine Einstellung mit der gegebenen Elf gegen den Gegner bewerten */
+export function evaluateSettings(positions: FieldPosition[], byId: Map<number, Player>, settings: MatchSettings, team: TeamState, opponent: Side): PlanOption {
+  const field = fieldOf(positions, byId);
+  const ratings = new Evaluator(settings, team).ratings(field);
+  const level = settings.tactic === Tactic.normal ? null : tacticLevel(field, settings.tactic);
+  const prediction = predict({ ratings, tactic: settings.tactic, level }, opponent);
+  return { settings, ratings, hatStats: hatStatsOf(ratings), level, prediction, label: `${TACTIC_NAME[settings.tactic]}, ${styleName(settings.styleOfPlay)}` };
+}
+
 export function planMatch(
   positions: FieldPosition[],
   byId: Map<number, Player>,
@@ -176,15 +191,9 @@ export function planMatch(
   opponent: Side,
   opts: { cup?: boolean } = {},
 ): MatchPlan {
-  const field = positions.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role, behaviour: p.behaviour }));
-  const tactics = [Tactic.normal, Tactic.counter, Tactic.attackMiddle, Tactic.attackWings];
+  const tactics = MODELLED_TACTICS;
   const styles = [-10, -5, 0, 5, 10];
-  const evalOption = (settings: MatchSettings): PlanOption => {
-    const ratings = new Evaluator(settings, team).ratings(field);
-    const level = settings.tactic === Tactic.normal ? null : tacticLevel(field, settings.tactic);
-    const prediction = predict({ ratings, tactic: settings.tactic, level }, opponent);
-    return { settings, ratings, hatStats: hatStatsOf(ratings), level, prediction, label: `${TACTIC_NAME[settings.tactic]}, ${styleName(settings.styleOfPlay)}` };
-  };
+  const evalOption = (settings: MatchSettings): PlanOption => evaluateSettings(positions, byId, settings, team, opponent);
   const options: PlanOption[] = [];
   for (const tactic of tactics) for (const styleOfPlay of styles) options.push(evalOption({ ...base, attitude: Attitude.normal, tactic, styleOfPlay }));
   options.sort((a, b) => b.prediction.points - a.prediction.points || b.prediction.goalsFor - b.prediction.goalsAgainst - (a.prediction.goalsFor - a.prediction.goalsAgainst));
