@@ -346,6 +346,7 @@ function render() {
   renderTiles();
   renderOpponent();
   renderLineup();
+  renderWeakness();
   renderDevelopment();
   renderPlan();
   renderSchedule();
