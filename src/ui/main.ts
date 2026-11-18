@@ -11,7 +11,7 @@ import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roun
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
 import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
-import { type GroupPlan, GROUP_SHORT, fitTable, planSquad, squadGroups } from "../core/squad";
+import { type GroupPlan, GROUPS, GROUP_DE, GROUP_SHORT, GROUP_SKILLS, availability, fitTable, groupValue, planSquad, squadGroups, staminaShare } from "../core/squad";
 import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
 import { FORMATIONS, behavioursFor } from "../core/optimizer";
 import { centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
@@ -1535,6 +1535,12 @@ function initNav() {
     $("#scrim").hidden = !open;
   });
   $("#scrim").addEventListener("click", closeMenu);
+  $("#groupsOut").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-gmode]");
+    if (!b) return;
+    groupMode = b.dataset.gmode as typeof groupMode;
+    renderGroups();
+  });
   document.querySelectorAll<HTMLButtonElement>("[data-kview]").forEach((b) =>
     b.addEventListener("click", () => {
       document.querySelectorAll("[data-kview]").forEach((x) => x.classList.toggle("on", x === b));
@@ -1577,30 +1583,53 @@ function renderTiles() {
 
 const SKILL_SHORT: Record<string, string> = { keeper: "TW", defending: "VE", playmaking: "SA", winger: "FL", passing: "PS", scoring: "TS", setPieces: "ST" };
 
+let groupMode: "best" | "lineup" = "best";
+
+/**
+ * Kader nach Mannschaftsteilen, jeder Spieler genau einmal: in seiner besten Gruppe oder (Option) dort,
+ * wo er in deiner Aufstellung spielt. Weitere gut passende Gruppen stehen als „auch“-Hinweis dabei.
+ */
 function renderGroups() {
+  const players = state.hrf!.players;
   const inLineup = new Map(state.manual.map((p) => [p.playerId, lineupSector(p.role)]));
-  const G = squadGroups(state.hrf!.players);
-  const member = (m: (typeof G)[number]["members"][number], g: (typeof G)[number]) => {
-    const p = m.player;
-    const off = m.availability.factor === 0;
-    const plays = inLineup.get(p.id) === g.group;
-    const status =
-      m.availability.status === "fit" ? "" : statusChip(off ? "critical" : "warning", m.availability.label, off ? "+" : "!");
-    return `<div class="member${off ? " out" : ""}" title="Positionsstärke ${m.value.toFixed(2)} · Kondition hält ${Math.round(m.stamina * 100)} % · ${esc(m.availability.label)}">
-      <div class="nm">${esc(p.name)} <small>${p.age} J.</small>${plays ? `<span class="inxi">spielt</span>` : ""}</div>
-      <div class="fit" aria-label="Einsatzwert ${Math.round(m.share * 100)} %"><i style="width:${(m.share * 100).toFixed(0)}%"></i></div>
-      <div class="attrs">${g.skills.map((k) => `<span>${SKILL_SHORT[k]} <b>${p[k]}</b></span>`).join("")}<span>Form <b>${p.form}</b></span><span>Kond. <b>${p.stamina}</b></span>${p.cards ? `<span>Gelb <b>${p.cards}</b></span>` : ""}${status}</div>
+  const fit = fitTable(players);
+  const groupMax = new Map(GROUPS.map((g) => [g, Math.max(1e-6, ...players.map((p) => groupValue(p, g)))]));
+  const home = (p: Player) => (groupMode === "lineup" && inLineup.has(p.id) ? inLineup.get(p.id)! : fit.home(p));
+  const rows = players.map((p) => {
+    const g = home(p);
+    const av = availability(p);
+    const st = staminaShare(p.stamina);
+    const value = groupValue(p, g);
+    const best = fit.home(p);
+    const alts = GROUPS.filter((x) => x !== g && fit.rel(p, x) >= 0.7 && fit.rel(p, x) >= 0.85 * fit.rel(p, best))
+      .sort((a, b) => fit.rel(p, b) - fit.rel(p, a))
+      .slice(0, 3);
+    return { p, g, value, score: value * st * av.factor, share: (value * st * av.factor) / groupMax.get(g)!, stamina: st, av, alts, plays: inLineup.has(p.id), offPos: groupMode === "lineup" && inLineup.has(p.id) && best !== g };
+  });
+  const member = (m: (typeof rows)[number]) => {
+    const p = m.p;
+    const off = m.av.factor === 0;
+    const status = m.av.status === "fit" ? "" : statusChip(off ? "critical" : "warning", m.av.label, off ? "+" : "!");
+    const alts = m.alts.length ? `<span class="alts">auch ${m.alts.map((x) => `<i title="${esc(GROUP_DE[x])}: ${Math.round(fit.rel(p, x) * 100)} % des Kaderbesten">${GROUP_SHORT[x]}</i>`).join("")}</span>` : "";
+    return `<div class="member${off ? " out" : ""}" title="Positionsstärke ${m.value.toFixed(2)} · Kondition hält ${Math.round(m.stamina * 100)} % · ${esc(m.av.label)}">
+      <div class="nm"><span class="n">${esc(p.name)}</span> <small>${p.age} J.</small>${m.plays ? `<span class="inxi">${inLineup.get(p.id) === m.g ? "spielt" : `spielt ${GROUP_SHORT[inLineup.get(p.id)!]}`}</span>` : ""}${m.offPos ? `<span class="inxi warn" title="Beste Position: ${esc(GROUP_DE[fit.home(p)])}">nicht beste Pos.</span>` : ""}</div>
+      <div class="fit" aria-label="Einsatzwert ${Math.round(m.share * 100)} %"><i style="width:${Math.min(100, m.share * 100).toFixed(0)}%"></i></div>
+      <div class="attrs">${GROUP_SKILLS[m.g].map((k) => `<span>${SKILL_SHORT[k]} <b>${p[k]}</b></span>`).join("")}<span>Form <b>${p.form}</b></span><span>Kond. <b>${p.stamina}</b></span>${p.cards ? `<span>Gelb <b>${p.cards}</b></span>` : ""}${status}${alts}</div>
     </div>`;
   };
-  $("#groupsOut").innerHTML = `<p class="sub">Je Mannschaftsteil die passenden Spieler, sortiert nach Einsatzwert. Balken = Positionsstärke (Fertigkeiten, Form, Erfahrung) × Kondition × Verfügbarkeit, relativ zum Besten der Gruppe. Verletzte und Gesperrte stehen durchgestrichen am Ende. Allrounder erscheinen in mehreren Gruppen.</p>
-    <div class="groups">${G.map((g) => {
-      const top = g.members.slice(0, 6);
-      const more = g.members.slice(6);
-      const ready = g.members.filter((m) => m.availability.factor > 0).length;
-      return `<div class="group"><h3>${esc(g.name)}<span class="sub">${ready} einsatzbereit</span></h3>
-        <div class="keys">Wichtig: ${g.skills.map((k) => DEV_SKILL_DE[k]).join(", ")}</div>
-        ${top.map((m) => member(m, g)).join("")}
-        ${more.length ? `<details><summary>${more.length} weitere</summary>${more.map((m) => member(m, g)).join("")}</details>` : ""}
+  const intro =
+    groupMode === "best"
+      ? "Jeder Spieler steht einmal, in seiner besten Gruppe (gemessen am Besten des Kaders dort)."
+      : "Jeder Spieler steht einmal: wer in deiner Aufstellung spielt, dort, wo er spielt; alle anderen in ihrer besten Gruppe.";
+  $("#groupsOut").innerHTML = `<div class="controls"><div class="seg" role="tablist" aria-label="Zuordnung"><button data-gmode="best" class="${groupMode === "best" ? "on" : ""}">Beste Position</button><button data-gmode="lineup" class="${groupMode === "lineup" ? "on" : ""}">Wie aufgestellt</button></div></div>
+    <p class="sub">${intro} Balken = Positionsstärke × Kondition × Verfügbarkeit, relativ zum Kaderbesten in dieser Gruppe. „auch“ = Gruppen, in denen er fast genauso gut ist. Verletzte und Gesperrte stehen durchgestrichen am Ende.</p>
+    <div class="groups">${GROUPS.map((g) => {
+      const ms = rows.filter((r) => r.g === g).sort((a, b) => (groupMode === "lineup" ? Number(b.plays) - Number(a.plays) : 0) || b.score - a.score || b.value - a.value);
+      const ready = ms.filter((m) => m.av.factor > 0).length;
+      const playing = ms.filter((m) => m.plays).length;
+      return `<div class="group"><h3>${esc(GROUP_DE[g])}<span class="sub">${ready} einsatzbereit${playing ? ` · ${playing} spielen` : ""}</span></h3>
+        <div class="keys">Wichtig: ${GROUP_SKILLS[g].map((k) => DEV_SKILL_DE[k]).join(", ")}</div>
+        ${ms.map(member).join("") || '<p class="sub">Niemand mit dieser Stärke im Kader.</p>'}
       </div>`;
     }).join("")}</div>`;
 }

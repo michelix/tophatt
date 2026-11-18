@@ -223,14 +223,17 @@ main .tiles.show{display:grid}
 .group h3{margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .group .keys{font-size:12px;color:var(--muted);margin-bottom:8px}
 .member{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:2px 10px;padding:6px 0;border-top:1px solid var(--line);align-items:center}
-.member .nm{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.member .nm{font-weight:600;font-size:14px;display:flex;align-items:baseline;gap:4px;min-width:0;white-space:nowrap}
+.member .nm .n{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.member .alts{color:var(--muted)}.member .alts i{font-style:normal;border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:4px;color:var(--ink-2)}
+.member .inxi.warn{border-color:var(--warning);color:var(--warning)}
 .member .nm small{font-weight:400;color:var(--muted)}
 .member .fit{height:10px;background:var(--surface-2);border-radius:3px;position:relative}
 .member .fit i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--s1)}
 .member .fit b{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--s1);opacity:.3}
 .member .attrs{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--ink-2)}
 .member .attrs span b{color:var(--ink)}
-.member.out .nm{color:var(--muted);text-decoration:line-through}
+.member.out .nm .n{color:var(--muted);text-decoration:line-through}
 .member .inxi{font-size:10px;border:1px solid var(--brand);color:var(--brand);border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:1px}
 
 /* Aufstellungs-Editor */
