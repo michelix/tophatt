@@ -4,7 +4,8 @@
 // 3) Wer lohnt sich zu trainieren?          -> jung + Trainingsfertigkeit
 
 import type { Lineup, MatchSettings, Player } from "./model";
-import { type TeamState, lineupSector, playerPositionRating } from "./rating";
+import { RATING_SECTORS, type RatingSector, type TeamState, lineupSector, playerPositionRating } from "./rating";
+import { SECTOR_DE } from "./weakness";
 import { Role } from "./model";
 import { Evaluator, HATSTATS_OBJECTIVE, hatStatsOf } from "./optimizer";
 import { TRAININGS, trainingPriority } from "./training";
@@ -44,6 +45,10 @@ export interface UpgradeHint {
   skill: string;
   gainPlus1: number;
   gainPlus2: number;
+  /** HatStats-Zuwachs (+2 Stufen), der in schwachen Mannschaftsteilen ankommt */
+  weakGain: number;
+  /** schwache Mannschaftsteile, die davon profitieren */
+  helps: string[];
 }
 
 export interface SquadHint {
@@ -59,11 +64,19 @@ export interface Advice {
   summary: string[];
 }
 
-export function advise(players: Player[], lineup: Lineup, settings: MatchSettings, team: TeamState, trainingType: number): Advice {
+export function advise(
+  players: Player[],
+  lineup: Pick<Lineup, "positions"> & Partial<Lineup>,
+  settings: MatchSettings,
+  team: TeamState,
+  trainingType: number,
+  weakSectors: ReadonlySet<RatingSector> = new Set(),
+): Advice {
   const byId = new Map(players.map((p) => [p.id, p]));
   const ev = new Evaluator(settings, team);
   const field = lineup.positions.map((p) => ({ player: byId.get(p.playerId)!, role: p.role, behaviour: p.behaviour })).filter((f) => f.player);
-  const base = hatStatsOf(ev.ratings(field));
+  const baseR = ev.ratings(field);
+  const base = hatStatsOf(baseR);
 
   // 1) Verstärkungs-Simulation
   const upgrades: UpgradeHint[] = [];
@@ -72,32 +85,40 @@ export function advise(players: Player[], lineup: Lineup, settings: MatchSetting
   for (let i = 0; i < field.length; i++) {
     const sector = lineupSector(field[i].role);
     for (const skill of MAIN_SKILLS[sector]) {
-      const gain = (delta: number) => {
+      const boostedRatings = (delta: number) => {
         // eigene Fantasie-ID je Variante, damit der Beitrags-Cache nicht greift
         const boosted = { ...field[i].player, id: -(1000 * delta + 10 * i + MAIN_SKILLS[sector].indexOf(skill) + 1), [skill]: field[i].player[skill] + delta };
         const f2 = field.map((f, j) => (j === i ? { ...f, player: boosted } : f));
-        return hatStatsOf(ev.ratings(f2)) - base;
+        return ev.ratings(f2);
       };
+      const r2 = boostedRatings(2);
+      // nur der Teil des Zuwachses, der in schwachen Mannschaftsteilen ankommt
+      const mixed = { ...baseR };
+      for (const k of weakSectors) mixed[k] = r2[k];
+      const helps = RATING_SECTORS.filter((k) => weakSectors.has(k) && r2[k] - baseR[k] > 0.02).map((k) => SECTOR_DE[k]);
       candidates.push({
         position: POS_DE[sector],
         currentPlayer: field[i].player.name,
         skill: SKILL_DE[skill],
-        gainPlus1: gain(1),
-        gainPlus2: gain(2),
+        gainPlus1: hatStatsOf(boostedRatings(1)) - base,
+        gainPlus2: hatStatsOf(r2) - base,
+        weakGain: hatStatsOf(mixed) - base,
+        helps,
       });
     }
   }
-  candidates.sort((a, b) => b.gainPlus2 - a.gainPlus2);
+  // Schwachstellen zuerst, dann der Gesamtzuwachs
+  candidates.sort((a, b) => b.weakGain - a.weakGain || b.gainPlus2 - a.gainPlus2);
   for (const c of candidates) {
     const key = c.position + c.skill;
     if (seenSector.has(key)) continue;
     seenSector.add(key);
     upgrades.push(c);
-    if (upgrades.length >= 5) break;
+    if (upgrades.length >= 6) break;
   }
 
   // 2) Entbehrliche Spieler
-  const inLineup = new Set([...lineup.positions.map((p) => p.playerId), ...Object.values(lineup.bench)]);
+  const inLineup = new Set([...lineup.positions.map((p) => p.playerId), ...Object.values(lineup.bench ?? {})]);
   const sellCandidates: SquadHint[] = [];
   for (const p of players) {
     if (inLineup.has(p.id)) continue;
@@ -130,10 +151,19 @@ export function advise(players: Player[], lineup: Lineup, settings: MatchSetting
   }
 
   const summary: string[] = [];
-  if (upgrades[0])
+  const top = upgrades[0];
+  const overall = [...candidates].sort((a, b) => b.gainPlus2 - a.gainPlus2)[0];
+  if (top && top.weakGain > 0.05) {
     summary.push(
-      `Größter Hebel: ${upgrades[0].position} (${upgrades[0].skill}). Ein Spieler mit +2 Stufen gegenüber ${upgrades[0].currentPlayer} bringt etwa +${upgrades[0].gainPlus2.toFixed(1)} HatStats.`,
+      `Größter Hebel für die Schwachstellen: ${top.position} (${top.skill}). Ein Spieler mit +2 Stufen gegenüber ${top.currentPlayer} stärkt ${top.helps.join(", ")} und bringt etwa +${top.gainPlus2.toFixed(1)} HatStats.`,
     );
+    if (overall && overall.gainPlus2 > top.gainPlus2 + 0.5 && overall.weakGain <= 0.05)
+      summary.push(
+        `Rein nach HatStats brächte ${overall.position} (${overall.skill}) mehr (+${overall.gainPlus2.toFixed(1)}), weil er mehrere Mannschaftsteile gleichzeitig hebt. Die sind aber schon solide, deshalb steht er hinten.`,
+      );
+  } else if (overall) {
+    summary.push(`Keine deutliche Schwachstelle. Größter Hebel nach HatStats: ${overall.position} (${overall.skill}), etwa +${overall.gainPlus2.toFixed(1)} HatStats bei +2 Stufen gegenüber ${overall.currentPlayer}.`);
+  }
   if (sellCandidates.length) summary.push(`${sellCandidates.length} Spieler kommen weder in die Startelf noch auf die Bank – Verkauf prüfen, das spart Gehalt.`);
   return { upgrades, sellCandidates, trainingTargets, summary };
 }

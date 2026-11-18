@@ -11,6 +11,7 @@ import { duels, htToLevel, opponentProfile, verdict } from "../src/core/opponent
 import { planSquad, squadGroups, staminaShare } from "../src/core/squad";
 import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems } from "../src/core/editor";
 import { budget, searchProfiles } from "../src/core/scouting";
+import { advise } from "../src/core/advisor";
 
 const ho = parseHoData(readFileSync("test/fixtures/tophatt-data.json", "utf8"));
 const hrf = parseHrf(readFileSync("test/fixtures/team.hrf", "utf8"));
@@ -216,5 +217,16 @@ describe("Taktik und Einstellungen", () => {
   it("LoddarStats steigen mit besseren Bewertungen", () => {
     const better = Object.fromEntries(Object.entries(L.ratings).map(([k, v]) => [k, v + 1])) as typeof L.ratings;
     expect(loddarStats(better, Tactic.normal, 1)).toBeGreaterThan(loddarStats(L.ratings, Tactic.normal, 1));
+  });
+});
+
+describe("Transfer-Hebel", () => {
+  it("stellt Verstärkungen für Schwachstellen nach vorn", () => {
+    const team = { teamSpirit: hrf.team.teamSpirit, confidence: hrf.team.confidence };
+    const L = optimizeLineup(hrf.players, defaultMatchSettings, team, { minFormationExperience: 0, formationExperience: hrf.team.formationExperience, objective: HATSTATS_OBJECTIVE, allowBruised: true, tryBehaviours: false });
+    const a = advise(hrf.players, L.lineup, defaultMatchSettings, team, hrf.team.trainingType, new Set(["midfield"]));
+    expect(a.upgrades[0].helps).toContain("Mittelfeld");
+    expect(a.upgrades[0].weakGain).toBeGreaterThan(0);
+    expect(a.summary[0]).toMatch(/Schwachstellen/);
   });
 });
