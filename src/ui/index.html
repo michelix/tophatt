@@ -148,9 +148,29 @@ details > summary{cursor:pointer;color:var(--ink-2);font-weight:600;margin:10px 
 .mplan .wdl i{display:block}.mplan .wdl .w{background:var(--good)}.mplan .wdl .d{background:var(--warning)}.mplan .wdl .l{background:var(--critical)}
 .mplan details{margin-top:6px}.mplan table{font-size:13px}
 .mplan .applied{color:var(--good);font-weight:600}
+#aufstellung>header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
+#aufstellung>header .loc{margin-left:auto}
+#aufstellung .mplan{margin-top:16px}
+.mplan .mp-controls{gap:8px 12px;margin-bottom:8px}
+.mplan .mp-controls label{flex:1 1 140px}
+.mplan .mp-controls select{width:100%}
+#styleHint{font-size:12px;margin:-2px 0 8px}#styleHint:empty{display:none}
+.mplan .mp-cols{align-items:start}
+.mplan .mp-ok{color:var(--good);font-weight:600}
+.mplan .mp-diff{margin:0 0 8px;padding-left:18px}
+.warnbar{display:flex;flex-direction:column;gap:4px;margin:8px 0 10px;padding:8px 12px;border:1px solid var(--warning);border-left-width:4px;border-radius:8px;background:var(--surface-2);font-size:13px}
+.warnbar b{color:var(--warning)}
+.finish{margin-top:16px}
+details.more{margin-top:14px}
+#formationPick{max-width:100%}
+.editor-bar label.inline{max-width:100%}
+details.more>summary{cursor:pointer;font-weight:600}
+.field .slot select option{color:#111;background:#fff}
+[data-view]{scroll-margin-top:90px}
+@media (max-width:600px){[data-view]{scroll-margin-top:150px}.mplan .mp-controls label{flex:1 1 45%}#aufstellung>header .loc{margin-left:0}}
 .mplan .mp-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:8px 0}
 .mplan .mp-box{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface)}
-.mplan .mp-box.reco{border-color:var(--brand);border-width:2px}
+.mplan .mp-box.mp-reco{border-color:var(--brand);border-width:2px}
 .mplan .mp-head{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);font-weight:600;margin-bottom:6px;display:flex;gap:10px;align-items:center}
 .mplan .mp-set{display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:8px}
 .mplan .mp-box .wdl{max-width:none;margin-bottom:4px}
@@ -291,12 +311,12 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
 .field svg.lines .dot{fill:rgba(255,255,255,.6);stroke:none}
 .field .pitch.edit{background:none;border:0;padding:0;gap:10px 8px;position:relative;z-index:1;grid-template-rows:repeat(4,auto)}
 .field .pitch.edit .slot{background:none;border:0;min-height:112px;padding:4px 2px;text-align:center;color:#fff;position:relative;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
-.field .slot .role{color:rgba(255,255,255,.75);font-size:10px;font-weight:600;letter-spacing:.08em}
+.field .slot .role{color:rgba(255,255,255,.75);font-size:11px;font-weight:600;letter-spacing:.08em}
 .field .slot .pname{background:rgba(10,20,12,.62);color:#fff;border-radius:999px;padding:1px 9px;font-size:12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(2px)}
-.field .slot .meta{color:rgba(255,255,255,.85);font-size:10.5px;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.field .slot .meta{color:rgba(255,255,255,.85);font-size:11px;text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .field .slot .tag{border-color:rgba(255,255,255,.6);color:#fff;background:rgba(0,0,0,.25)}
 .field .slot .tag.train{border-color:var(--gold-2);color:var(--gold-2)}
-.field .slot select{background:rgba(255,255,255,.92);color:#111;border:0;max-width:110px}
+.field .slot select{background:rgba(10,20,12,.55);color:#fff;border:1px solid rgba(255,255,255,.25);max-width:110px}
 .field .slot .x{position:absolute;right:2px;top:0;color:rgba(255,255,255,.8);font-size:16px;z-index:2}
 .field .slot .x:hover{color:#fff}
 .token{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;position:relative;flex:none;
@@ -416,35 +436,53 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
     </section>
 
     <section class="card" id="aufstellung" data-view="aufstellung">
-      <header><h2>Aufstellung für dieses Spiel</h2><span class="sub" id="lineupSub"></span></header>
-      <div class="controls">
-        <label>Spielort<select id="location"><option value="1">Heimspiel</option><option value="0">Auswärtsspiel</option><option value="2">Auswärts-Derby</option></select></label>
-        <label>Taktik<select id="tactic"><option value="0">Normal</option><option value="1">Pressing</option><option value="2">Kontern</option><option value="3">Angriff über die Mitte</option><option value="4">Angriff über die Flügel</option><option value="7">Kreativ</option><option value="8">Fernschüsse</option></select></label>
-        <label>Einstellung<select id="attitude"><option value="0">Normal</option><option value="1">Spiel des Jahres</option><option value="-1">Nicht so ernst nehmen</option></select></label>
-        <label>Ausrichtung<select id="style"><option value="0" selected>Ausgewogen</option></select><span class="sub" id="styleHint" style="font-size:11px;font-weight:400"></span></label>
-      </div>
-      <div id="matchPlanOut"></div>
+      <header><h2>Aufstellung für dieses Spiel</h2><span class="sub" id="lineupSub"></span>
+        <label class="inline loc">Spielort<select id="location"><option value="1">Heimspiel</option><option value="0">Auswärtsspiel</option><option value="2">Auswärts-Derby</option></select></label></header>
+      <div id="lineupWarn"></div>
       <div class="editor-bar">
         <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
         <button class="btn primary" id="autoFill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Automatisch aufstellen</button>
         <button class="btn" id="clearField">Feld leeren</button>
-        <span class="sub" id="editorHint">Spieler aus der Liste aufs Feld ziehen, auf dem Feld tauschen oder zurück in die Liste ziehen. Antippen zeigt Linien zu den passenden Positionen, dann Position antippen. Klick daneben oder Esc blendet sie aus.</span>
-        <div class="flow-legend"><span><i style="color:#3ddc6a"></i>optimal</span><span><i style="color:#ffd23f"></i>gut</span><span><i style="color:#ff5a4a"></i>mäßig</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>dicker = stärker, Zahl = Positionsstärke</span></div>
+        <span class="sub" id="editorHint">Ziehen oder antippen, um Spieler zu setzen oder zu tauschen. Esc oder Klick daneben blendet die Linien aus.</span>
       </div>
       <div class="editor">
         <div id="pitchOut"></div>
         <div id="poolOut" class="pool"></div>
       </div>
-      <div class="grid2" style="margin-top:16px">
-        <div id="explainOut"></div>
+      <div class="mplan" id="planCard">
+        <h3>Taktik <span class="sub" id="planOpp"></span></h3>
+        <div id="planWarn"></div>
+        <div class="mp-cols">
+          <div class="mp-box"><div class="mp-head">Deine Einstellung</div>
+            <div class="controls mp-controls">
+              <label>Taktik<select id="tactic"><option value="0">Normal</option><option value="2">Kontern</option><option value="3">Angriff über die Mitte</option><option value="4">Angriff über die Flügel</option><optgroup label="ohne Siegchance-Prognose"><option value="1">Pressing</option><option value="7">Kreativ</option><option value="8">Fernschüsse</option></optgroup></select></label>
+              <label>Einstellung<select id="attitude"><option value="0">Normal</option><option value="1">Spiel des Jahres</option><option value="-1">Nicht so ernst nehmen</option></select></label>
+              <label>Ausrichtung<select id="style"><option value="0" selected>Ausgewogen</option></select></label>
+            </div>
+            <p class="sub" id="styleHint"></p>
+            <div id="planCur"></div>
+          </div>
+          <div class="mp-box mp-reco" id="planReco"></div>
+        </div>
+        <ul class="sub mp-notes" id="planNotes"></ul>
+        <div id="planMore"></div>
+      </div>
+      <div class="grid2 finish">
         <div id="lineupSide"></div>
+        <div>
+          <h3 style="margin-top:0">Für HO speichern</h3>
+          <div class="controls">
+            <label>Spiel-ID<input id="matchId" type="number"></label>
+            <label>Spielart<select id="matchType"><option value="1">Liga</option><option value="3">Pokal</option></select></label>
+            <button class="btn primary" id="dlLeague">Für HO speichern</button>
+          </div>
+          <p class="sub" id="matchIdInfo"></p>
+          <p class="sub">Danach in HO: Datei → Importieren → HRF, Ersetzen mit Ja bestätigen, Spiel auswählen und „Aufstellung senden“.</p>
+        </div>
       </div>
-      <div class="controls" style="margin-top:14px">
-        <label>Spiel-ID<input id="matchId" type="number"></label>
-        <label>Spielart<select id="matchType"><option value="1">Liga</option><option value="3">Pokal</option></select></label>
-        <button class="btn primary" id="dlLeague">Für HO speichern</button>
-      </div>
-      <p class="sub">Danach in HO: Datei → Importieren → HRF, Ersetzen mit Ja bestätigen, Spiel auswählen und „Aufstellung senden“.</p>
+      <details class="more"><summary>Details: Wirkung der Einstellungen und Änderungen gegenüber dem Vorschlag</summary>
+        <div id="explainOut"></div>
+      </details>
     </section>
 
     <section class="card" id="schwachstellen" data-view="schwachstellen">
