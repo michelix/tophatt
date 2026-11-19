@@ -415,6 +415,12 @@ function renderDataChip() {
       ? "TopHatt.bat starten, damit Spielplan und Spielerhistorie aus HO kommen."
       : "Die Daten sind älter als eine Woche. In HO herunterladen und TopHatt.bat starten."
     : `Datei: ${state.hrfName}`;
+  // Auf dem Handy steht der Datenstand im Menü statt in der Kopfzeile
+  const nav = $("#navDataChip");
+  nav.hidden = false;
+  nav.className = chip.className + " navchip";
+  nav.innerHTML = chip.innerHTML;
+  nav.title = chip.title;
 }
 
 function countdown(d: Date): string {
@@ -688,7 +694,7 @@ function editPitch(): string {
     ${benchHtml(C)}
     ${menuHtml(C)}
     <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span></div>
-    <p class="sub edit-hint">Spieler antippen: Verhalten, Kapitän und Standards ändern. Danach eine andere Position antippen: dorthin setzen oder tauschen.</p>`;
+`;
 }
 
 const BEHAVIOUR_SHORT = ["", "OFF", "DEF", "MIT", "AUS"];
@@ -2131,12 +2137,48 @@ function init() {
     download(myLineup(), "liga");
   });
   initEditor();
+  initEditorHint();
+  initSaveBar();
   initWeakness();
   initNav();
   $("#dlFriendly").addEventListener("click", () => state.friendly && download(state.friendly.lineup, "freundschaft"));
   // Countdown und Datenstand jede Minute auffrischen
   setInterval(() => state.hrf && (renderHero(), renderDataChip()), 60_000);
   initFolder();
+}
+
+/** Bedienhinweis nur zeigen, bis das Feld einmal bearbeitet wurde. */
+function initEditorHint() {
+  const KEY = "tophatt.editorHintSeen";
+  const hint = $("#editorHint");
+  let seen = false;
+  try { seen = localStorage.getItem(KEY) === "1"; } catch { /* ohne Speicher immer zeigen */ }
+  hint.hidden = seen;
+  if (seen) return;
+  const done = () => {
+    hint.hidden = true;
+    try { localStorage.setItem(KEY, "1"); } catch { /* egal */ }
+  };
+  for (const id of ["#pitchOut", "#poolOut"]) {
+    $(id).addEventListener("drop", done, { once: true });
+    $(id).addEventListener("click", (e) => { if ((e.target as HTMLElement).closest(".slot,.bslot,.pl,[data-pid]")) done(); });
+  }
+}
+
+/** Speichern ohne Scrollen: Knopf in der Kopfzeile, auf dem Handy als Leiste unten. */
+function initSaveBar() {
+  const save = () => {
+    $("#error").textContent = "";
+    $("#dlLeague").click();
+    // Fehler (z. B. fehlende Spiel-ID) stehen oben auf der Seite: dorthin springen
+    if ($("#error").textContent) $("#error").scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  $("#saveTop").addEventListener("click", save);
+  $("#saveBarBtn").addEventListener("click", save);
+  const bar = $("#saveBar");
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(([e]) => bar.classList.toggle("off", e.isIntersecting)).observe($("#dlLeague"));
+  }
 }
 
 init();
