@@ -393,6 +393,9 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
 .pchip .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pchip .m{font-size:11px;color:var(--muted);grid-column:1/-1}
 .pchip.off{opacity:.55;cursor:not-allowed}
+.pool .trfilter{display:flex;flex-direction:row;gap:6px;align-items:center;font-size:12px;margin:0 0 6px;color:var(--ink)}
+.pool .trfilter input{width:auto;margin:0}
+.trweek td,.trweek th{font-size:13px}
 .delta.up{color:var(--good)}.delta.down{color:var(--critical)}
 .cmp td.num{white-space:nowrap}
 .explain ul{margin:6px 0;padding-left:18px}
@@ -492,6 +495,7 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
       <div class="editor-bar">
         <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
         <button class="btn primary" id="autoFill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Automatisch aufstellen</button>
+        <button class="btn" id="trainingFill" title="Stellt nur Spieler auf die Trainingspositionen, die diese Trainingswoche noch nicht trainiert haben, die Jüngsten mit passender Hauptfertigkeit zuerst. Gut für Spiele, in denen es um nichts geht.">Trainingself</button>
         <button class="btn" id="clearField">Feld leeren</button>
         <span class="sub" id="editorHint">Ziehen oder antippen, um Spieler zu setzen oder zu tauschen. Ein gesetzter Spieler öffnet beim Antippen sein Menü (Verhalten, Kapitän, Standards).</span>
       </div>
@@ -562,7 +566,7 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
     </section>
 
     <section class="card" id="training" data-view="training">
-      <header><h2>Freundschaftsspiel</h2><span class="sub">damit alle 22 Spieler trainieren</span></header>
+      <header><h2>Freundschaftsspiel</h2><span class="sub" id="friendlySub">damit möglichst viele Spieler trainieren</span></header>
       <div id="friendlyOut"></div>
       <div class="controls" style="margin-top:12px">
         <label>Spiel-ID Freundschaftsspiel<input id="friendlyMatchId" type="number"></label>

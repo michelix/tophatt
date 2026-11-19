@@ -44,6 +44,10 @@ export interface Player {
   transferListed: boolean;
   lastMatchPosition: number;
   lastMatchRating: number;
+  /** Letztes Spiel laut HRF (LastMatch_*): Datum "JJJJ-MM-TT hh:mm:ss", Spielminuten, Spiel-ID; leer/0 ohne Einsatz */
+  lastMatchDate?: string;
+  lastMatchMinutes?: number;
+  lastMatchId?: number;
 }
 
 export interface TeamInfo {
