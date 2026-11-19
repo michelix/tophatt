@@ -66,6 +66,10 @@ export interface TeamInfo {
   /** Formationserfahrung, Schlüssel z. B. "442" */
   formationExperience: Record<string, number>;
   trainerId: number;
+  /** Trainertyp laut HRF: 0 = defensiv, 1 = offensiv, 2 = ausgeglichen, -1 = unbekannt */
+  trainerType: number;
+  /** Stufen der Taktik-Assistenten (0 … 5) */
+  tacticalAssistants: number;
   cash: number;
   /** erwarteter Kontostand zum Ende der Woche (inkl. Käufen/Verkäufen dieser Woche), null = unbekannt */
   expectedCash: number | null;
@@ -165,3 +169,21 @@ export const defaultMatchSettings: MatchSettings = {
   styleOfPlay: 0,
   teamSpiritSubIndex: 2,
 };
+
+/**
+ * Erlaubte Ausrichtungen (styleOfPlay, -10 … 10) wie in HO (MatchAndLineupSelectionPanel.getValidStyleOfPlayValues):
+ * hängen vom Trainertyp und von den Taktik-Assistenten ab, je Assistentenstufe 2 Schritte (ausgeglichen: 1 je Seite).
+ */
+export function styleRange(t: Pick<TeamInfo, "trainerType" | "tacticalAssistants">): [number, number] {
+  const a = Math.max(0, t.tacticalAssistants);
+  switch (t.trainerType) {
+    case 0:
+      return [-10, -10 + 2 * a];
+    case 1:
+      return [10 - 2 * a, 10];
+    case 2:
+      return [a ? -a : 0, a];
+    default:
+      return [-10, 10];
+  }
+}

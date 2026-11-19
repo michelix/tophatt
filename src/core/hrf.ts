@@ -109,6 +109,8 @@ export function parseHrf(text: string): Hrf {
     assistantsLevel: num(club, "hjtranare", -1),
     formationExperience,
     trainerId,
+    trainerType: sections.find((x) => x.name === `player${trainerId}`)?.props.has("trainertype") ? num(get(`player${trainerId}`), "trainertype", -1) : -1,
+    tacticalAssistants: num(club, "tacticalassistantlevels"),
     cash: num(economy, "cash") / currencyRate,
     expectedCash: economy.has("expectedcash") ? num(economy, "expectedcash") / currencyRate : null,
     costsBoughtPlayers: num(economy, "costsboughtplayers") / currencyRate,
