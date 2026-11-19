@@ -276,7 +276,7 @@ function applyStyleRange(hrf: Hrf) {
   const coach = hrf.team.trainerType === 2 ? "ausgeglichener Trainer" : hrf.team.trainerType === 0 ? "defensiver Trainer" : hrf.team.trainerType === 1 ? "offensiver Trainer" : "";
   sel.title = allowed.length === 1 ? `Nur ${allowed[0][1]} möglich: ${coach}, Taktik-Assistenten Stufe ${hrf.team.tacticalAssistants}` : "";
   const hint = document.querySelector<HTMLElement>("#styleHint");
-  if (hint) hint.textContent = allowed.length === 1 ? `nur diese möglich (${coach}, keine Taktik-Assistenten)` : "";
+  if (hint) hint.textContent = lo === -10 && hi === 10 ? "" : styleNoteFor(hrf.team);
 }
 
 // --- Berechnung -----------------------------------------------------------------
@@ -604,7 +604,7 @@ function renderFormationPick() {
     `<option value="">Beste${best ? `: ${formationLabel(best)}` : ""} (automatisch)</option>` +
     [...state.formations]
       .sort((a, b) => b.hatStats - a.hatStats)
-      .map((f) => `<option value="${f.code}"${f.code === state.formation ? " selected" : ""}>${formationLabel(f.code)} · ${f.hatStats.toFixed(0)} HatStats · Erfahrung ${f.experience}${f.experience < 6 ? " ⚠" : ""}</option>`)
+      .map((f) => `<option value="${f.code}"${f.code === state.formation ? " selected" : ""}>${formationLabel(f.code)} · ${f.hatStats.toFixed(0)} HatStats · Erfahrung ${f.experience}${f.experience < 6 ? " ⚠ zu wenig Erfahrung" : ""}</option>`)
       .join("");
   sel.value = state.formation;
 }
@@ -625,6 +625,16 @@ const FIELD_LINES = `<svg class="lines" viewBox="0 0 100 100" preserveAspectRati
   <path d="M40 80 A11 6 0 0 1 60 80"/><circle class="dot" cx="50" cy="87.5" r="0.6"/>
   <path d="M44 98.5 v1.2 h12 v-1.2"/>
 </g></svg>`;
+
+const de = (x: number, d = 2) => x.toFixed(d).replace(".", ",");
+const hsDiff = (d: number) => (Math.abs(d) < 0.5 ? "" : ` <span class="${d > 0 ? "up" : "down"}">(${d > 0 ? "+" : ""}${d.toFixed(0)} zum Vorschlag)</span>`);
+function warnText(p: Player): string {
+  const w: string[] = [];
+  if (p.injury === 0) w.push("angeschlagen");
+  if (p.cards === 2) w.push("2 Gelbe Karten");
+  if (p.stamina <= 5) w.push(`Kondition ${p.stamina}, baut in der 2. Halbzeit ab`);
+  return `${p.name}: ${w.join(", ")}`;
+}
 
 function editPitch(): string {
   const byId = playersById();
@@ -655,7 +665,7 @@ function editPitch(): string {
     return `<div class="slot${picked}" draggable="true" data-role="${role}" data-pid="${pos.playerId}" style="${style}" title="${esc(ratingTitle)}">
       <button class="x" data-remove="${role}" title="Vom Feld nehmen" aria-label="Vom Feld nehmen">×</button>
       <div class="role">${ROLE_DE[role]}${pos.behaviour ? ` · ${BEHAVIOUR_DE[pos.behaviour]}` : ""}</div>
-      <div class="token ${role === Role.keeper ? "gk " : ""}${fc}">${esc(initials(p?.name ?? "?"))}${p ? `<span class="stat">${playerPositionRating(p, role, pos.behaviour).toFixed(1)}</span>` : ""}${warn ? `<span class="warn">!</span>` : ""}</div>
+      <div class="token ${role === Role.keeper ? "gk " : ""}${fc}">${esc(initials(p?.name ?? "?"))}${p ? `<span class="stat">${playerPositionRating(p, role, pos.behaviour).toFixed(1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}</div>
       <div class="pname">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
       <div class="meta">Form ${p?.form ?? "-"} · Kond. ${p?.stamina ?? "-"} ${tags}</div>
       ${opts.length > 1 ? `<select data-behaviour="${role}" aria-label="Verhalten">${opts.map((b) => `<option value="${b}"${b === pos.behaviour ? " selected" : ""}>${BEHAVIOUR_DE[b] || "normal"}</option>`).join("")}</select>` : ""}
@@ -663,8 +673,8 @@ function editPitch(): string {
   });
   const mine = manualEval();
   return `<div class="field">${FIELD_LINES}<div class="pitch edit">${slots.join("")}</div>
-    <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats</span><span>${state.manual.length}/11</span></div></div>
-    <p class="sub">Ring um das Trikot: grün = passende Position, gelb = geht, rot = falsche Position. Zahl = Positionsstärke.</p>`;
+    <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats${hsDiff(mine.hatStats - L.hatStats)}</span><span>${state.manual.length}/11</span></div></div>
+    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung</span></div>`;
 }
 
 // --- Animation (FLIP): Spieler gleiten an ihre neue Position -----------------------------
@@ -834,36 +844,34 @@ function renderExplain() {
   const mine = manualEval();
   const E = explain({ positions: L.lineup.positions, ratings: L.ratings, hatStats: L.hatStats }, { positions: state.manual, ...mine }, state.hrf!.players, state.hrf!.team.formationExperience);
   const d = E.hatStatsMine - E.hatStatsAuto;
-  const arrow = (v: number) => (Math.abs(v) < 0.05 ? `<span class="muted">±0</span>` : `<span class="delta ${v > 0 ? "up" : "down"}">${v > 0 ? "▲ +" : "▼ "}${v.toFixed(2)}</span>`);
-  const head = E.same
-    ? `<div class="focus ok"><b>Entspricht dem automatischen Vorschlag.</b> Ziehe Spieler um, dann siehst du hier, was sich ändert.</div>`
+  const arrow = (v: number) => (Math.abs(v) < 0.05 ? `<span class="muted">±0</span>` : `<span class="delta ${v > 0 ? "up" : "down"}">${v > 0 ? "▲ +" : "▼ "}${de(v)}</span>`);
+  $("#lineupWarn").innerHTML = E.warnings.length
+    ? `<div class="warnbar">${E.warnings.map((w) => `<div><b>!</b> ${esc(w)}</div>`).join("")}</div>`
+    : "";
+  const changedRows = E.sectors.filter((x) => Math.abs(x.delta) >= 0.05);
+  const changeBlock = E.same
+    ? `<div class="focus ok"><b>Entspricht dem automatischen Vorschlag.</b></div>`
     : `<div class="focus ${d >= 0 ? "ok" : ""}"><b>Deine Aufstellung: ${E.hatStatsMine.toFixed(0)} HatStats</b>, automatisch ${E.hatStatsAuto.toFixed(0)} (${d >= 0 ? "+" : ""}${d.toFixed(0)}). ${
         E.formationMine !== E.formationAuto ? `Formation ${formationLabel(E.formationMine)} statt ${formationLabel(E.formationAuto)}.` : ""
-      }</div>`;
-  const big = [...E.sectors].filter((x) => Math.abs(x.delta) >= 0.1).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+      }</div>
+      ${changedRows.length ? `<table class="cmp"><thead><tr><th>Mannschaftsteil</th><th class="num">Automatisch</th><th class="num">Deine</th><th class="num">Änderung</th></tr></thead><tbody>
+        ${changedRows.map((x) => `<tr title="${esc(ratingLabel(x.mine))}"><td>${esc(x.name)}</td><td class="num">${de(x.auto)}</td><td class="num">${de(x.mine)}</td><td class="num">${arrow(x.delta)}</td></tr>`).join("")}
+      </tbody></table>` : ""}
+      ${E.changes.length ? `<ul>${E.changes.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}`;
   const S = settingsEffect(state.manual, playersById(), state.settings, teamState());
   const sBig = S.sectors.filter((x) => Math.abs(x.delta) >= 0.05);
   const dh = S.hatStatsNow - S.hatStatsBase;
-  const settingsBlock = `<h3 style="margin-top:0">Wirkung von Taktik und Einstellung</h3>
-    ${
-      S.changed.length
-        ? `<div class="focus ${dh >= 0 && S.loddarNow >= S.loddarBase ? "ok" : ""}"><b>${esc(S.changed.join(", "))}</b> gegenüber Normal: HatStats ${S.hatStatsNow.toFixed(0)} statt ${S.hatStatsBase.toFixed(0)} (${dh >= 0 ? "+" : ""}${dh.toFixed(0)}), LoddarStats ${S.loddarNow.toFixed(1)} statt ${S.loddarBase.toFixed(1)}.</div>
-           ${sBig.length ? `<p>${sBig.map((x) => `<b>${esc(x.name)}</b> ${x.delta > 0 ? "+" : ""}${x.delta.toFixed(2)}`).join(", ")}.</p>` : `<p>Die Bewertungen der Mannschaftsteile ändern sich dadurch nicht.</p>`}`
-        : `<p>Taktik, Einstellung und Ausrichtung stehen auf Normal. Wähle oben eine andere Taktik, dann siehst du hier, was sie bringt oder kostet.</p>`
-    }
-    <ul>${S.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
-    <p class="sub">LoddarStats (aus HO) gewichten wie HatStats die Mannschaftsteile, berücksichtigen aber auch, wohin die Angriffe laufen und die Konterstärke. Höher ist besser.</p>`;
+  const loddar = Math.abs(S.loddarNow - S.loddarBase) >= 0.05 ? `, <abbr title="LoddarStats (aus HO) gewichten wie HatStats die Mannschaftsteile, berücksichtigen aber auch, wohin die Angriffe laufen und die Konterstärke. Höher ist besser.">LoddarStats</abbr> ${de(S.loddarNow, 1)} statt ${de(S.loddarBase, 1)}` : "";
+  const settingsBlock = S.changed.length
+    ? `<h3 style="margin-top:0">Wirkung von Taktik und Einstellung</h3>
+       <div class="focus ${dh >= 0 && S.loddarNow >= S.loddarBase ? "ok" : ""}"><b>${esc(S.changed.join(", "))}</b> gegenüber Normal: HatStats ${S.hatStatsNow.toFixed(0)} statt ${S.hatStatsBase.toFixed(0)} (${dh >= 0 ? "+" : ""}${dh.toFixed(0)})${loddar}.</div>
+       ${sBig.length ? `<p>${sBig.map((x) => `<b>${esc(x.name)}</b> ${x.delta > 0 ? "+" : ""}${de(x.delta)}`).join(", ")}.</p>` : ""}
+       <ul>${S.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`
+    : "";
   $("#explainOut").innerHTML = `<div class="explain">
     ${settingsBlock}
-    <h3>Was sich gegenüber dem Vorschlag ändert</h3>
-    ${head}
-    ${big.length ? `<p>${big.map((x) => `<b>${esc(x.name)}</b> ${x.delta > 0 ? "steigt" : "sinkt"} von ${esc(ratingLabel(x.auto))} auf ${esc(ratingLabel(x.mine))}`).join("; ")}.</p>` : ""}
-    <table class="cmp"><thead><tr><th>Mannschaftsteil</th><th class="num">Automatisch</th><th class="num">Deine</th><th class="num">Änderung</th></tr></thead><tbody>
-      ${E.sectors.map((x) => `<tr title="${esc(ratingLabel(x.mine))}"><td>${esc(x.name)}</td><td class="num">${x.auto.toFixed(2)}</td><td class="num">${x.mine.toFixed(2)}</td><td class="num">${arrow(x.delta)}</td></tr>`).join("")}
-      <tr><td><b>HatStats</b></td><td class="num">${E.hatStatsAuto.toFixed(0)}</td><td class="num"><b>${E.hatStatsMine.toFixed(0)}</b></td><td class="num">${arrow(d)}</td></tr>
-    </tbody></table>
-    ${E.changes.length ? `<h3>Deine Änderungen</h3><ul>${E.changes.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}
-    ${E.warnings.length ? `<h3>Achtung</h3><ul>${E.warnings.map((w) => `<li>${statusChip("warning", "", "!")} ${esc(w)}</li>`).join("")}</ul>` : ""}
+    <h3${settingsBlock ? "" : ' style="margin-top:0"'}>Was sich gegenüber dem Vorschlag ändert</h3>
+    ${changeBlock}
   </div>`;
 }
 
@@ -887,85 +895,93 @@ function planOpponent(): { ratings: SectorRatings; tactic: number; label: string
   return { ratings: avg, tactic: Tactic.normal, label: `typischer Gegner deiner Liga (keine Daten zu ${name})`, known: false };
 }
 
-function styleNote(): string[] {
-  const t = state.hrf!.team;
+function styleNoteFor(t: Hrf["team"]): string {
   const [lo, hi] = styleRange(t);
-  if (lo === -10 && hi === 10) return [];
   const coach = t.trainerType === 2 ? "einem ausgeglichenen Trainer" : t.trainerType === 0 ? "einem defensiven Trainer" : "einem offensiven Trainer";
-  return [
-    lo === hi
-      ? `Ausrichtung: Mit ${coach} und ohne Taktik-Assistenten ist nur ${styleName(lo)} möglich. Jede Stufe Taktik-Assistent erweitert den Spielraum.`
-      : `Ausrichtung: Mit ${coach} und Taktik-Assistenten Stufe ${t.tacticalAssistants} sind nur ${styleName(lo)} bis ${styleName(hi)} möglich.`,
-  ];
+  return lo === hi
+    ? `Ausrichtung: Mit ${coach} und ohne Taktik-Assistenten ist nur ${styleName(lo)} möglich. Jede Stufe Taktik-Assistent erweitert den Spielraum.`
+    : `Ausrichtung: Mit ${coach} und Taktik-Assistenten Stufe ${t.tacticalAssistants} sind nur ${styleName(lo)} bis ${styleName(hi)} möglich.`;
 }
 
 function renderMatchPlan() {
-  const out = document.querySelector<HTMLElement>("#matchPlanOut");
-  if (!out || !state.hrf) return;
+  if (!state.hrf) return;
+  const set = (id: string, html: string) => ($(id).innerHTML = html);
   const positions = state.manual.length === 11 ? state.manual : (state.league?.lineup.positions ?? []);
-  if (positions.length < 11) {
-    out.innerHTML = "";
-    return;
-  }
   const m = state.match;
   const oppName = m ? (m.homeId === state.hrf.team.teamId ? m.awayName : m.homeName) : "den Gegner";
-  const opp = planOpponent();
+  const opp = positions.length < 11 ? null : planOpponent();
+  const s = state.settings;
+  const pct = (x: number) => `${Math.round(x * 100)} %`;
+  const bar = (pr: MatchPlan["best"]["prediction"]) =>
+    `<div class="wdl" title="Sieg ${pct(pr.win)}, Remis ${pct(pr.draw)}, Niederlage ${pct(pr.loss)}"><i class="w" style="width:${pr.win * 100}%"></i><i class="d" style="width:${pr.draw * 100}%"></i><i class="l" style="width:${pr.loss * 100}%"></i></div>
+     <div class="sub">Sieg <b>${pct(pr.win)}</b> · Remis ${pct(pr.draw)} · Niederlage ${pct(pr.loss)} · Tore ${de(pr.goalsFor, 1)} : ${de(pr.goalsAgainst, 1)} · ${de(pr.points)} erwartete Punkte</div>`;
   if (!opp) {
     planKey = "";
-    out.innerHTML = `<div class="mplan">
-      <h3>Taktik-Empfehlung <span class="sub">gegen ${esc(oppName)}</span></h3>
-      <p><b>Keine Empfehlung möglich, weil die Stärke von ${esc(oppName)} unbekannt ist.</b> Welche Taktik und Ausrichtung am besten ist, hängt fast nur davon ab, wo der Gegner stärker oder schwächer ist als du. Bis dahin ist Normal, ausgewogen, Einstellung Normal die sichere Wahl.</p>
-      <p class="sub">So bekommst du eine Empfehlung: in HO den Gegnercheck für ${esc(oppName)} machen, TopHatt.bat starten und „Aktualisieren“ klicken.</p>
-    </div>`;
+    set("#planOpp", `gegen ${esc(oppName)}`);
+    set("#planWarn", "");
+    set("#planCur", "");
+    set(
+      "#planReco",
+      positions.length < 11
+        ? `<div class="mp-head">Empfehlung</div><p class="sub">Erst 11 Spieler aufstellen, dann rechnet TopHatt die beste Taktik aus.</p>`
+        : `<div class="mp-head">Empfehlung</div><p><b>Keine Empfehlung möglich:</b> Die Stärke von ${esc(oppName)} ist unbekannt. Bis dahin ist Normal, ausgewogen, Einstellung Normal die sichere Wahl.</p>
+           <p class="sub">So bekommst du eine: in HO den Gegnercheck für ${esc(oppName)} machen, TopHatt.bat starten und „Aktualisieren“ klicken.</p>`,
+    );
+    set("#planNotes", "");
+    set("#planMore", "");
     return;
   }
   const byId = playersById();
   const oppSide = { ratings: opp.ratings, tactic: opp.tactic, level: 8 };
-  const key = JSON.stringify([positions.map((p) => [p.playerId, p.role, p.behaviour]), state.settings.location, opp.label, opp.ratings, styleRange(state.hrf.team)]);
+  const key = JSON.stringify([positions.map((p) => [p.playerId, p.role, p.behaviour]), s.location, opp.label, opp.ratings, styleRange(state.hrf.team)]);
   if (key !== planKey) {
     planKey = key;
     const cup = m ? m.type === 3 : false;
-    planCache = { plan: planMatch(positions, byId, state.settings, teamState(), oppSide, { cup, styleRange: styleRange(state.hrf.team) }), oppLabel: opp.label };
+    planCache = { plan: planMatch(positions, byId, s, teamState(), oppSide, { cup, styleRange: styleRange(state.hrf.team) }), oppLabel: opp.label };
   }
-  const { plan: P, oppLabel } = planCache!;
+  const { plan: P } = planCache!;
   const b = P.best;
-  const s = state.settings;
   const cur = (MODELLED_TACTICS as number[]).includes(s.tactic) ? evaluateSettings(positions, byId, s, teamState(), oppSide) : null;
-  const pct = (x: number) => `${Math.round(x * 100)} %`;
   const isActive = (o: MatchPlan["options"][number]) => o.settings.tactic === s.tactic && o.settings.styleOfPlay === s.styleOfPlay;
-  const applied = s.tactic === b.settings.tactic && s.styleOfPlay === b.settings.styleOfPlay && s.attitude === P.attitude.advice;
-  const bar = (pr: MatchPlan["best"]["prediction"]) =>
-    `<div class="wdl" title="Sieg ${pct(pr.win)}, Remis ${pct(pr.draw)}, Niederlage ${pct(pr.loss)}"><i class="w" style="width:${pr.win * 100}%"></i><i class="d" style="width:${pr.draw * 100}%"></i><i class="l" style="width:${pr.loss * 100}%"></i></div>
-     <div class="sub">Sieg <b>${pct(pr.win)}</b> · Remis ${pct(pr.draw)} · Niederlage ${pct(pr.loss)} · Tore ${pr.goalsFor.toFixed(1)} : ${pr.goalsAgainst.toFixed(1)} · ${pr.points.toFixed(2)} Punkte</div>`;
-  const settingsLine = (tactic: number, style: number, att: number) =>
-    `<div class="mp-set"><span>Taktik <b>${esc(TACTIC_NAME[tactic])}</b></span><span>Ausrichtung <b>${esc(styleName(style))}</b></span><span>Einstellung <b>${esc(ATTITUDE_NAME[att])}</b></span></div>`;
-  const recoPred = P.attitude.advice === 0 ? b.prediction : evaluateSettings(positions, byId, { ...b.settings, attitude: P.attitude.advice as MatchSettings["attitude"] }, teamState(), oppSide).prediction;
+  const reco = { tactic: b.settings.tactic, style: b.settings.styleOfPlay, attitude: P.attitude.advice };
+  const applied = s.tactic === reco.tactic && s.styleOfPlay === reco.style && s.attitude === reco.attitude;
+  const recoPred = reco.attitude === 0 ? b.prediction : evaluateSettings(positions, byId, { ...b.settings, attitude: reco.attitude as MatchSettings["attitude"] }, teamState(), oppSide).prediction;
+  set("#planOpp", `gegen ${esc(oppName)} · Gegnerstärke: ${opp.known ? `Durchschnitt seiner letzten ${state.opponent?.matches.length ?? 5} Spiele` : "Schnitt deiner Liga (geschätzt)"}`);
+  set("#planWarn", opp.known ? "" : `<p class="sub warn-note">Zu ${esc(oppName)} gibt es keine Daten. Für eine echte Empfehlung in HO den Gegnercheck machen und „Aktualisieren“ klicken.</p>`);
+  set("#planCur", cur ? bar(cur.prediction) : `<div class="wdl"><i style="width:100%;background:var(--line)"></i></div><div class="sub">Keine Prognose für ${esc(TACTIC_NAME[s.tactic])}: diese Taktik bildet das Spielmodell nicht ab.</div>`);
+  if (applied) {
+    set("#planReco", `<div class="mp-head">Empfehlung</div><p class="mp-ok">✓ Deine Einstellung ist die beste berechnete Variante.</p>`);
+  } else {
+    const diffs: string[] = [];
+    if (s.tactic !== reco.tactic) diffs.push(`Taktik <b>${esc(TACTIC_NAME[reco.tactic])}</b> statt ${esc(TACTIC_NAME[s.tactic])}`);
+    if (s.styleOfPlay !== reco.style) diffs.push(`Ausrichtung <b>${esc(styleName(reco.style))}</b> statt ${esc(styleName(s.styleOfPlay))}`);
+    if (s.attitude !== reco.attitude) diffs.push(`Einstellung <b>${esc(ATTITUDE_NAME[reco.attitude])}</b> statt ${esc(ATTITUDE_NAME[s.attitude])}`);
+    const gain = cur ? recoPred.points - cur.prediction.points : null;
+    set(
+      "#planReco",
+      `<div class="mp-head">Empfehlung${gain !== null && gain >= 0.005 ? ` <span class="up">+${de(gain)} erwartete Punkte</span>` : ""}</div>
+       <ul class="mp-diff">${diffs.map((d) => `<li>${d}</li>`).join("")}</ul>
+       ${bar(recoPred)}
+       <button class="btn primary" id="applyPlan">Empfehlung übernehmen</button>`,
+    );
+  }
+  const notes = [...P.notes.filter((n) => !/^Gegenüber|^Normal und ausgewogen/.test(n)), P.attitude.text];
+  set("#planNotes", notes.map((t) => `<li>${esc(t)}</li>`).join(""));
   const row = (o: MatchPlan["options"][number]) =>
-    `<tr class="${o === b ? "reco-row" : ""} ${isActive(o) ? "active-row" : ""}"><td>${esc(o.label)}${o === b ? ' <span class="mp-tag reco">empfohlen</span>' : ""}${isActive(o) ? ' <span class="mp-tag act">eingestellt</span>' : ""}</td><td class="num">${pct(o.prediction.win)}</td><td class="num">${pct(o.prediction.draw)}</td><td class="num">${pct(o.prediction.loss)}</td><td class="num">${o.prediction.goalsFor.toFixed(1)} : ${o.prediction.goalsAgainst.toFixed(1)}</td><td class="num">${o.prediction.points.toFixed(2)}</td><td class="num">${o.hatStats.toFixed(0)}</td></tr>`;
-  out.innerHTML = `<div class="mplan">
-    <h3>Taktik-Empfehlung <span class="sub">gegen ${esc(oppLabel)}</span></h3>
-    ${opp.known ? "" : `<p class="sub warn-note">Geschätzt: Zu ${esc(oppName)} gibt es keine Daten, gerechnet wird mit dem Schnitt deiner Liga. Für eine echte Empfehlung in HO den Gegnercheck machen und „Aktualisieren“ klicken.</p>`}
-    <div class="mp-cols">
-      <div class="mp-box ${applied ? "same" : ""}"><div class="mp-head">Jetzt eingestellt</div>
-        ${settingsLine(s.tactic, s.styleOfPlay, s.attitude)}
-        ${cur ? bar(cur.prediction) : `<p class="sub">${esc(TACTIC_NAME[s.tactic])} kann das Spielmodell nicht bewerten.</p>`}
-      </div>
-      <div class="mp-box reco"><div class="mp-head">Empfehlung ${applied ? '<span class="applied">✓ ist eingestellt</span>' : ""}</div>
-        ${settingsLine(b.settings.tactic, b.settings.styleOfPlay, P.attitude.advice)}
-        ${bar(recoPred)}
-        ${applied ? "" : `<button class="btn primary" id="applyPlan">Empfehlung übernehmen</button>`}
-      </div>
-    </div>
-    <ul class="sub mp-notes">${[...P.notes, P.attitude.text, ...styleNote()].map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
-    <details><summary>Alle Varianten vergleichen (${P.options.length})</summary>
-      <div class="scroll"><table class="nowrap mp-table"><thead><tr><th>Taktik, Ausrichtung</th><th class="num">Sieg</th><th class="num">Remis</th><th class="num">Niederl.</th><th class="num">Tore</th><th class="num">Punkte</th><th class="num">HatStats</th></tr></thead><tbody>${P.options.map(row).join("")}</tbody></table></div>
-      <p class="sub">Berechnet von TopHatt mit HOs Spielvorhersage (10 Angriffe, Ballbesitz aus dem Mittelfeld, Torchance aus Angriff gegen Abwehr, Konter), je 3000 simulierte Spiele, alle mit Einstellung Normal. Pressing, Kreativ und Fernschüsse bildet das Modell nicht ab.</p>
-    </details>
-  </div>`;
+    `<tr class="${o === b ? "reco-row" : ""} ${isActive(o) ? "active-row" : ""}"><td>${esc(o.label)}${o === b ? ' <span class="mp-tag reco">empfohlen</span>' : ""}${isActive(o) ? ' <span class="mp-tag act">eingestellt</span>' : ""}</td><td class="num">${pct(o.prediction.win)}</td><td class="num">${pct(o.prediction.draw)}</td><td class="num">${pct(o.prediction.loss)}</td><td class="num">${de(o.prediction.goalsFor, 1)} : ${de(o.prediction.goalsAgainst, 1)}</td><td class="num">${de(o.prediction.points)}</td><td class="num">${o.hatStats.toFixed(0)}</td></tr>`;
+  set(
+    "#planMore",
+    P.options.length > 1
+      ? `<details><summary>Alle Varianten vergleichen (${P.options.length})</summary>
+      <div class="scroll"><table class="nowrap mp-table"><thead><tr><th>Taktik, Ausrichtung</th><th class="num">Sieg</th><th class="num">Remis</th><th class="num">Niederl.</th><th class="num">Tore</th><th class="num">Erw. Punkte</th><th class="num">HatStats</th></tr></thead><tbody>${P.options.map(row).join("")}</tbody></table></div>
+      <p class="sub">Berechnet mit HOs Spielvorhersage (10 Angriffe, Ballbesitz aus dem Mittelfeld, Torchance aus Angriff gegen Abwehr, Konter), je 3000 simulierte Spiele, alle mit Einstellung Normal.</p>
+    </details>`
+      : "",
+  );
   document.querySelector("#applyPlan")?.addEventListener("click", () => {
-    $<HTMLSelectElement>("#tactic").value = String(b.settings.tactic);
-    $<HTMLSelectElement>("#style").value = String(b.settings.styleOfPlay);
-    $<HTMLSelectElement>("#attitude").value = String(P.attitude.advice);
+    $<HTMLSelectElement>("#tactic").value = String(reco.tactic);
+    $<HTMLSelectElement>("#style").value = String(reco.style);
+    $<HTMLSelectElement>("#attitude").value = String(reco.attitude);
     compute();
     toast("Empfohlene Einstellungen übernommen.");
   });
@@ -991,22 +1007,18 @@ function renderLineup() {
   const bench = Object.entries(C.bench)
     .map(([slot, id]) => `<tr><td class="muted">${BENCH_DE[slot]}</td><td>${esc(byId.get(id!)?.name ?? "-")}</td></tr>`)
     .join("");
+  const tl = tacticLevel(state.manual.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role })), state.settings.tactic);
   $("#lineupSide").innerHTML = `
-    <h3 style="margin-top:0">Deine Aufstellung</h3>
+    <h3 style="margin-top:0">Kapitän, Standards, Bank</h3>
     <table><tbody>
-      <tr><td class="muted">Formation</td><td><b>${formationLabel(formationCode(state.manual))}</b> <span class="muted">Erfahrung ${state.hrf!.team.formationExperience[formationCode(state.manual)] ?? 0}</span></td></tr>
-      <tr><td class="muted">HatStats</td><td><b>${mine.hatStats.toFixed(0)}</b> <span class="muted">Ø über 90 Minuten</span></td></tr>
-      <tr><td class="muted">LoddarStats</td><td><b>${loddarStats(mine.ratings, state.settings.tactic, tacticLevel(state.manual.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role })), state.settings.tactic)).toFixed(1)}</b></td></tr>
       <tr><td class="muted">Kapitän</td><td>${esc(byId.get(C.captainId)?.name ?? "-")}</td></tr>
       <tr><td class="muted">Standards</td><td>${esc(byId.get(C.setPiecesId)?.name ?? "-")}</td></tr>
+      ${bench}
+      <tr><td class="muted"><abbr title="LoddarStats (aus HO) gewichten wie HatStats die Mannschaftsteile, berücksichtigen aber auch, wohin die Angriffe laufen und die Konterstärke. Höher ist besser.">LoddarStats</abbr></td><td>${de(loddarStats(mine.ratings, state.settings.tactic, tl), 1)}</td></tr>
     </tbody></table>
-    <h3>Ersatzbank</h3>
-    <table><tbody>${bench}</tbody></table>
-    <details><summary>Formationen im Vergleich (automatisch)</summary>
-      <table><thead><tr><th>Formation</th><th class="num">Erfahrung</th><th class="num">HatStats</th></tr></thead><tbody>
-      ${L.perFormation.map((f) => `<tr><td>${formationLabel(f.formation)}</td><td class="num">${f.experience}</td><td class="num">${f.hatStats.toFixed(0)}</td></tr>`).join("")}
-      </tbody></table>
-    </details>`;
+    <p class="sub">Kapitän, Standards und Bank wählt TopHatt automatisch, in HO kannst du sie vor dem Senden noch ändern.</p>`;
+  const mi = Number($<HTMLInputElement>("#matchId").value);
+  $("#matchIdInfo").textContent = m && mi === m.id ? `Spiel-ID gehört zu: ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : mi ? "Spiel-ID von Hand eingetragen." : "";
 }
 
 /** Spieler auf eine Position setzen: tauscht, wenn dort schon jemand steht */

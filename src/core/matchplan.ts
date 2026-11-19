@@ -175,6 +175,7 @@ export interface MatchPlan {
 const STYLE_NAME: Record<number, string> = { [-10]: "defensiv", [-5]: "eher defensiv", 0: "ausgewogen", 5: "eher offensiv", 10: "offensiv" };
 export const styleName = (s: number) => STYLE_NAME[s] ?? String(s);
 const pct = (x: number) => `${Math.round(x * 100)} %`;
+const de = (x: number) => x.toFixed(2).replace(".", ",");
 
 /**
  * Alle sinnvollen Kombinationen aus Taktik und Ausrichtung mit der gegebenen Elf durchrechnen und nach
@@ -230,20 +231,20 @@ export function planMatch(
   } else if (gain >= 0.3 && best.prediction.win < 0.6) {
     attitude = {
       advice: Attitude.mots,
-      text: `${ATTITUDE_NAME[Attitude.mots]} lohnt sich hier: Siegchance ${pct(best.prediction.win)} → ${pct(mots.prediction.win)} (+${gain.toFixed(2)} Punkte). Danach sinkt die Stimmung, also nur in einem entscheidenden Spiel${opts.cup ? " (Pokal)" : ""}.`,
+      text: `${ATTITUDE_NAME[Attitude.mots]} lohnt sich hier: Siegchance ${pct(best.prediction.win)} → ${pct(mots.prediction.win)} (+${de(gain)} erwartete Punkte). Danach sinkt die Stimmung, also nur in einem entscheidenden Spiel${opts.cup ? " (Pokal)" : ""}.`,
     };
   } else {
     attitude = {
       advice: Attitude.normal,
-      text: `Normal. Spiel des Jahres brächte nur +${Math.max(0, gain).toFixed(2)} Punkte (Siegchance ${pct(mots.prediction.win)}) und kostet danach Stimmung; aufheben für ein entscheidendes Spiel.`,
+      text: `Einstellung Normal lassen: Spiel des Jahres brächte nur +${de(Math.max(0, gain))} erwartete Punkte (Siegchance ${pct(mots.prediction.win)}) und kostet danach Stimmung. Heb es dir für ein entscheidendes Spiel auf.`,
     };
   }
 
   const notes: string[] = [];
   if (best.settings.tactic !== Tactic.normal && best.level !== null)
-    notes.push(`Taktikstärke ${TACTIC_NAME[best.settings.tactic]}: ${best.level.toFixed(1)}. Sie ergibt sich aus den Fertigkeiten der aufgestellten Spieler, einspielen muss man eine Taktik nicht.`);
+    notes.push(`Taktikstärke ${TACTIC_NAME[best.settings.tactic]}: ${best.level.toFixed(1).replace(".", ",")}. Sie ergibt sich aus den Fertigkeiten der aufgestellten Spieler, einspielen muss man eine Taktik nicht.`);
   const diff = best.prediction.points - neutral.prediction.points;
-  if (diff > 0.02) notes.push(`Gegenüber Normal/ausgewogen: +${diff.toFixed(2)} erwartete Punkte (Siegchance ${pct(neutral.prediction.win)} → ${pct(best.prediction.win)}).`);
+  if (diff > 0.02) notes.push(`Gegenüber Normal/ausgewogen: +${de(diff)} erwartete Punkte (Siegchance ${pct(neutral.prediction.win)} → ${pct(best.prediction.win)}).`);
   else notes.push("Normal und ausgewogen ist hier schon so gut wie die beste Einstellung.");
   return { best, neutral, options, attitude, notes };
 }
