@@ -870,6 +870,7 @@ function kickoffAnimation() {
 
 /** Linien bis 70 % der besten Eignung; Farbe nach Abstand zur besten Position */
 const FLOW_CUT = 0.7;
+const FLOW_LINES = 3;
 function flowClass(share: number): string {
   if (share >= 0.97) return "fq1"; // optimal (grün)
   if (share >= 0.88) return "fq2"; // gut (gelb)
@@ -890,7 +891,10 @@ function drawFlow() {
   const ed = document.querySelector<HTMLElement>("#aufstellung .editor");
   if (!ed) return;
   ed.querySelector("svg.flow")?.remove();
-  ed.querySelectorAll(".flow-target").forEach((x) => x.classList.remove("flow-target"));
+  ed.querySelectorAll(".flow-target,.flow-hint").forEach((x) => {
+    x.classList.remove("flow-target", "flow-hint");
+    delete (x as HTMLElement).dataset.fq;
+  });
   const pick = state.pick;
   const pid =
     state.flowPid ??
@@ -910,9 +914,9 @@ function drawFlow() {
   const cands = Object.keys(GRID)
     .map(Number)
     .filter((role) => role !== fromSlot?.role)
-    .map((role) => ({ role, rel: fit.rel(p, lineupSector(role)) }))
+    .map((role) => ({ role, rel: fit.rel(p, lineupSector(role)), val: playerPositionRating(p, role) }))
     .filter((c) => c.rel >= cut)
-    .sort((a, b) => b.rel - a.rel)
+    .sort((a, b) => b.rel - a.rel || b.val - a.val)
     .slice(0, 9);
   if (!cands.length) return;
   const box = ed.getBoundingClientRect();
@@ -926,10 +930,20 @@ function drawFlow() {
   const x0 = sx - box.left,
     y0 = sy - box.top;
   const parts: string[] = [];
+  let i = 0;
   for (const c of cands) {
     const slot = ed.querySelector<HTMLElement>(`#pitchOut .slot[data-role="${c.role}"]`);
     const tok = slot?.querySelector<HTMLElement>(".token");
     if (!slot || !tok) continue;
+    const q = flowClass(c.rel / best);
+    // Nur die drei besten passenden Plätze (grün/gelb) bekommen eine Linie, die übrigen nur einen dezenten Ring
+    if (i >= FLOW_LINES || q === "fq3" || q === "fq4") {
+      slot.classList.add("flow-hint");
+      slot.dataset.fq = q;
+      i++;
+      continue;
+    }
+    i++;
     slot.classList.add("flow-target");
     const tr = tok.getBoundingClientRect();
     const x1 = tr.left + tr.width / 2 - box.left,
@@ -937,7 +951,6 @@ function drawFlow() {
     const k = Math.max(0, Math.min(1, (c.rel - cut) / Math.max(1e-6, best - cut)));
     const w = 1.2 + 4.3 * k;
     const op = 0.55 + 0.45 * k;
-    const q = flowClass(c.rel / best);
     const horizontal = Math.abs(x1 - x0) > Math.abs(y1 - y0);
     const d = horizontal
       ? `M${x0},${y0} C${(x0 + x1) / 2},${y0} ${(x0 + x1) / 2},${y1} ${x1},${y1}`
