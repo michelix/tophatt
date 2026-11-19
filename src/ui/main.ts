@@ -8,11 +8,11 @@ import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRating
 import { TRAININGS, planFriendly, trainingFor, trainingPriority, type FriendlyPlan } from "../core/training";
 import { advise, type Advice } from "../core/advisor";
 import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
-import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
+import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type ProjectionPoint, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
 import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
 import { MODELLED_TACTICS, evaluateSettings, planMatch, styleName, type MatchPlan } from "../core/matchplan";
-import { type GroupPlan, GROUPS, GROUP_DE, GROUP_SHORT, GROUP_SKILLS, availability, balancedHome, fitTable, groupValue, planSquad, squadGroups, staminaShare } from "../core/squad";
+import { BACKUP_SHARE, type GroupPlan, GROUPS, GROUP_DE, GROUP_SHORT, GROUP_SKILLS, availability, balancedHome, fitTable, groupValue, planSquad, squadGroups, staminaShare } from "../core/squad";
 import { type LineupChoices, completeLineup, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
 import { FORMATIONS, behavioursFor } from "../core/optimizer";
 import { ATTITUDE_NAME, TACTIC_NAME, centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
@@ -127,6 +127,10 @@ interface State {
   /** Spieler, für den die Linien zu passenden Positionen gezeigt werden */
   flowPid: number | null;
   plans: GroupPlan[];
+  /** Grundlage der Kaderplanung (wie Schwachstellen), z. B. „deiner Aufstellung“ */
+  planBasis: string;
+  /** Projektion der Fertigkeiten je Spieler (32 Wochen), einmal je Berechnung */
+  projection: ((p: Player) => ProjectionPoint[]) | null;
   profiles: SearchProfile[];
 }
 
@@ -154,6 +158,8 @@ const state: State = {
   weakBasis: "mine",
   flowPid: null,
   plans: [],
+  planBasis: "",
+  projection: null,
   profiles: [],
   settings: { location: Location.home, tactic: Tactic.normal, attitude: Attitude.normal, styleOfPlay: 0, teamSpiritSubIndex: 2 },
 };
@@ -337,7 +343,8 @@ function compute() {
     state.friendly = planFriendly(hrf.players, state.league.lineup, hrf.team.trainingType, $<HTMLInputElement>("#bruised").checked);
     state.setup = trainingSetup();
     state.outlooks = new Map(hrf.players.map((p) => [p.id, outlookFor(p, startSkills(p), state.setup!, trainingShare(p.id))]));
-    state.plans = planSquad(hrf.players, state.league.lineup, (p) => project(startSkills(p), p.age, p.ageDays, state.setup!, trainingShare(p.id), 32));
+    const projections = new Map(hrf.players.map((p) => [p.id, project(startSkills(p), p.age, p.ageDays, state.setup!, trainingShare(p.id), 32)]));
+    state.projection = (p) => projections.get(p.id)!;
     updateAnalysis();
     const m = state.match;
     state.opponent = m && state.ho ? opponentProfile(state.ho.matchRatings, m.homeId === hrf.team.teamId ? m.awayId : m.homeId) : null;
@@ -1437,6 +1444,9 @@ function updateAnalysis() {
   const weakSet = new Set(state.weak.filter((w) => w.severity !== "good").map((w) => w.sector));
   const lineup = B.positions === state.league!.lineup.positions ? state.league!.lineup : { positions: B.positions, bench: completeLineup(B.positions, hrf.players, state.settings, $<HTMLInputElement>("#bruised").checked).bench };
   state.advice = advise(hrf.players, lineup, state.settings, team, hrf.team.trainingType, weakSet);
+  // Kaderplanung auf derselben Grundlage wie die Schwachstellen (normalerweise deine Aufstellung)
+  state.planBasis = B.label;
+  state.plans = state.projection ? planSquad(hrf.players, { positions: B.positions }, state.projection) : [];
   state.profiles = searchProfiles(hrf.players, state.weak, state.plans);
 }
 
@@ -1699,10 +1709,15 @@ function renderPlan() {
   const P = state.plans;
   if (!P.length) return;
   const label: Record<string, [string, string]> = { critical: ["!", "Lücke"], warning: ["–", "dünn"], good: ["✓", "gut besetzt"] };
+  const backupHtml = (b: GroupPlan["horizons"][number]["backup"]) => {
+    if (!b) return `<br><span class="down">Ersatz: keiner</span>`;
+    const cls = b.share >= BACKUP_SHARE ? "muted" : "down";
+    return `<br><span class="${cls}">Ersatz: ${esc(b.name.split(" ").slice(-1)[0])} (${b.value.toFixed(1)}, ${Math.round(b.share * 100)} %)</span>`;
+  };
   const cell = (h: GroupPlan["horizons"][number], base: number, i: number) => {
     const diff = base ? h.average / base - 1 : 0;
     const trend = i === 0 || Math.abs(diff) < 0.03 ? "" : `<span class="${diff < 0 ? "down" : "up"}"> ${diff > 0 ? "+" : ""}${Math.round(diff * 100)} %</span>`;
-    return `<td class="st"><span class="val">${h.average.toFixed(1)}</span>${trend}<br>${h.starters.map((e) => `${esc(e.name.split(" ").slice(-1)[0])} <span class="muted">${e.age}</span>`).join(", ")}${h.backup ? `<br><span class="muted">Ersatz: ${esc(h.backup.name.split(" ").slice(-1)[0])} (${h.backup.value.toFixed(1)})</span>` : ""}</td>`;
+    return `<td class="st"><span class="val">${h.average.toFixed(1)}</span>${trend}<br>${h.starters.map((e) => `${esc(e.name.split(" ").slice(-1)[0])} <span class="muted">${e.age}</span>`).join(", ")}${backupHtml(h.backup)}</td>`;
   };
   $("#planOut").innerHTML = `<div class="scroll"><table class="plan"><thead><tr><th>Mannschaftsteil</th><th>Jetzt</th><th>In 1 Saison</th><th>In 2 Saisons</th><th>Bewertung</th></tr></thead><tbody>
     ${P.map((g) => {
@@ -1710,7 +1725,8 @@ function renderPlan() {
       return `<tr><td><b>${esc(g.name)}</b><br><span class="muted">${g.needed} ${g.needed === 1 ? "Platz" : "Plätze"}</span></td>${g.horizons.map((h, i) => cell(h, g.horizons[0].average, i)).join("")}<td>${statusChip(g.severity, l, icon)}<br><span class="sub">${esc(g.note)}</span></td></tr>`;
     }).join("")}
     </tbody></table></div>
-    <p class="sub">Zahl = durchschnittliche Positionsstärke der Stammspieler (HO-Formel), Alter zum jeweiligen Zeitpunkt. Plätze laut empfohlener Formation. Training und Altersabbau wie in der Spielerentwicklung; Form und Erfahrung bleiben gleich.</p>`;
+    <p class="sub">Berechnet nach ${esc(state.planBasis || "deiner Aufstellung")} (wie die Seite Schwachstellen): „Jetzt“ zeigt genau diese Stammspieler. Später bleiben sie auf ihren Plätzen, bis ein anderer Spieler dort stärker ist und als Nachfolger übernimmt. Der Trend in Prozent vergleicht mit „Jetzt“. Zahl = durchschnittliche Positionsstärke der Stammspieler (HO-Formel), Alter zum jeweiligen Zeitpunkt. Training und Altersabbau wie in der Spielerentwicklung; Form und Erfahrung bleiben gleich.</p>
+    <p class="sub">Ersatz: je Mannschaftsteil einer, und jeder Spieler nur für einen Teil, wie auf der Bank. Prozent = Stärke im Vergleich zum schwächsten Stammspieler dort. Gleichwertig ab ${Math.round(BACKUP_SHARE * 100)} %, darunter rot. Verletzte und gesperrte Spieler zählen heute nicht.</p>`;
 }
 
 function renderSchedule() {
@@ -1871,11 +1887,12 @@ function route() {
     window.scrollTo(0, 0);
     if (v === "aufstellung") requestAnimationFrame(kickoffAnimation);
     // eigene Aufstellung kann sich geändert haben
-    if (v === "schwachstellen" || v === "transfers" || v === "spieltag") {
+    if (v === "schwachstellen" || v === "transfers" || v === "spieltag" || v === "kaderplanung") {
       updateAnalysis();
       renderWeakness();
       renderAdvice();
       renderTiles();
+      renderPlan();
     }
   }
   currentView = v;
