@@ -62,21 +62,22 @@ const SECTOR_NAME: Record<string, string> = {
 };
 
 // Spielfeld-Raster: Zeile (0 = Sturm oben), Spalte (0 = links aus Sicht des eigenen Tors)
+/** Spielfeld wie in HO: Torwart oben, Blick zum gegnerischen Tor nach unten, rechte Seite links */
 const GRID: Record<number, [number, number]> = {
-  [Role.leftForward]: [0, 1],
-  [Role.centralForward]: [0, 2],
-  [Role.rightForward]: [0, 3],
-  [Role.leftWinger]: [1, 0],
-  [Role.leftInnerMidfield]: [1, 1],
-  [Role.centralInnerMidfield]: [1, 2],
-  [Role.rightInnerMidfield]: [1, 3],
-  [Role.rightWinger]: [1, 4],
-  [Role.leftBack]: [2, 0],
-  [Role.leftCentralDefender]: [2, 1],
-  [Role.middleCentralDefender]: [2, 2],
-  [Role.rightCentralDefender]: [2, 3],
-  [Role.rightBack]: [2, 4],
-  [Role.keeper]: [3, 2],
+  [Role.keeper]: [0, 2],
+  [Role.rightBack]: [1, 0],
+  [Role.rightCentralDefender]: [1, 1],
+  [Role.middleCentralDefender]: [1, 2],
+  [Role.leftCentralDefender]: [1, 3],
+  [Role.leftBack]: [1, 4],
+  [Role.rightWinger]: [2, 0],
+  [Role.rightInnerMidfield]: [2, 1],
+  [Role.centralInnerMidfield]: [2, 2],
+  [Role.leftInnerMidfield]: [2, 3],
+  [Role.leftWinger]: [2, 4],
+  [Role.rightForward]: [3, 1],
+  [Role.centralForward]: [3, 2],
+  [Role.leftForward]: [3, 3],
 };
 /** Welche Mannschaftsteile eine Position vor allem trägt (für die Markierung auf dem Spielfeld) */
 const ROLE_SECTORS: Record<number, RatingSector[]> = {
@@ -617,13 +618,13 @@ const initials = (name: string) => {
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 };
 
-const FIELD_LINES = `<svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+const FIELD_LINES = `<svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><g transform="translate(0 100) scale(1 -1)">
   <rect x="2" y="1.5" width="96" height="97" rx="0.5"/>
   <path d="M2 1.5 H98"/><path d="M38 1.5 A12 9 0 0 0 62 1.5"/><circle class="dot" cx="50" cy="1.5" r="0.7"/>
   <rect x="22" y="80" width="56" height="18.5"/><rect x="36" y="91.5" width="28" height="7"/>
   <path d="M40 80 A11 6 0 0 1 60 80"/><circle class="dot" cx="50" cy="87.5" r="0.6"/>
   <path d="M44 98.5 v1.2 h12 v-1.2"/>
-</svg>`;
+</g></svg>`;
 
 function editPitch(): string {
   const byId = playersById();
