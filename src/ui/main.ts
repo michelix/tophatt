@@ -968,20 +968,23 @@ function poolHtml(): string {
     const off = unavailable(p);
     const st = m.availability.status !== "fit" ? ` · <span class="status ${off ? "critical" : "warning"}"><i>${off ? "+" : "!"}</i>${esc(m.availability.label)}</span>` : "";
     return `<div class="pchip${off ? " off" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off ? "" : `draggable="true"`} data-pid="${p.id}">
-      <span class="n">${esc(p.name)}${benchIds.has(p.id) ? ' <span class="tag">Bank</span>' : ""}</span><span class="muted">${p.age} J.</span>
+      <span class="n">${esc(p.name)}</span><span class="muted">${p.age} J.</span>
       <span class="m">${g} ${m.value.toFixed(1)} · Form ${p.form} · Kond. ${p.stamina}${st}</span></div>`;
   };
   const out: string[] = [];
   const shown = new Set<number>();
   for (const g of groups) {
-    const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !unavailable(m.player));
+    // Bankspieler stehen schon unter dem Feld, deshalb hier nicht noch einmal
+    const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !benchIds.has(m.player.id) && !unavailable(m.player));
     if (!ms.length) continue;
     out.push(`<h4>${esc(g.name)}</h4>${ms.map((m) => chip(m, GROUP_SHORT[g.group])).join("")}`);
     ms.forEach((m) => shown.add(m.player.id));
   }
   const off = groups.flatMap((g) => g.members.filter((m) => m.home && unavailable(m.player)).map((m) => chip(m, GROUP_SHORT[g.group])));
   if (off.length) out.push(`<h4>Nicht einsetzbar</h4>${off.join("")}`);
-  return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${state.hrf!.players.length - onField.size}). Hierher ziehen = vom Feld nehmen.</div>${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
+  const benchCount = [...benchIds].filter((id) => id && !onField.has(id)).length;
+  const rest = state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id)).length;
+  return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${rest}) · ${benchCount} auf der Bank. Hierher ziehen = vom Feld oder von der Bank nehmen.</div>${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
 }
 
 function renderExplain() {
