@@ -202,16 +202,20 @@ export function planMatch(
   base: MatchSettings,
   team: TeamState,
   opponent: Side,
-  opts: { cup?: boolean } = {},
+  opts: { cup?: boolean; styleRange?: [number, number] } = {},
 ): MatchPlan {
   const tactics = MODELLED_TACTICS;
-  const styles = [-10, -5, 0, 5, 10];
+  const [lo, hi] = opts.styleRange ?? [-10, 10];
+  const styles = [-10, -5, 0, 5, 10].filter((x) => x >= lo && x <= hi);
+  if (!styles.length) styles.push(0);
   const evalOption = (settings: MatchSettings): PlanOption => evaluateSettings(positions, byId, settings, team, opponent);
   const options: PlanOption[] = [];
   for (const tactic of tactics) for (const styleOfPlay of styles) options.push(evalOption({ ...base, attitude: Attitude.normal, tactic, styleOfPlay }));
   options.sort((a, b) => b.prediction.points - a.prediction.points || b.prediction.goalsFor - b.prediction.goalsAgainst - (a.prediction.goalsFor - a.prediction.goalsAgainst));
   const best = options[0];
-  const neutral = options.find((o) => o.settings.tactic === Tactic.normal && o.settings.styleOfPlay === 0)!;
+  const neutral =
+    options.find((o) => o.settings.tactic === Tactic.normal && o.settings.styleOfPlay === 0) ??
+    options.filter((o) => o.settings.tactic === Tactic.normal).sort((a, b) => Math.abs(a.settings.styleOfPlay) - Math.abs(b.settings.styleOfPlay))[0];
 
   // Einstellung: Spiel des Jahres nur, wenn es ein knappes Spiel deutlich kippt; „nicht so ernst“, wenn der Sieg trotzdem sicher ist
   const mots = evalOption({ ...best.settings, attitude: Attitude.mots });

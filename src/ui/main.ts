@@ -2,7 +2,7 @@
 
 import { DATA_FILE, type DirHandle, askPermission, chooseFolder, fileByName, folderApiAvailable, hasPermission, newestFile, storedFolder } from "./folder";
 import { parseHrf, writeLineupToHrf } from "../core/hrf";
-import { Attitude, Location, Role, Tactic, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
+import { Attitude, Location, Role, Tactic, styleRange, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
 import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
 import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
 import { TRAININGS, planFriendly, trainingFor, trainingPriority, type FriendlyPlan } from "../core/training";
@@ -233,6 +233,7 @@ async function refresh() {
 function afterLoad(resetMatch: boolean) {
   const hrf = state.hrf;
   if (!hrf) return;
+  applyStyleRange(hrf);
   if (resetMatch) {
     state.manualEdited = false;
     const up = state.ho ? upcomingMatches(state.ho).filter((m) => [1, 2, 3].includes(m.type)) : [];
@@ -251,6 +252,30 @@ function afterLoad(resetMatch: boolean) {
     }
   }
   compute();
+}
+
+const ALL_STYLES: [number, string][] = [
+  [-10, "Defensiv"],
+  [-5, "Eher defensiv"],
+  [0, "Ausgewogen"],
+  [5, "Eher offensiv"],
+  [10, "Offensiv"],
+];
+
+/** nur Ausrichtungen anbieten, die Trainer und Taktik-Assistenten erlauben (wie HO) */
+function applyStyleRange(hrf: Hrf) {
+  const [lo, hi] = styleRange(hrf.team);
+  const sel = $<HTMLSelectElement>("#style");
+  const old = Number(sel.value);
+  const allowed = ALL_STYLES.filter(([v]) => v >= lo && v <= hi);
+  if (!allowed.length) allowed.push([0, "Ausgewogen"]);
+  sel.innerHTML = allowed.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
+  sel.value = String(allowed.some(([v]) => v === old) ? old : allowed.reduce((a, b) => (Math.abs(b[0]) < Math.abs(a[0]) ? b : a))[0]);
+  sel.disabled = allowed.length === 1;
+  const coach = hrf.team.trainerType === 2 ? "ausgeglichener Trainer" : hrf.team.trainerType === 0 ? "defensiver Trainer" : hrf.team.trainerType === 1 ? "offensiver Trainer" : "";
+  sel.title = allowed.length === 1 ? `Nur ${allowed[0][1]} möglich: ${coach}, Taktik-Assistenten Stufe ${hrf.team.tacticalAssistants}` : "";
+  const hint = document.querySelector<HTMLElement>("#styleHint");
+  if (hint) hint.textContent = allowed.length === 1 ? `nur diese möglich (${coach}, keine Taktik-Assistenten)` : "";
 }
 
 // --- Berechnung -----------------------------------------------------------------
@@ -861,6 +886,18 @@ function planOpponent(): { ratings: SectorRatings; tactic: number; label: string
   return { ratings: avg, tactic: Tactic.normal, label: `typischer Gegner deiner Liga (keine Daten zu ${name})`, known: false };
 }
 
+function styleNote(): string[] {
+  const t = state.hrf!.team;
+  const [lo, hi] = styleRange(t);
+  if (lo === -10 && hi === 10) return [];
+  const coach = t.trainerType === 2 ? "einem ausgeglichenen Trainer" : t.trainerType === 0 ? "einem defensiven Trainer" : "einem offensiven Trainer";
+  return [
+    lo === hi
+      ? `Ausrichtung: Mit ${coach} und ohne Taktik-Assistenten ist nur ${styleName(lo)} möglich. Jede Stufe Taktik-Assistent erweitert den Spielraum.`
+      : `Ausrichtung: Mit ${coach} und Taktik-Assistenten Stufe ${t.tacticalAssistants} sind nur ${styleName(lo)} bis ${styleName(hi)} möglich.`,
+  ];
+}
+
 function renderMatchPlan() {
   const out = document.querySelector<HTMLElement>("#matchPlanOut");
   if (!out || !state.hrf) return;
@@ -883,11 +920,11 @@ function renderMatchPlan() {
   }
   const byId = playersById();
   const oppSide = { ratings: opp.ratings, tactic: opp.tactic, level: 8 };
-  const key = JSON.stringify([positions.map((p) => [p.playerId, p.role, p.behaviour]), state.settings.location, opp.label, opp.ratings]);
+  const key = JSON.stringify([positions.map((p) => [p.playerId, p.role, p.behaviour]), state.settings.location, opp.label, opp.ratings, styleRange(state.hrf.team)]);
   if (key !== planKey) {
     planKey = key;
     const cup = m ? m.type === 3 : false;
-    planCache = { plan: planMatch(positions, byId, state.settings, teamState(), oppSide, { cup }), oppLabel: opp.label };
+    planCache = { plan: planMatch(positions, byId, state.settings, teamState(), oppSide, { cup, styleRange: styleRange(state.hrf.team) }), oppLabel: opp.label };
   }
   const { plan: P, oppLabel } = planCache!;
   const b = P.best;
@@ -918,7 +955,7 @@ function renderMatchPlan() {
         ${applied ? "" : `<button class="btn primary" id="applyPlan">Empfehlung übernehmen</button>`}
       </div>
     </div>
-    <ul class="sub mp-notes">${[...P.notes, P.attitude.text].map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+    <ul class="sub mp-notes">${[...P.notes, P.attitude.text, ...styleNote()].map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
     <details><summary>Alle Varianten vergleichen (${P.options.length})</summary>
       <div class="scroll"><table class="nowrap mp-table"><thead><tr><th>Taktik, Ausrichtung</th><th class="num">Sieg</th><th class="num">Remis</th><th class="num">Niederl.</th><th class="num">Tore</th><th class="num">Punkte</th><th class="num">HatStats</th></tr></thead><tbody>${P.options.map(row).join("")}</tbody></table></div>
       <p class="sub">Berechnet von TopHatt mit HOs Spielvorhersage (10 Angriffe, Ballbesitz aus dem Mittelfeld, Torchance aus Angriff gegen Abwehr, Konter), je 3000 simulierte Spiele, alle mit Einstellung Normal. Pressing, Kreativ und Fernschüsse bildet das Modell nicht ab.</p>

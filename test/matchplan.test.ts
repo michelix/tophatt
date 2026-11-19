@@ -31,3 +31,11 @@ describe("Spielvorhersage", () => {
     }
   });
 });
+
+import { styleRange } from "../src/core/model";
+describe("Ausrichtung je Trainer (wie HO)", () => {
+  it("ausgeglichener Trainer ohne Taktik-Assistenten: nur ausgewogen", () => expect(styleRange({ trainerType: 2, tacticalAssistants: 0 })).toEqual([0, 0]));
+  it("ausgeglichener Trainer mit Stufe 5: -5 … 5", () => expect(styleRange({ trainerType: 2, tacticalAssistants: 5 })).toEqual([-5, 5]));
+  it("defensiver Trainer mit Stufe 2: -10 … -6", () => expect(styleRange({ trainerType: 0, tacticalAssistants: 2 })).toEqual([-10, -6]));
+  it("offensiver Trainer mit Stufe 5: 0 … 10", () => expect(styleRange({ trainerType: 1, tacticalAssistants: 5 })).toEqual([0, 10]));
+});
