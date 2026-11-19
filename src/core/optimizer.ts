@@ -371,10 +371,22 @@ const BENCH_ROLES: [BenchSlot, number][] = [
   ["winger", Role.leftWinger],
 ];
 
-export function pickBench(rest: Player[]): Lineup["bench"] {
+/**
+ * Ersatzbank aus den übrigen Spielern. `fixed` sind vom Nutzer gewählte Plätze: eine Spieler-ID
+ * bleibt stehen, 0 lässt den Platz leer; alle anderen Plätze werden automatisch besetzt.
+ */
+export function pickBench(rest: Player[], fixed: Partial<Record<BenchSlot, number>> = {}): Lineup["bench"] {
   const bench: Lineup["bench"] = {};
   const used = new Set<number>();
+  for (const [slot, id] of Object.entries(fixed) as [BenchSlot, number][]) {
+    if (id && rest.some((p) => p.id === id) && !used.has(id)) {
+      bench[slot] = id;
+      used.add(id);
+    }
+  }
+  const isFixed = (slot: BenchSlot) => slot in fixed && (fixed[slot] === 0 || bench[slot] !== undefined);
   for (const [slot, role] of BENCH_ROLES) {
+    if (isFixed(slot)) continue;
     let best: Player | null = null;
     let bestV = -1;
     for (const p of rest) {
@@ -401,7 +413,7 @@ export function pickBench(rest: Player[]): Lineup["bench"] {
       joker = p;
     }
   }
-  if (joker) bench.extra = joker.id;
+  if (joker && !isFixed("extra")) bench.extra = joker.id;
   return bench;
 }
 
