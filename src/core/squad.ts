@@ -2,7 +2,7 @@
 // Grundlage sind die projizierten Fertigkeiten (Training und Altersabbau aus development.ts) und die
 // Positionsstärke aus HO (playerPositionRating).
 
-import { type Lineup, type Player, Role } from "./model";
+import { type FieldPosition, type Player, Role } from "./model";
 import { type LineupSector, lineupSector, playerPositionRating } from "./rating";
 import { DEV_SKILLS, DEV_SKILL_DE, type DevSkill, type ProjectionPoint } from "./development";
 import { staminaFactor } from "./rating";
@@ -131,24 +131,36 @@ export interface PlanEntry {
   value: number;
 }
 
+export interface BackupEntry extends PlanEntry {
+  /** Stärke relativ zum schwächsten Stammspieler der Gruppe (1 = gleich stark) */
+  share: number;
+}
+
 export interface HorizonPlan {
   label: string;
   weeks: number;
   starters: PlanEntry[];
   /** Durchschnitt der Stammspieler */
   average: number;
-  backup: PlanEntry | null;
+  backup: BackupEntry | null;
 }
 
 export interface GroupPlan {
   group: LineupSector;
   name: string;
-  /** Stammplätze laut aktueller Formation */
+  /** Stammplätze laut Aufstellung */
   needed: number;
   horizons: HorizonPlan[];
   severity: "critical" | "warning" | "good";
   note: string;
 }
+
+/** Ein Ersatz gilt als gleichwertig, wenn er mindestens so viel Positionsstärke hat (Anteil am schwächsten Stammspieler) */
+export const BACKUP_SHARE = 0.85;
+/** Ein Nachfolger verdrängt einen Stammspieler erst, wenn er relativ (zum Gruppenbesten heute) so viel stärker ist */
+const SWAP_MARGIN = 0.02;
+/** darunter fehlt praktisch eine Reserve */
+export const BACKUP_SHARE_CRITICAL = 0.6;
 
 /** Spieler mit den Fertigkeiten eines Projektionspunkts */
 function atPoint(p: Player, pt: ProjectionPoint): Player {
@@ -158,11 +170,25 @@ function atPoint(p: Player, pt: ProjectionPoint): Player {
 }
 
 /**
+ * Kaderplanung auf Grundlage einer Aufstellung.
+ *
+ * „Jetzt“ sind genau die Spieler dieser Aufstellung die Stammspieler. Später bleiben sie auf ihren Plätzen, bis ein
+ * freier Spieler dort stärker ist als der schwächste von ihnen; dann übernimmt er als Nachfolger. So zeigt sich, wer
+ * deine Plätze in einer und in zwei Saisons trägt, ohne dass eine andere Verteilung den Vergleich verfälscht.
+ *
+ * Ersatz: Jede Gruppe bekommt genau einen Ersatz, und jeder Spieler ist höchstens für eine Gruppe Ersatz (wie die
+ * Bank bei Hattrick). Heute zählen nur einsetzbare Spieler. Gleichwertig ist ein Ersatz ab {@link BACKUP_SHARE} der
+ * Positionsstärke des schwächsten Stammspielers.
+ *
+ * @param positions Aufstellung (11 Positionen); Spieler, die nicht im Kader sind, werden ignoriert
  * @param projection Projektion je Spieler über mindestens 32 Wochen (Woche 0 = heute)
  */
-export function planSquad(players: Player[], lineup: Lineup, projection: (p: Player) => ProjectionPoint[]): GroupPlan[] {
+export function planSquad(players: Player[], lineup: { positions: FieldPosition[] }, projection: (p: Player) => ProjectionPoint[]): GroupPlan[] {
   const needed = new Map<LineupSector, number>(GROUPS.map((g) => [g, 0]));
   for (const pos of lineup.positions) needed.set(lineupSector(pos.role), needed.get(lineupSector(pos.role))! + 1);
+  const byId = new Map(players.map((p) => [p.id, p]));
+  const fixedNow = new Map<number, LineupSector>();
+  for (const pos of lineup.positions) if (byId.has(pos.playerId) && !fixedNow.has(pos.playerId)) fixedNow.set(pos.playerId, lineupSector(pos.role));
   const proj = new Map(players.map((p) => [p.id, projection(p)]));
 
   // Positionsstärke je Spieler, Gruppe und Zeitpunkt
@@ -180,57 +206,125 @@ export function planSquad(players: Player[], lineup: Lineup, projection: (p: Pla
   const ref = new Map<LineupSector, number>();
   for (const g of GROUPS) ref.set(g, Math.max(1e-6, ...players.map((p) => values[0].m.get(p.id)![g])));
 
-  const horizonPlans = values.map(({ h, m, age }) => {
-    // Gierige Verteilung: das relativ stärkste Paar (Spieler, Gruppe) zuerst, jeder Spieler nur einmal Stammspieler
-    const pairs = players.flatMap((p) => GROUPS.filter((g) => needed.get(g)! > 0).map((g) => ({ p, g, v: m.get(p.id)![g], rel: m.get(p.id)![g] / ref.get(g)! })));
-    pairs.sort((a, b) => b.rel - a.rel);
+  const planAt = ({ h, m, age }: (typeof values)[number], hi: number, successors: boolean) => {
+    const entry = (p: Player, g: LineupSector): PlanEntry => ({ id: p.id, name: p.name, age: age(p), value: m.get(p.id)![g] });
     const used = new Set<number>();
     const starters = new Map<LineupSector, PlanEntry[]>(GROUPS.map((g) => [g, []]));
-    for (const { p, g, v } of pairs) {
-      if (used.has(p.id) || starters.get(g)!.length >= needed.get(g)!) continue;
-      used.add(p.id);
-      starters.get(g)!.push({ id: p.id, name: p.name, age: age(p), value: v });
+    // Ausgangspunkt sind immer die Stammspieler der Aufstellung, mit ihren Werten zum jeweiligen Zeitpunkt
+    for (const [id, g] of fixedNow) {
+      if (starters.get(g)!.length >= needed.get(g)!) continue;
+      used.add(id);
+      starters.get(g)!.push(entry(byId.get(id)!, g));
     }
+    // Gierige Verteilung der (übrigen) Plätze: das relativ stärkste Paar zuerst, jeder Spieler nur einmal Stammspieler
+    const pairs = players.flatMap((p) => GROUPS.filter((g) => needed.get(g)! > 0).map((g) => ({ p, g, rel: m.get(p.id)![g] / ref.get(g)! })));
+    pairs.sort((a, b) => b.rel - a.rel);
+    for (const { p, g } of pairs) {
+      if (used.has(p.id) || starters.get(g)!.length >= needed.get(g)!) continue;
+      if (hi === 0 && availability(p).factor === 0) continue;
+      used.add(p.id);
+      starters.get(g)!.push(entry(p, g));
+    }
+    // Später: ein freier Spieler ersetzt den schwächsten Stammspieler einer Gruppe, sobald er dort stärker ist (Nachfolger)
+    if (successors) {
+      for (let guard = 0; guard < 40; guard++) {
+        let best: { p: Player; g: LineupSector; out: PlanEntry; gain: number } | null = null;
+        for (const p of players) {
+          if (used.has(p.id)) continue;
+          for (const g of GROUPS) {
+            const st = starters.get(g)!;
+            if (!st.length) continue;
+            const out = st.reduce((a, b) => (b.value < a.value ? b : a));
+            const gain = (m.get(p.id)![g] - out.value) / ref.get(g)!;
+            if (gain > SWAP_MARGIN && (!best || gain > best.gain)) best = { p, g, out, gain };
+          }
+        }
+        if (!best) break;
+        const st = starters.get(best.g)!;
+        st.splice(st.indexOf(best.out), 1, entry(best.p, best.g));
+        used.delete(best.out.id);
+        used.add(best.p.id);
+      }
+    }
+    for (const st of starters.values()) st.sort((a, b) => b.value - a.value);
+
+    // Ersatz: je Gruppe einer, jeder Spieler nur einmal; die engste Lücke (höchster Anteil) zuerst vergeben
+    const weakest = (g: LineupSector) => Math.max(1e-6, Math.min(...starters.get(g)!.map((e) => e.value)));
+    const backups = new Map<LineupSector, BackupEntry>();
+    const candidates = players
+      .filter((p) => !used.has(p.id) && (hi > 0 || availability(p).factor > 0))
+      .flatMap((p) => GROUPS.filter((g) => needed.get(g)! > 0 && starters.get(g)!.length).map((g) => ({ p, g, share: m.get(p.id)![g] / weakest(g) })))
+      .sort((a, b) => b.share - a.share);
+    // zuerst die Gruppen, für die es nur wenige brauchbare Ersatzleute gibt, damit ein Allrounder nicht die einzige Reserve woanders wegnimmt
+    const scarce = (g: LineupSector) => candidates.filter((c) => c.g === g && c.share >= BACKUP_SHARE).length;
+    const order = GROUPS.filter((g) => needed.get(g)! > 0).sort((a, b) => scarce(a) - scarce(b));
+    const taken = new Set<number>();
+    for (const g of order) {
+      const c = candidates.find((x) => x.g === g && !taken.has(x.p.id));
+      if (!c) continue;
+      taken.add(c.p.id);
+      backups.set(g, { ...entry(c.p, g), share: c.share });
+    }
+
     const out = new Map<LineupSector, HorizonPlan>();
     for (const g of GROUPS) {
-      const st = starters.get(g)!.sort((a, b) => b.value - a.value);
-      const backupP = players.filter((p) => !used.has(p.id)).sort((a, b) => m.get(b.id)![g] - m.get(a.id)![g])[0];
+      const st = starters.get(g)!;
       out.set(g, {
         label: h.label,
         weeks: h.weeks,
         starters: st,
         average: st.length ? st.reduce((s, e) => s + e.value, 0) / st.length : 0,
-        backup: backupP ? { id: backupP.id, name: backupP.name, age: age(backupP), value: m.get(backupP.id)![g] } : null,
+        backup: backups.get(g) ?? null,
       });
     }
     return out;
-  });
+  };
+  const horizonPlans = values.map((v, hi) => planAt(v, hi, hi > 0));
+  // Bezug für den Trend: die stärkste Besetzung heute (mit Nachfolgern), damit eine nicht optimale eigene
+  // Aufstellung keinen Zuwachs vortäuscht und nur Training und Alter den Trend bestimmen
+  const bestNow = planAt(values[0], 0, true);
 
+  const pct = (x: number) => `${Math.round(x * 100)} %`;
   return GROUPS.filter((g) => needed.get(g)! > 0).map((g) => {
     const hs = horizonPlans.map((x) => x.get(g)!);
     const [now, one, two] = hs;
-    const drop1 = now.average ? (now.average - one.average) / now.average : 0;
-    const drop2 = now.average ? (now.average - two.average) / now.average : 0;
-    const weakest = now.starters[now.starters.length - 1];
-    const thin = !now.backup || (weakest && now.backup.value < weakest.value * 0.7);
+    const base = Math.max(now.average, bestNow.get(g)!.average);
+    const drop1 = base ? (base - one.average) / base : 0;
+    const drop2 = base ? (base - two.average) / base : 0;
     const leaving = now.starters.filter((e) => !two.starters.some((x) => x.id === e.id));
     let severity: GroupPlan["severity"] = "good";
+    const raise = (s: GroupPlan["severity"]) => {
+      if (s === "critical" || (s === "warning" && severity === "good")) severity = s;
+    };
     const notes: string[] = [];
     if (drop1 >= 0.12 || drop2 >= 0.2) {
-      severity = "critical";
-      notes.push(`Stärke sinkt um ${Math.round(drop2 * 100)} % in zwei Saisons. Nachfolger jetzt aufbauen oder kaufen.`);
+      raise("critical");
+      notes.push(`Stärke sinkt um ${pct(drop2)} in zwei Saisons. Nachfolger jetzt aufbauen oder kaufen.`);
     } else if (drop2 >= 0.08) {
-      severity = "warning";
-      notes.push(`Stärke sinkt um ${Math.round(drop2 * 100)} % in zwei Saisons.`);
-    } else if (two.average > now.average * 1.05) {
-      notes.push(`Wird stärker (+${Math.round((two.average / now.average - 1) * 100)} % in zwei Saisons).`);
+      raise("warning");
+      notes.push(`Stärke sinkt um ${pct(drop2)} in zwei Saisons.`);
+    } else if (two.average > base * 1.05) {
+      notes.push(`Wird stärker (+${pct(two.average / base - 1)} in zwei Saisons).`);
     }
     if (leaving.length && drop2 >= 0.08) notes.push(`Fällt aus der Stammelf: ${leaving.map((e) => e.name).join(", ")}.`);
-    if (thin) {
-      if (severity === "good") severity = "warning";
-      notes.push(now.backup ? `Keine gleichwertige Reserve (bester Ersatz ${now.backup.name}).` : "Keine Reserve im Kader.");
+
+    // Reserve heute
+    const b = now.backup;
+    if (!b || b.share < BACKUP_SHARE_CRITICAL) {
+      raise(needed.get(g)! >= 2 || g === "goal" ? "critical" : "warning");
+      notes.push(b ? `Keine brauchbare Reserve: bester freier Ersatz ${b.name} erreicht nur ${pct(b.share)} des schwächsten Stammspielers.` : "Keine Reserve im Kader.");
+    } else if (b.share < BACKUP_SHARE) {
+      raise("warning");
+      notes.push(`Reserve ${b.name} erreicht nur ${pct(b.share)} des schwächsten Stammspielers (gleichwertig ab ${pct(BACKUP_SHARE)}).`);
+    } else {
+      // Reserve heute gut, aber in einer Saison nicht mehr?
+      const later = one.backup;
+      if (!later || later.share < BACKUP_SHARE) {
+        raise("warning");
+        notes.push(`Reserve reicht heute (${b.name}), in einer Saison aber nicht mehr${later ? ` (${later.name} ${pct(later.share)})` : ""}.`);
+      }
     }
-    if (!notes.length) notes.push("Gut besetzt, auch in zwei Saisons.");
+    if (!notes.length) notes.push("Gut besetzt, mit gleichwertiger Reserve, auch in zwei Saisons.");
     return { group: g, name: GROUP_DE[g], needed: needed.get(g)!, horizons: hs, severity, note: notes.join(" ") };
   });
 }

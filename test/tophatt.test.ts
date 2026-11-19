@@ -8,7 +8,7 @@ import { centralShare, loddarStats, settingsEffect, tacticLevel } from "../src/c
 import { HATSTATS_OBJECTIVE, optimizeLineup } from "../src/core/optimizer";
 import { assessSectors } from "../src/core/weakness";
 import { duels, htToLevel, opponentProfile, verdict } from "../src/core/opponent";
-import { planSquad, squadGroups, staminaShare } from "../src/core/squad";
+import { BACKUP_SHARE, planSquad, squadGroups, staminaShare } from "../src/core/squad";
 import { completeLineup, evaluatePositions, explain, formationCode, lineupProblems } from "../src/core/editor";
 import { budget, searchProfiles } from "../src/core/scouting";
 import { advise } from "../src/core/advisor";
@@ -116,12 +116,52 @@ describe("Gegner, Kaderplanung, Suchprofil", () => {
     }
     const ids = plans.flatMap((g) => g.horizons[0].starters.map((e) => e.id));
     expect(new Set(ids).size).toBe(ids.length);
-    expect(plans.find((g) => g.group === "goal")!.horizons[2].starters[0].age).toBe(plans.find((g) => g.group === "goal")!.horizons[0].starters[0].age + 2);
+    // wer heute und in zwei Saisons Stammspieler ist, ist dann zwei Jahre älter
+    const stay = plans.flatMap((g) => g.horizons[0].starters.map((e) => ({ e, later: g.horizons[2].starters.find((x) => x.id === e.id) }))).filter((x) => x.later);
+    expect(stay.length).toBeGreaterThan(0);
+    for (const { e, later } of stay) expect(later!.age).toBe(e.age + 2);
   });
   it("Kaderplanung erkennt eine Lücke, wenn der einzige Torwart altert", () => {
     const old = hrf.players.map((p) => (p.keeper >= 6 ? { ...p, age: 34 } : p));
     const pl = planSquad(old, L.lineup, (p) => project(skillsOf(p), p.age, p.ageDays, setup, 0, 32));
     expect(pl.find((g) => g.group === "goal")!.severity).not.toBe("good");
+  });
+  it("Kaderplanung: „Jetzt“ sind genau die Spieler der eigenen Aufstellung, auch wenn sie nicht optimal ist", () => {
+    // Torwart und Mittelstürmer gegen zwei Ersatzleute tauschen
+    const bench = hrf.players.filter((p) => !L.lineup.positions.some((x) => x.playerId === p.id) && p.injury < 0 && p.cards < 3);
+    const mine = L.lineup.positions.map((x, i) => (i < 2 ? { ...x, playerId: bench[i].id } : x));
+    const pl = planSquad(hrf.players, { positions: mine }, (p) => project(skillsOf(p), p.age, p.ageDays, setup, 0, 32));
+    const now = pl.flatMap((g) => g.horizons[0].starters.map((e) => e.id)).sort();
+    expect(now).toEqual(mine.map((x) => x.playerId).sort());
+  });
+  it("Kaderplanung: je Gruppe ein Ersatz, jeder Spieler nur einmal, nie ein Stammspieler", () => {
+    for (let h = 0; h < 3; h++) {
+      const starters = new Set(plans.flatMap((g) => g.horizons[h].starters.map((e) => e.id)));
+      const backups = plans.map((g) => g.horizons[h].backup).filter((b) => b !== null).map((b) => b!.id);
+      expect(new Set(backups).size).toBe(backups.length);
+      for (const id of backups) expect(starters.has(id)).toBe(false);
+      expect(starters.size).toBe(11);
+    }
+  });
+  it("Kaderplanung: Ersatz unter 85 % des schwächsten Stammspielers gilt nicht als gleichwertig", () => {
+    for (const g of plans) {
+      const b = g.horizons[0].backup!;
+      const weakest = Math.min(...g.horizons[0].starters.map((e) => e.value));
+      expect(b.share).toBeCloseTo(b.value / weakest, 9);
+      if (b.share < BACKUP_SHARE) {
+        expect(g.severity).not.toBe("good");
+        expect(g.note).toContain(`${Math.round(b.share * 100)} %`);
+      }
+    }
+    expect(plans.some((g) => g.horizons[0].backup!.share < BACKUP_SHARE)).toBe(true);
+  });
+  it("Kaderplanung: verletzte Spieler zählen heute nicht als Ersatz", () => {
+    const gk = plans.find((g) => g.group === "goal")!.horizons[0].backup!;
+    const hurt = hrf.players.map((p) => (p.id === gk.id ? { ...p, injury: 3 } : p));
+    const pl = planSquad(hurt, L.lineup, (p) => project(skillsOf(p), p.age, p.ageDays, setup, 0, 32));
+    expect(pl.flatMap((g) => [g.horizons[0].backup?.id])).not.toContain(gk.id);
+    // in einer Saison ist er wieder gesund und darf wieder Ersatz sein
+    expect(pl.flatMap((g) => g.horizons[0].starters.map((e) => e.id))).not.toContain(gk.id);
   });
   it("Suchprofil für schwache Mannschaftsteile mit Zielwerten über den Stammspielern", () => {
     const weak = assessSectors(hrf.players, L.lineup, L.ratings, defaultMatchSettings, team);
