@@ -141,7 +141,7 @@ const ROLE_KEYS: Record<number, [string, string]> = {
   [Role.rightCentralDefender]: ["rightCentralDefender", "order_rightCentralDefender"],
   [Role.middleCentralDefender]: ["middleCentralDefender", "order_middleCentralDefender"],
   [Role.leftCentralDefender]: ["leftCentralDefender", "order_leftCentralDefender"],
-  [Role.leftBack]: ["leftBack", "order_leftback"],
+  [Role.leftBack]: ["leftBack", "order_leftBack"],
   [Role.rightWinger]: ["rightwinger", "order_rightWinger"],
   [Role.rightInnerMidfield]: ["rightInnerMidfield", "order_rightInnerMidfield"],
   [Role.centralInnerMidfield]: ["middleInnerMidfield", "order_centralInnerMidfield"],
