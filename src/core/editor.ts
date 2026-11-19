@@ -1,7 +1,7 @@
 // Manuelle Aufstellung: bewerten, vervollständigen (Kapitän, Standards, Bank) und mit dem automatischen
 // Vorschlag vergleichen, damit klar wird, was eine Änderung bewirkt.
 
-import { type FieldPosition, type Lineup, type MatchSettings, type Player, Role } from "./model";
+import { type BenchSlot, type FieldPosition, type Lineup, type MatchSettings, type Player, Role } from "./model";
 import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, type TeamState, lineupSector, ratingLabel } from "./rating";
 import { Evaluator, formationLabel, hatStatsOf, isAvailable, pickBench, pickCaptain, pickSetPieces } from "./optimizer";
 import { GROUPS, GROUP_DE, groupValue } from "./squad";
@@ -47,18 +47,29 @@ export function lineupProblems(positions: FieldPosition[], byId: Map<number, Pla
   return out;
 }
 
+/** Vom Nutzer gesetzte Kapitän-, Standard- und Bankplätze; was fehlt, wählt TopHatt automatisch */
+export interface LineupChoices {
+  captainId?: number;
+  setPiecesId?: number;
+  /** Spieler-ID je Bankplatz, 0 = Platz bleibt leer */
+  bench?: Partial<Record<BenchSlot, number>>;
+}
+
 /** Fertige Aufstellung mit Kapitän, Standardschütze und Bank aus den übrigen einsatzfähigen Spielern */
-export function completeLineup(positions: FieldPosition[], players: Player[], settings: MatchSettings, allowBruised: boolean): Lineup {
+export function completeLineup(positions: FieldPosition[], players: Player[], settings: MatchSettings, allowBruised: boolean, choices: LineupChoices = {}): Lineup {
   const byId = new Map(players.map((p) => [p.id, p]));
   const field = positions.map((p) => byId.get(p.playerId)!).filter(Boolean);
   const ids = new Set(field.map((p) => p.id));
-  const rest = players.filter((p) => !ids.has(p.id) && isAvailable(p, allowBruised));
+  // Selbst gewählte Bankspieler dürfen auch angeschlagen sein, nur nicht verletzt oder gesperrt
+  const chosen = new Set(Object.values(choices.bench ?? {}).filter(Boolean));
+  const rest = players.filter((p) => !ids.has(p.id) && (isAvailable(p, allowBruised) || (chosen.has(p.id) && isAvailable(p, true))));
+  const onField = (id?: number) => (id && ids.has(id) ? id : 0);
   return {
     formation: formationCode(positions),
     positions: [...positions].sort((a, b) => a.role - b.role),
-    bench: pickBench(rest),
-    captainId: pickCaptain(field),
-    setPiecesId: pickSetPieces(positions.filter((p) => p.role !== Role.keeper).map((p) => byId.get(p.playerId)!).filter(Boolean)),
+    bench: pickBench(rest, choices.bench),
+    captainId: onField(choices.captainId) || pickCaptain(field),
+    setPiecesId: onField(choices.setPiecesId) || pickSetPieces(positions.filter((p) => p.role !== Role.keeper).map((p) => byId.get(p.playerId)!).filter(Boolean)),
     tactic: settings.tactic,
     attitude: settings.attitude,
     styleOfPlay: settings.styleOfPlay,
