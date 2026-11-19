@@ -254,19 +254,28 @@ function afterLoad(resetMatch: boolean) {
   compute();
 }
 
+const ALL_STYLES: [number, string][] = [
+  [-10, "Defensiv"],
+  [-5, "Eher defensiv"],
+  [0, "Ausgewogen"],
+  [5, "Eher offensiv"],
+  [10, "Offensiv"],
+];
+
 /** nur Ausrichtungen anbieten, die Trainer und Taktik-Assistenten erlauben (wie HO) */
 function applyStyleRange(hrf: Hrf) {
   const [lo, hi] = styleRange(hrf.team);
   const sel = $<HTMLSelectElement>("#style");
-  const why =
-    hrf.team.trainerType === 2 ? "ausgeglichener Trainer" : hrf.team.trainerType === 0 ? "defensiver Trainer" : hrf.team.trainerType === 1 ? "offensiver Trainer" : "";
-  for (const o of Array.from(sel.options)) {
-    const v = Number(o.value);
-    o.disabled = v < lo || v > hi;
-    o.title = o.disabled ? `Nicht möglich: ${why}, Taktik-Assistenten Stufe ${hrf.team.tacticalAssistants}` : "";
-  }
-  if (sel.selectedOptions[0]?.disabled) sel.value = String(Array.from(sel.options).find((o) => !o.disabled)?.value ?? 0);
-  sel.title = lo === hi ? `Nur ${lo === 0 ? "ausgewogen" : lo} möglich (${why}, Taktik-Assistenten Stufe ${hrf.team.tacticalAssistants}). Mehr Spielraum gibt es mit Taktik-Assistenten.` : "";
+  const old = Number(sel.value);
+  const allowed = ALL_STYLES.filter(([v]) => v >= lo && v <= hi);
+  if (!allowed.length) allowed.push([0, "Ausgewogen"]);
+  sel.innerHTML = allowed.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
+  sel.value = String(allowed.some(([v]) => v === old) ? old : allowed.reduce((a, b) => (Math.abs(b[0]) < Math.abs(a[0]) ? b : a))[0]);
+  sel.disabled = allowed.length === 1;
+  const coach = hrf.team.trainerType === 2 ? "ausgeglichener Trainer" : hrf.team.trainerType === 0 ? "defensiver Trainer" : hrf.team.trainerType === 1 ? "offensiver Trainer" : "";
+  sel.title = allowed.length === 1 ? `Nur ${allowed[0][1]} möglich: ${coach}, Taktik-Assistenten Stufe ${hrf.team.tacticalAssistants}` : "";
+  const hint = document.querySelector<HTMLElement>("#styleHint");
+  if (hint) hint.textContent = allowed.length === 1 ? `nur diese möglich (${coach}, keine Taktik-Assistenten)` : "";
 }
 
 // --- Berechnung -----------------------------------------------------------------
