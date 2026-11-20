@@ -354,6 +354,13 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
   box-shadow:0 0 0 3px var(--ring,#fff),0 4px 10px rgba(0,0,0,.35);transition:transform .15s ease,box-shadow .15s ease;font-family:"Bahnschrift","Segoe UI",sans-serif}
 .token::before{content:"";position:absolute;inset:4px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35)}
 .token.gk{--kit-a:#1c8c6a;--kit-b:#0d5c45;--kit-ink:#fff}
+/* Kaderfarbe als Kreisfüllung: A lila, B blau, Rest dunkelgrau (nie Ringfarben grün/gelb/rot/hellgrau); dunkler Spalt trennt den Ring (Positionseignung) */
+.token.tk-A{--kit-a:#7b48c0;--kit-b:#4a2380;--kit-ink:#f3d77a}
+.token.tk-B{--kit-a:#3a7fe6;--kit-b:#1b4596;--kit-ink:#fff}
+.token.tk-R{--kit-a:#5d6662;--kit-b:#353b38;--kit-ink:#e6e9e7}
+.token[class*="tk-"]{box-shadow:0 0 0 2px rgba(10,20,14,.7),0 0 0 5px var(--ring,#fff),0 4px 10px rgba(0,0,0,.35)}
+.tk-legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 3px 0 6px;vertical-align:-1px}
+.tk-legend i.tk-A{background:var(--kd-a)}.tk-legend i.tk-B{background:var(--kd-b)}.tk-legend i.tk-R{background:var(--kd-r)}
 .token.fit-good{--ring:#7ee08a}.token.fit-mid{--ring:#ffd25a}.token.fit-bad{--ring:#ff7a6b}
 .token .stat{position:absolute;right:-8px;bottom:-4px;background:#fff;color:#14261a;font-size:10px;font-weight:700;border-radius:999px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .token .warn{position:absolute;left:-6px;top:-4px;width:16px;height:16px;border-radius:50%;background:var(--warning);color:#1b1b1b;font-size:11px;display:grid;place-items:center}
@@ -447,7 +454,7 @@ select.training{border-color:var(--brand);font-weight:600}
 .mplan .mp-controls label{min-width:0}
 
 /* Trainingswoche und Kaderfarben */
-:root{--kd-a:#7b48c0;--kd-a-ink:#fff;--kd-b:#f2c230;--kd-b-ink:#2a2100;--kd-r:#a3a9a4;--kd-r-ink:#fff}
+:root{--kd-a:#7b48c0;--kd-a-ink:#fff;--kd-b:#2f6fd6;--kd-b-ink:#fff;--kd-r:#4f5753;--kd-r-ink:#e6e9e7}
 .kd{display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 3px;border-radius:4px;font-size:10px;font-weight:800;line-height:1;font-style:normal;margin-right:4px;vertical-align:1px}
 .kd-A{background:var(--kd-a);color:var(--kd-a-ink)}.kd-B{background:var(--kd-b);color:var(--kd-b-ink)}.kd-R{background:var(--kd-r);color:var(--kd-r-ink)}
 .slot .pname .kd,.bslot .pname .kd{min-width:13px;height:13px;font-size:9px;margin-right:3px;vertical-align:1px}
@@ -465,7 +472,7 @@ select.training{border-color:var(--brand);font-weight:600}
 .tw-tl .d{font-size:11px;color:var(--hero-muted)}.tw-tl .t{font-weight:600;font-size:13px}.tw-tl .x{font-size:12px;color:var(--hero-muted)}
 .tw-games{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
 .tw-squads{display:block}
-.pchip.tier-A{background:color-mix(in srgb,var(--kd-a) 9%,var(--surface))}.pchip.tier-B{background:color-mix(in srgb,var(--kd-b) 14%,var(--surface))}
+.pchip.tier-A{background:color-mix(in srgb,var(--kd-a) 9%,var(--surface))}.pchip.tier-B{background:color-mix(in srgb,var(--kd-b) 10%,var(--surface))}
 .tw-card{margin:0 0 14px;padding:14px 16px}
 .tw-card h3{margin:0;font-size:16px}
 .tw-goal{font-size:11px;font-weight:700;color:#fff;background:var(--brand);border-radius:6px;padding:2px 8px}.tw-goal.b{background:#5a6a9c}
@@ -496,6 +503,36 @@ select.training{border-color:var(--brand);font-weight:600}
 .tw-alert b{color:var(--critical)}.tw-alert.ok{background:color-mix(in srgb,var(--good) 8%,var(--surface));border-color:color-mix(in srgb,var(--good) 35%,var(--line))}
 .linkbtn{border:0;background:none;color:var(--brand);padding:0;font:inherit;text-decoration:underline;cursor:pointer}
 @media (max-width:860px){.tw-hero,.tw-games{grid-template-columns:minmax(0,1fr)}.tw-timeline{overflow-x:auto}.tw-tl{min-width:110px}}
+
+/* Spielerkarte */
+.pc-scrim{position:fixed;inset:0;background:rgba(10,16,12,.35);z-index:40}
+.pcard{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);background:var(--surface);border-left:1px solid var(--line);box-shadow:-12px 0 32px rgba(0,0,0,.22);z-index:41;overflow:auto;padding:18px 20px 24px;transform:translateX(100%);transition:transform .2s ease}
+.pcard.open{transform:none}
+@media (prefers-reduced-motion:reduce){.pcard{transition:none}}
+.pc-head{display:flex;gap:14px;align-items:flex-start}
+.pc-head .token{width:56px;height:56px;font-size:18px;margin:4px}
+.pc-head h2{margin:0;font-size:21px}
+.pc-close{margin-left:auto;border:0;background:none;font-size:26px;line-height:1;color:var(--muted);cursor:pointer;padding:0 4px}
+.pc-chips{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.pc-chip{font-size:12px;border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:2px 9px}
+.pc-chip.good{background:color-mix(in srgb,var(--good) 14%,var(--surface));border-color:color-mix(in srgb,var(--good) 40%,var(--line));font-weight:600}
+.pc-chip.warn{background:color-mix(in srgb,var(--warning) 18%,var(--surface))}.pc-chip.bad{background:color-mix(in srgb,var(--critical) 14%,var(--surface));color:var(--critical);font-weight:600}
+.pc-kader{display:flex;align-items:center;gap:10px}
+.pcard h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:18px 0 6px}
+.pc-sk{display:grid;grid-template-columns:110px minmax(0,1fr) 150px;gap:8px;align-items:center;font-size:13px;margin:4px 0}
+.pc-sk .v{color:var(--ink-2);font-size:12px}
+.pc-bar{height:9px;border-radius:5px;background:var(--surface-2);overflow:hidden}.pc-bar i{display:block;height:100%;background:var(--brand);border-radius:5px}
+.pc-sk.tr .pc-bar i{background:var(--good)}
+.pc-poss{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.pc-pos{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;display:grid}.pc-pos b{font-size:16px}.pc-pos span{hyphens:auto;overflow-wrap:anywhere}
+.pc-pos.best{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 8%,var(--surface))}
+.pc-train{background:color-mix(in srgb,var(--good) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--good) 25%,var(--line));border-radius:10px;padding:8px 10px;font-size:13px}
+.pc-chart{width:100%;height:auto;margin-top:8px}
+.pc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.pinfo{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:50%;width:18px;height:18px;padding:0;font-size:11px;font-weight:700;font-style:italic;font-family:Georgia,serif;cursor:pointer;margin-left:4px;vertical-align:1px}
+.pinfo:hover{border-color:var(--brand);color:var(--brand)}
+.pname-link{color:inherit;text-decoration:none;font-weight:inherit}.pname-link:hover{color:var(--brand);text-decoration:underline}
+@media (max-width:480px){.pc-sk{grid-template-columns:90px minmax(0,1fr) 110px}}
 </style>
 </head>
 <body>
@@ -663,6 +700,8 @@ select.training{border-color:var(--brand);font-weight:600}
 </main>
 </div>
 
+<div id="cardScrim" class="pc-scrim" hidden></div>
+<aside id="playerCard" class="pcard" hidden role="dialog" aria-label="Spielerdetails"></aside>
 <dialog id="settings">
   <div class="body">
     <h3>Daten</h3>
