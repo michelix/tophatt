@@ -40,8 +40,8 @@ export function trainingFor(role: number, t: TrainingDef): TrainingLevel {
 }
 
 /**
- * Trainingswürdigkeit: jung + Trainingsfertigkeit ist eine seiner Hauptfertigkeiten.
- * Ergebnis grob 0..10, nur zum Sortieren.
+ * Trainingsnutzen: jung, Trainingsfertigkeit ist eine seiner Hauptfertigkeiten, und die Fertigkeit ist noch
+ * niedrig (in Hattrick steigt eine niedrige Fertigkeit schneller). Ergebnis grob 0..10, nur zum Sortieren.
  */
 export function trainingPriority(p: Player, t: TrainingDef): number {
   const skills: SkillKey[] = ["keeper", "defending", "playmaking", "passing", "winger", "scoring"];
@@ -49,7 +49,8 @@ export function trainingPriority(p: Player, t: TrainingDef): number {
   const rank = sorted.indexOf(t.skill as SkillKey);
   const relevance = t.skill === "setPieces" ? 1 : rank === 0 ? 1 : rank === 1 ? 0.7 : rank === 2 ? 0.4 : 0.15;
   const youth = Math.max(0, 31 - p.age) / 13; // 18 J. = 1,0 ; 31 J. = 0
-  return 10 * relevance * (0.4 + 0.6 * youth);
+  const level = Math.min(1, Math.max(0, (16 - p[t.skill]) / 12)); // Fertigkeit 4 = 1,0 ; 16 = 0
+  return 10 * relevance * (0.3 + 0.55 * youth + 0.15 * level);
 }
 
 // --- Trainingswoche ------------------------------------------------------------------------
@@ -232,19 +233,32 @@ export function planTrainingLineup(
       .filter((p) => !used.has(p.id) && (t.skill === "keeper" || !isKeeperType(p)) && gain(p, lvl) > 0.01)
       .sort((a, b) => gain(b, lvl) - gain(a, lvl));
 
-  // 1) volle Trainingsplätze, dann 2) teilweise: aus den drei Spielern mit dem größten Gewinn den passendsten
+  // 1) volle Trainingsplätze, dann 2) teilweise: streng nach Trainingsnutzen. Die Spieler mit dem größten Gewinn
+  // bekommen die Plätze; nur welcher von ihnen auf welche Trainingsposition kommt, entscheidet die Positionsstärke.
   for (const [roles, lvl] of [
     [fullRoles, "voll"],
     [partlyRoles, "teilweise"],
   ] as const) {
-    for (const role of roles) {
-      if (role === Role.keeper) {
-        fillRole(role, trainees(lvl).filter(isKeeperType).slice(0, 3));
-        continue;
-      }
-      const next = trainees(lvl).slice(0, 3);
-      if (!fillRole(role, next)) fillRole(role, available.filter((p) => !playsElsewhere(p) && !isKeeperType(p)));
+    const keeperRoles = roles.filter((r) => r === Role.keeper);
+    const fieldRoles = roles.filter((r) => r !== Role.keeper);
+    for (const role of keeperRoles) fillRole(role, trainees(lvl).filter(isKeeperType).slice(0, 1));
+    const chosen = trainees(lvl).filter((p) => !isKeeperType(p) || t.skill === "keeper").slice(0, fieldRoles.length);
+    const open: RoleId[] = [...fieldRoles];
+    // jeweils das passendste Paar aus Spieler und Position zuerst
+    while (open.length && chosen.some((p) => !used.has(p.id))) {
+      let best: { role: RoleId; p: Player; v: number } | null = null;
+      for (const role of open)
+        for (const p of chosen) {
+          if (used.has(p.id)) continue;
+          const v = playerPositionRating(p, role);
+          if (!best || v > best.v) best = { role, p, v };
+        }
+      if (!best) break;
+      used.add(best.p.id);
+      assign.push({ role: best.role, player: best.p });
+      open.splice(open.indexOf(best.role), 1);
     }
+    for (const role of open) fillRole(role, available.filter((p) => !playsElsewhere(p) && !isKeeperType(p)));
   }
   // 3) übrige Plätze: wer sonst nicht spielt, nach Positionsstärke; notfalls alle
   const unfilled = [...fullRoles, ...partlyRoles].filter((r) => !assign.some((a) => a.role === r));
