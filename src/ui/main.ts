@@ -864,8 +864,8 @@ function editPitch(): string {
     const ratingTitle = p ? `${p.name}: Positionsstärke ${playerPositionRating(p, role, pos.behaviour).toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${fc === "fit-good" ? "" : fc === "fit-mid" ? " · nicht ganz seine Position" : " · falsche Position"}` : "";
     return `<div class="slot${picked}" draggable="true" data-role="${role}" data-pid="${pos.playerId}" style="${style}" title="${esc(ratingTitle)}">
       <div class="role">${ROLE_DE[role]}</div>
-      <div class="token ${role === Role.keeper ? "gk " : ""}${fc}">${esc(initials(p?.name ?? "?"))}${p ? `<span class="stat">${de(playerPositionRating(p, role, pos.behaviour), 1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}${trainingBadge(pos.playerId)}${pos.behaviour ? `<span class="bh" title="${BEHAVIOUR_DE[pos.behaviour]}">${BEHAVIOUR_SHORT[pos.behaviour]}</span>` : ""}</div>
-      <div class="pname">${tierBadge(pos.playerId)}${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
+      <div class="token tk-${tierOf(pos.playerId) ?? "R"} ${fc}">${esc(initials(p?.name ?? "?"))}${p ? `<span class="stat">${de(playerPositionRating(p, role, pos.behaviour), 1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}${trainingBadge(pos.playerId)}${pos.behaviour ? `<span class="bh" title="${BEHAVIOUR_DE[pos.behaviour]}">${BEHAVIOUR_SHORT[pos.behaviour]}</span>` : ""}</div>
+      <div class="pname">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
       <div class="meta">Form ${p?.form ?? "-"} · Kond. ${p?.stamina ?? "-"} ${tags}</div>
     </div>`;
   });
@@ -874,7 +874,7 @@ function editPitch(): string {
     <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats${hsDiff(mine.hatStats - L.hatStats)}</span><span>${state.manual.length}/11</span></div></div>
     ${benchHtml(C)}
     ${menuHtml(C)}
-    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span><span><b class="kd kd-A">A</b> A-Kader · <b class="kd kd-B">B</b> B-Kader · <b class="kd kd-R">–</b> Rest (Trainingswoche)</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
+    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span><span class="tk-legend"><i class="tk-A"></i>A-Kader <i class="tk-B"></i>B-Kader <i class="tk-R"></i>Rest · Kreisfarbe = Kader (änderbar unter Trainingswoche)</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
 `;
 }
 
@@ -906,8 +906,8 @@ function benchHtml(C: Lineup): string {
     const v = slot === "extra" ? Math.max(...[Role.leftCentralDefender, Role.leftBack, Role.leftInnerMidfield, Role.leftWinger, Role.centralForward].map((r) => playerPositionRating(p, r))) : playerPositionRating(p, BENCH_ROLE[slot]);
     return `<div class="bslot${picked}" draggable="true" data-bench="${slot}" data-pid="${p.id}" title="${esc(`${BENCH_DE[slot]}: ${p.name}, Stärke ${v.toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${own ? "" : " · automatisch gewählt"}`)}">
       <div class="role">${BENCH_SHORT[slot]}</div>
-      <div class="token${slot === "keeper" ? " gk" : ""}">${esc(initials(p.name))}<span class="stat">${de(v, 1)}</span>${trainingBadge(p.id)}</div>
-      <div class="pname">${tierBadge(p.id)}${esc(p.name.split(" ").slice(-1)[0])}</div>
+      <div class="token tk-${tierOf(p.id) ?? "R"}">${esc(initials(p.name))}<span class="stat">${de(v, 1)}</span>${trainingBadge(p.id)}</div>
+      <div class="pname">${esc(p.name.split(" ").slice(-1)[0])}</div>
       <div class="meta">${own ? "von dir" : "auto"}</div>
     </div>`;
   });

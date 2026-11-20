@@ -354,6 +354,14 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
   box-shadow:0 0 0 3px var(--ring,#fff),0 4px 10px rgba(0,0,0,.35);transition:transform .15s ease,box-shadow .15s ease;font-family:"Bahnschrift","Segoe UI",sans-serif}
 .token::before{content:"";position:absolute;inset:4px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35)}
 .token.gk{--kit-a:#1c8c6a;--kit-b:#0d5c45;--kit-ink:#fff}
+/* Kaderfarbe als Kreisfüllung: A lila, B gelb, Rest grau; dunkler Spalt trennt den Ring (Positionseignung) */
+.token.tk-A{--kit-a:#7b48c0;--kit-b:#4a2380;--kit-ink:#f3d77a}
+.token.tk-B{--kit-a:#f7d54a;--kit-b:#d6a313;--kit-ink:#2a1f00}
+.token.tk-R{--kit-a:#9aa29d;--kit-b:#646d68;--kit-ink:#fff}
+.token.tk-B::before{border-color:rgba(60,40,0,.35)}
+.token[class*="tk-"]{box-shadow:0 0 0 2px rgba(10,20,14,.7),0 0 0 5px var(--ring,#fff),0 4px 10px rgba(0,0,0,.35)}
+.tk-legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 3px 0 6px;vertical-align:-1px}
+.tk-legend i.tk-A{background:#7b48c0}.tk-legend i.tk-B{background:#f2c230}.tk-legend i.tk-R{background:#8b9590}
 .token.fit-good{--ring:#7ee08a}.token.fit-mid{--ring:#ffd25a}.token.fit-bad{--ring:#ff7a6b}
 .token .stat{position:absolute;right:-8px;bottom:-4px;background:#fff;color:#14261a;font-size:10px;font-weight:700;border-radius:999px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .token .warn{position:absolute;left:-6px;top:-4px;width:16px;height:16px;border-radius:50%;background:var(--warning);color:#1b1b1b;font-size:11px;display:grid;place-items:center}
