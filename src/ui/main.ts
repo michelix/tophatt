@@ -757,7 +757,7 @@ function trainingPickHtml(): string {
   const gs = [...groups.values()];
   const group = (g: typeof c) => `<div class="tf-group"><div class="tf-head">${head(g[0])}</div><div class="tf-grid">${g.map(card).join("")}</div></div>`;
   return `<div class="trmode">
-    <div class="trmode-top"><b>Trainingself aktiv</b><span>Auf die Trainingsplätze (${esc(t.name)}) kommen nur Spieler, die diese Woche noch nicht trainiert haben, die Jüngsten zuerst. Formation antippen, der Modus bleibt.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div>
+    <div class="trmode-top"><b>Trainingself aktiv</b><span>Auf die Trainingsplätze (${esc(t.name)}) kommen nur Spieler, die diese Trainingswoche noch nicht trainiert haben, die Jüngsten zuerst.${state.week!.played.size ? "" : " Seit dem letzten Trainingsupdate wurde noch nicht gespielt, deshalb stehen alle zur Wahl."} Formation antippen, der Modus bleibt.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div>
     <p class="sub tf-why">Empfehlung ${formationLabel(top.f)}: ${ties > 1 ? `die stärkste Elf unter ${ties} Formationen mit gleich vielen Trainingsplätzen` : "die meisten Trainingsplätze"}. Unter Erfahrung 6 droht Desorganisation.</p>
     ${group(gs[0])}
     ${gs.length > 1 ? `<details class="tf-more"${gs.slice(1).some((g) => g.some((x) => x.f === current)) ? " open" : ""}><summary>Weitere Formationen mit weniger Trainingsplätzen</summary>${gs.slice(1).map(group).join("")}</details>` : ""}
@@ -1173,8 +1173,14 @@ function poolHtml(): string {
   const rest = state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id)).length;
   const fullyTrained = state.hrf!.players.filter((p) => trained(p.id) >= 1).length;
   const hidden = state.hideTrained ? state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id) && !unavailable(p) && trained(p.id) >= 1).length : 0;
+  const w = state.week?.window;
+  const since = w ? w.start.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" }) : "";
+  const count = fullyTrained
+    ? `${fullyTrained} haben seit ${since} schon voll trainiert${hidden ? `, ${hidden} ausgeblendet` : ""}`
+    : `seit dem Trainingsupdate ${since} noch kein Spiel, daher niemand`;
+  const why = `Zählt nur Spiele, die seit dem letzten Trainingsupdate (${since}) schon gespielt wurden. Die Aufstellung hier und das geplante Freundschaftsspiel zählen erst, wenn sie gespielt sind.`;
   const filter = state.week
-    ? `<label class="trfilter"><input type="checkbox" id="hideTrained"${state.hideTrained ? " checked" : ""}> Schon trainierte ausblenden <span class="muted">(${fullyTrained} diese Woche${hidden ? `, ${hidden} ausgeblendet` : ""})</span></label>`
+    ? `<label class="trfilter" title="${esc(why)}"><input type="checkbox" id="hideTrained"${state.hideTrained ? " checked" : ""}> Schon trainierte ausblenden <span class="muted">(${count})</span></label>`
     : "";
   return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${rest}) · ${benchCount} auf der Bank. Hierher ziehen = vom Feld oder von der Bank nehmen.</div>${filter}${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
 }
