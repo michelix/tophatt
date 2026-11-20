@@ -97,3 +97,14 @@ describe("Trainingself ohne Torhüter im Feld", () => {
     expect(plan.lineup.formation).not.toBe("550");
   });
 });
+
+describe("Trainingself mit fester Formation", () => {
+  it("behält die gewählte Formation und setzt dort nur noch nicht trainierte auf die Trainingsplätze", () => {
+    const played = playedThisWeek(hrf.players, t, trainingWindow(new Date("2026-11-15T12:00:00"), [new Date("2026-11-13T00:30:00")]));
+    const plan = planTrainingLineup(hrf.players, PM, played, true, {}, "352");
+    expect(plan.lineup.formation).toBe("352");
+    const full = plan.lineup.positions.filter((p) => trainingFor(p.role, t) === "voll");
+    expect(full).toHaveLength(3);
+    for (const p of full) expect(weekFactor(played.get(p.playerId))).toBeLessThan(1);
+  });
+});

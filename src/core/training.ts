@@ -133,7 +133,7 @@ export function addPlanned(base: Map<number, WeekMinutes>, positions: { role: nu
 }
 
 /** Bei gleich vielen Trainingsplätzen: ausgewogene Formationen vor exotischen */
-const FORMATION_PREFERENCE = ["442", "451", "352", "433", "541", "532", "343", "523", "253", "550"];
+export const FORMATION_PREFERENCE = ["442", "451", "352", "433", "541", "532", "343", "523", "253", "550"];
 
 /**
  * Höchstzahl Trainingsplätze in einem Spiel und die Formation dafür. Bei Gleichstand gewinnt die Formation
@@ -153,6 +153,17 @@ export function maxTrainingSlots(t: TrainingDef, formationExperience: Record<str
         best = { full, partly, formation: f };
       }
     }
+  return best;
+}
+
+/** Trainingsplätze einer Formation (Variante mit den meisten) */
+export function formationSlots(t: TrainingDef, formation: string): { full: number; partly: number; roles: RoleId[] } {
+  let best = { full: -1, partly: -1, roles: [] as RoleId[] };
+  for (const roles of formationVariants(formation)) {
+    const full = roles.filter((r) => trainingFor(r, t) === "voll").length;
+    const partly = roles.filter((r) => trainingFor(r, t) === "teilweise").length;
+    if (full * 10 + partly > best.full * 10 + best.partly) best = { full, partly, roles };
+  }
   return best;
 }
 
@@ -176,20 +187,15 @@ export function planTrainingLineup(
   before: Map<number, WeekMinutes>,
   allowBruised = false,
   formationExperience: Record<string, number> = {},
+  /** feste Formation (Formationsauswahl); sonst die mit den meisten Trainingsplätzen */
+  forceFormation?: string,
 ): TrainingLineupPlan {
   const t = TRAININGS[trainingType];
   if (!t) throw new Error(`Unbekannte Trainingsart ${trainingType}`);
   const available = players.filter((p) => isAvailable(p, allowBruised));
-  const slots = maxTrainingSlots(t, formationExperience);
-  let bestRoles: RoleId[] = [];
-  for (const roles of formationVariants(slots.formation)) {
-    const full = roles.filter((r) => trainingFor(r, t) === "voll").length;
-    const partly = roles.filter((r) => trainingFor(r, t) === "teilweise").length;
-    if (full === slots.full && partly === slots.partly) {
-      bestRoles = roles;
-      break;
-    }
-  }
+  const formation = forceFormation && (FORMATIONS as readonly string[]).includes(forceFormation) ? forceFormation : maxTrainingSlots(t, formationExperience).formation;
+  const slots = formationSlots(t, formation);
+  const bestRoles = slots.roles;
   const fullRoles = bestRoles.filter((r) => trainingFor(r, t) === "voll");
   const partlyRoles = bestRoles.filter((r) => trainingFor(r, t) === "teilweise");
   const otherRoles = bestRoles.filter((r) => trainingFor(r, t) === "keins");
@@ -249,7 +255,7 @@ export function planTrainingLineup(
   }
 
   const lineup: Lineup = {
-    formation: slots.formation,
+    formation,
     positions: assign.map((a) => ({ role: a.role, playerId: a.player.id, behaviour: Behaviour.normal as BehaviourId })).sort((a, b) => a.role - b.role),
     bench: {},
     captainId: pickCaptain(assign.map((a) => a.player)),
