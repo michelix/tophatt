@@ -399,8 +399,24 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
 .trb.done{background:#1f9d4c}.trb.half{background:#d99a00}
 .token .trb{position:absolute;left:-8px;bottom:-4px;box-shadow:0 1px 3px rgba(0,0,0,.35);border:1.5px solid #fff}
 .pchip.tr-done{border-left:4px solid #1f9d4c}.pchip.tr-half{border-left:4px solid #d99a00}.pchip.tr-open{border-left:4px solid transparent}
-.trmode{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;border:1px solid var(--brand);border-left-width:4px;border-radius:8px;padding:8px 12px;margin:8px 0;background:var(--surface-2);font-size:13px}
-.trmode span{flex:1 1 280px;color:var(--muted)}
+.trmode{border:1px solid var(--brand);border-left-width:4px;border-radius:8px;padding:10px 12px;margin:8px 0;background:var(--surface-2);font-size:13px}
+.trmode-top{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.trmode-top span{flex:1 1 280px;color:var(--muted)}
+.tf-why{margin:6px 0 4px}
+.tf-group{margin-top:8px}
+.tf-head{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.tf-dots{display:inline-flex;gap:3px}.tf-dots i{width:10px;height:10px;border-radius:50%;background:#1f9d4c}.tf-dots i.half{background:none;border:2px solid #d99a00;box-sizing:border-box}
+.tf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px}
+.tf-card{position:relative;display:grid;gap:3px;text-align:left;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink);cursor:pointer;font:inherit}
+.tf-card:hover{border-color:var(--brand)}
+.tf-card.on{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand)}
+.tf-card.reco{background:color-mix(in srgb,var(--brand) 9%,var(--surface))}
+.tf-f{font-size:16px;font-weight:700}
+.tf-reco{font-size:10px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:.04em;line-height:1}
+.tf-more{margin-top:8px}.tf-more summary{cursor:pointer;font-size:12px;color:var(--muted)}
+.tf-hs{font-size:12px;color:var(--muted);position:relative;padding-bottom:6px}.tf-hs b{color:var(--ink)}
+.tf-hs i{position:absolute;left:0;bottom:0;height:3px;border-radius:2px;background:var(--brand);opacity:.7}
+.tf-exp{font-size:11px;color:var(--muted)}.tf-exp.low{color:color-mix(in srgb,var(--warning) 70%,var(--ink))}
 select.training{border-color:var(--brand);font-weight:600}
 .trweek td,.trweek th{font-size:13px}
 .delta.up{color:var(--good)}.delta.down{color:var(--critical)}

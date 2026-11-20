@@ -690,6 +690,50 @@ function trainingPlan(formation: string) {
   return (c.find((x) => x.f === formation) ?? c[0]).plan;
 }
 
+/** Formationswahl im Trainingself-Modus: Karten, gruppiert nach Trainingsplätzen, Empfehlung hervorgehoben */
+function trainingPickHtml(): string {
+  const t = TRAININGS[state.hrf!.team.trainingType];
+  const c = trainingChoices();
+  const top = c[0];
+  const current = state.formation || top.f;
+  const maxHs = Math.max(...c.map((x) => x.hatStats));
+  const minHs = Math.min(...c.map((x) => x.hatStats));
+  const groups = new Map<string, typeof c>();
+  for (const x of c) {
+    const k = `${x.full}|${x.partly}`;
+    groups.set(k, [...(groups.get(k) ?? []), x]);
+  }
+  const dots = (x: (typeof c)[number]) =>
+    `<span class="tf-dots" aria-label="${x.full} volle, ${x.partly} halbe Trainingsplätze">${"<i class=full></i>".repeat(x.full)}${"<i class=half></i>".repeat(x.partly)}</span>`;
+  const card = (x: (typeof c)[number]) => {
+    const w = maxHs > minHs ? 25 + (75 * (x.hatStats - minHs)) / (maxHs - minHs) : 100;
+    return `<button type="button" class="tf-card${x.f === current ? " on" : ""}${x === top ? " reco" : ""}" data-tf="${x.f}" aria-pressed="${x.f === current}">
+      ${x === top ? `<span class="tf-reco">Empfehlung</span>` : ""}<span class="tf-f">${formationLabel(x.f)}</span>
+      <span class="tf-hs"><b>${x.hatStats.toFixed(0)}</b> HatStats<i style="width:${w.toFixed(0)}%"></i></span>
+      <span class="tf-exp${x.exp < 6 ? " low" : ""}">${x.exp < 6 ? "⚠ " : ""}Erfahrung ${x.exp}</span>
+    </button>`;
+  };
+  const head = (x: (typeof c)[number]) => `${dots(x)} ${x.full} voll${x.partly ? ` + ${x.partly} halb` : ""}`;
+  const ties = groups.get(`${top.full}|${top.partly}`)!.length;
+  const gs = [...groups.values()];
+  const group = (g: typeof c) => `<div class="tf-group"><div class="tf-head">${head(g[0])}</div><div class="tf-grid">${g.map(card).join("")}</div></div>`;
+  return `<div class="trmode">
+    <div class="trmode-top"><b>Trainingself aktiv</b><span>Auf die Trainingsplätze (${esc(t.name)}) kommen nur Spieler, die diese Woche noch nicht trainiert haben, die Jüngsten zuerst. Formation antippen, der Modus bleibt.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div>
+    <p class="sub tf-why">Empfehlung ${formationLabel(top.f)}: ${ties > 1 ? `die stärkste Elf unter ${ties} Formationen mit gleich vielen Trainingsplätzen` : "die meisten Trainingsplätze"}. Unter Erfahrung 6 droht Desorganisation.</p>
+    ${group(gs[0])}
+    ${gs.length > 1 ? `<details class="tf-more"${gs.slice(1).some((g) => g.some((x) => x.f === current)) ? " open" : ""}><summary>Weitere Formationen mit weniger Trainingsplätzen</summary>${gs.slice(1).map(group).join("")}</details>` : ""}
+  </div>`;
+}
+
+function applyTrainingFormation(f: string) {
+  state.formation = f;
+  const plan = trainingPlan(f);
+  state.manual = plan.lineup.positions.map((p) => ({ ...p }));
+  state.choices = {};
+  editorChanged();
+  toast(`Trainingself ${formationLabel(plan.lineup.formation)}: ${plan.gaining.length} Spieler bekommen dadurch Training.`);
+}
+
 function formationPositions(): FieldPosition[] {
   const f = state.formations.find((x) => x.code === state.formation);
   return (f ? f.positions : state.league!.lineup.positions).map((p) => ({ ...p }));
@@ -702,17 +746,8 @@ function renderFormationPick() {
   $("#trainingFill").classList.toggle("primary", state.trainingMode);
   $("#autoFill").classList.toggle("primary", !state.trainingMode);
   sel.classList.toggle("training", state.trainingMode);
-  if (state.trainingMode && t && state.week) {
-    const c = trainingChoices();
-    const slotText = (x: (typeof c)[number]) => `${x.full} voll${x.partly ? ` + ${x.partly} halb` : ""}`;
-    const top = c[0];
-    const ties = c.filter((x) => x.full === top.full && x.partly === top.partly).length;
-    sel.innerHTML =
-      `<option value="">Trainingself automatisch: ${formationLabel(top.f)} (${ties > 1 ? `stärkste von ${ties} Formationen mit ${slotText(top)} Trainingsplätzen` : `meiste Trainingsplätze: ${slotText(top)}`})</option>` +
-      c.map((x) => `<option value="${x.f}">Trainingself ${formationLabel(x.f)} · ${slotText(x)} · ${x.hatStats.toFixed(0)} HatStats · Erfahrung ${x.exp}${x.exp < 6 ? " ⚠" : ""}</option>`).join("");
-    sel.value = state.formation;
-    return;
-  }
+  // im Trainingself-Modus wählt man die Formation im Auswahlfeld darunter
+  sel.closest("label")!.hidden = !!(state.trainingMode && t && state.week);
   sel.innerHTML =
     `<option value="">Beste${best ? `: ${formationLabel(best)}` : ""} (automatisch)</option>` +
     [...state.formations]
@@ -1260,9 +1295,7 @@ function renderLineup() {
   const prev = tokenRects();
   renderFormationPick();
   const t = TRAININGS[state.hrf!.team.trainingType];
-  $("#trainingModeBar").innerHTML = state.trainingMode && t
-    ? `<div class="trmode"><b>Trainingself aktiv</b> <span>Auf die Trainingsplätze (${esc(t.name)}) kommen nur Spieler, die diese Woche noch nicht trainiert haben, die Jüngsten zuerst. Eine andere Formation behält das bei.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div>`
-    : "";
+  $("#trainingModeBar").innerHTML = state.trainingMode && t && state.week ? trainingPickHtml() : "";
   renderMatchPlan();
   $("#pitchOut").innerHTML = editPitch();
   placeMenu();
@@ -1544,14 +1577,7 @@ function initEditor() {
   });
   $("#formationPick").addEventListener("change", () => {
     state.formation = $<HTMLSelectElement>("#formationPick").value;
-    if (state.trainingMode && state.week) {
-      const plan = trainingPlan(state.formation);
-      state.manual = plan.lineup.positions.map((p) => ({ ...p }));
-      state.choices = {};
-      editorChanged();
-      toast(`Trainingself ${formationLabel(plan.lineup.formation)}: ${plan.gaining.length} Spieler bekommen dadurch Training.`);
-      return;
-    }
+    if (state.trainingMode && state.week) return applyTrainingFormation(state.formation);
     state.manual = formationPositions();
     state.manualEdited = !!state.formation;
     state.pick = null;
@@ -1571,8 +1597,10 @@ function initEditor() {
     toast(`Trainingself ${formationLabel(plan.lineup.formation)}: ${plan.gaining.length} Spieler bekommen dadurch „${t.name}“-Training. Formation wechseln behält den Modus bei.`);
   });
   $("#aufstellung").addEventListener("click", (e) => {
-    if (!(e.target as HTMLElement).closest("#trainingOff")) return;
-    $<HTMLButtonElement>("#autoFill").click();
+    const el = e.target as HTMLElement;
+    const card = el.closest<HTMLElement>(".tf-card[data-tf]");
+    if (card) return applyTrainingFormation(card.dataset.tf!);
+    if (el.closest("#trainingOff")) $<HTMLButtonElement>("#autoFill").click();
   });
   $("#poolOut").addEventListener("change", (e) => {
     const el = e.target as HTMLInputElement;
