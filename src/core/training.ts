@@ -52,60 +52,164 @@ export function trainingPriority(p: Player, t: TrainingDef): number {
   return 10 * relevance * (0.4 + 0.6 * youth);
 }
 
-export interface FriendlyPlan {
+// --- Trainingswoche ------------------------------------------------------------------------
+// Regeln wie in HO (TrainingWeekPlayer, WeeklyTrainingType.calcTrainingFactor): Die Minuten aller Spiele
+// zwischen zwei Trainingsupdates werden addiert, höchstens 90 zählen. Minuten auf voller Trainingsposition
+// zählen zuerst, Minuten auf teilweiser Position (50 %) füllen bis 90 auf.
+
+export interface WeekMinutes {
+  full: number;
+  partly: number;
+  /** Herkunft für die Anzeige, z. B. "Liga ZM gespielt" */
+  sources: string[];
+}
+
+/** Trainingswirkung der Woche, 0 … 1 (1 = 90 Minuten volles Training) */
+export function weekFactor(m: Pick<WeekMinutes, "full" | "partly"> | undefined): number {
+  if (!m) return 0;
+  const full = Math.min(90, m.full);
+  const partly = Math.min(90 - full, m.partly);
+  return (full + 0.5 * partly) / 90;
+}
+
+export interface TrainingWindow {
+  /** letztes Trainingsupdate (Beginn der laufenden Trainingswoche) */
+  start: Date;
+  /** nächstes Trainingsupdate */
+  end: Date;
+}
+
+/**
+ * Laufende Trainingswoche aus den Trainingsterminen (HO-Tabellen TRAINING/FUTURETRAINING).
+ * Ohne Termine: Trainingsupdate freitags 00:30 (Deutschland).
+ */
+export function trainingWindow(now: Date, trainingDates: Date[]): TrainingWindow {
+  const t = now.getTime();
+  const valid = trainingDates.filter((d) => !isNaN(d.getTime())).sort((a, b) => a.getTime() - b.getTime());
+  const past = valid.filter((d) => d.getTime() <= t);
+  const next = valid.find((d) => d.getTime() > t);
+  let start = past[past.length - 1];
+  if (!start || t - start.getTime() > 7 * 864e5) {
+    start = new Date(now);
+    start.setHours(0, 30, 0, 0);
+    while (start.getDay() !== 5 || start.getTime() > t) start.setDate(start.getDate() - 1);
+  }
+  const end = next && next.getTime() - start.getTime() <= 8 * 864e5 ? next : new Date(start.getTime() + 7 * 864e5);
+  return { start, end };
+}
+
+const POS_SHORT: Record<number, string> = { 100: "TW", 101: "AV", 102: "IV", 103: "IV", 104: "IV", 105: "AV", 106: "FL", 107: "ZM", 108: "ZM", 109: "ZM", 110: "FL", 111: "ST", 112: "ST", 113: "ST" };
+export const positionShort = (role: number) => POS_SHORT[role] ?? "";
+
+function add(map: Map<number, WeekMinutes>, id: number, role: number, minutes: number, t: TrainingDef, label: string) {
+  const m = map.get(id) ?? { full: 0, partly: 0, sources: [] };
+  const lvl = trainingFor(role, t);
+  if (lvl === "voll") m.full = Math.min(90, m.full + minutes);
+  if (lvl === "teilweise") m.partly = Math.min(90, m.partly + minutes);
+  m.sources.push(`${label} ${positionShort(role)}${minutes < 90 ? ` ${minutes}′` : ""}`.trim());
+  map.set(id, m);
+}
+
+/**
+ * Was diese Trainingswoche schon gespielt wurde, aus dem letzten Spiel jedes Spielers laut HRF
+ * (LastMatch_Date/PositionCode/PlayedMinutes). Nur das jeweils letzte Spiel ist bekannt.
+ */
+export function playedThisWeek(players: Player[], t: TrainingDef, w: TrainingWindow): Map<number, WeekMinutes> {
+  const map = new Map<number, WeekMinutes>();
+  for (const p of players) {
+    if (!p.lastMatchDate || !p.lastMatchMinutes || p.lastMatchPosition < 100 || p.lastMatchPosition > 113) continue;
+    const d = new Date(p.lastMatchDate.replace(" ", "T"));
+    if (isNaN(d.getTime()) || d.getTime() < w.start.getTime() || d.getTime() >= w.end.getTime()) continue;
+    add(map, p.id, p.lastMatchPosition, Math.min(90, p.lastMatchMinutes), t, "gespielt");
+  }
+  return map;
+}
+
+/** Geplante Aufstellung dazurechnen (90 Minuten je Feldspieler) */
+export function addPlanned(base: Map<number, WeekMinutes>, positions: { role: number; playerId: number }[], t: TrainingDef, label: string): Map<number, WeekMinutes> {
+  const map = new Map([...base].map(([k, v]) => [k, { ...v, sources: [...v.sources] }]));
+  for (const p of positions) if (p.role >= 100 && p.role <= 113) add(map, p.playerId, p.role, 90, t, label);
+  return map;
+}
+
+/** Bei gleich vielen Trainingsplätzen: ausgewogene Formationen vor exotischen */
+export const FORMATION_PREFERENCE = ["442", "451", "352", "433", "541", "532", "343", "523", "253", "550"];
+
+/**
+ * Höchstzahl Trainingsplätze in einem Spiel und die Formation dafür. Bei Gleichstand gewinnt die Formation
+ * mit der meisten Erfahrung, dann die ausgewogenere (4-5-1 vor 5-5-0).
+ */
+export function maxTrainingSlots(t: TrainingDef, formationExperience: Record<string, number> = {}): { full: number; partly: number; formation: string } {
+  let best = { full: 0, partly: 0, formation: "442" };
+  let bestKey = -Infinity;
+  for (const f of FORMATIONS)
+    for (const roles of formationVariants(f)) {
+      const full = roles.filter((r) => trainingFor(r, t) === "voll").length;
+      const partly = roles.filter((r) => trainingFor(r, t) === "teilweise").length;
+      const pref = FORMATION_PREFERENCE.indexOf(f);
+      const key = (full * 10 + partly) * 1e4 + (formationExperience[f] ?? 0) * 100 - (pref < 0 ? 99 : pref);
+      if (key > bestKey) {
+        bestKey = key;
+        best = { full, partly, formation: f };
+      }
+    }
+  return best;
+}
+
+/** Trainingsplätze einer Formation (Variante mit den meisten) */
+export function formationSlots(t: TrainingDef, formation: string): { full: number; partly: number; roles: RoleId[] } {
+  let best = { full: -1, partly: -1, roles: [] as RoleId[] };
+  for (const roles of formationVariants(formation)) {
+    const full = roles.filter((r) => trainingFor(r, t) === "voll").length;
+    const partly = roles.filter((r) => trainingFor(r, t) === "teilweise").length;
+    if (full * 10 + partly > best.full * 10 + best.partly) best = { full, partly, roles };
+  }
+  return best;
+}
+
+export interface TrainingLineupPlan {
   lineup: Lineup;
-  /** Spieler, die in der Liga schon auf einer Trainingsposition spielen */
-  trainedInLeague: number[];
-  /** Spieler, die im Freundschaftsspiel auf einer Trainingsposition stehen */
-  trainedInFriendly: number[];
-  /** Spieler, die diese Woche kein Training bekommen */
-  untrained: number[];
+  /** Trainingswirkung je Spieler nach diesem Spiel (inkl. schon gespielter/geplanter Minuten) */
+  after: Map<number, WeekMinutes>;
+  /** Spieler, die durch dieses Spiel Training dazubekommen */
+  gaining: number[];
   notes: string[];
 }
 
 /**
- * Freundschaftsspiel: Spieler, die in der Liga nicht (oder nicht auf einer Trainingsposition) spielen,
- * kommen auf die Trainingspositionen. Formation mit möglichst vielen Trainingsplätzen.
+ * Aufstellung, die möglichst viel zusätzliches Training bringt: Trainingsplätze bekommen die Spieler, die noch
+ * am wenigsten Training haben und am meisten davon haben (jung, Trainingsfertigkeit ist eine Hauptfertigkeit).
+ * Formation mit den meisten Trainingsplätzen.
  */
-export function planFriendly(players: Player[], league: Lineup, trainingType: number, allowBruised = false): FriendlyPlan {
+export function planTrainingLineup(
+  players: Player[],
+  trainingType: number,
+  before: Map<number, WeekMinutes>,
+  allowBruised = false,
+  formationExperience: Record<string, number> = {},
+  /** feste Formation (Formationsauswahl); sonst die mit den meisten Trainingsplätzen */
+  forceFormation?: string,
+): TrainingLineupPlan {
   const t = TRAININGS[trainingType];
-  const notes: string[] = [];
   if (!t) throw new Error(`Unbekannte Trainingsart ${trainingType}`);
-
   const available = players.filter((p) => isAvailable(p, allowBruised));
-  const leagueIds = new Set(league.positions.map((p) => p.playerId));
-  const trainedInLeague = league.positions.filter((p) => trainingFor(p.role, t) === "voll").map((p) => p.playerId);
-  const trainedSet = new Set(trainedInLeague);
+  const formation = forceFormation && (FORMATIONS as readonly string[]).includes(forceFormation) ? forceFormation : maxTrainingSlots(t, formationExperience).formation;
+  const slots = formationSlots(t, formation);
+  const bestRoles = slots.roles;
+  const fullRoles = bestRoles.filter((r) => trainingFor(r, t) === "voll");
+  const partlyRoles = bestRoles.filter((r) => trainingFor(r, t) === "teilweise");
+  const otherRoles = bestRoles.filter((r) => trainingFor(r, t) === "keins");
 
-  // Formation mit den meisten vollen Trainingsplätzen
-  let bestRoles: RoleId[] = [];
-  let bestCount = -1;
-  let bestFormation = "442";
-  for (const f of FORMATIONS) {
-    for (const roles of formationVariants(f)) {
-      const full = roles.filter((r) => trainingFor(r, t) === "voll").length;
-      const partly = roles.filter((r) => trainingFor(r, t) === "teilweise").length;
-      const v = full * 10 + partly;
-      if (v > bestCount) {
-        bestCount = v;
-        bestRoles = roles;
-        bestFormation = f;
-      }
-    }
-  }
-
-  const trainingRoles = bestRoles.filter((r) => trainingFor(r, t) === "voll");
-  const otherRoles = bestRoles.filter((r) => trainingFor(r, t) !== "voll");
-
-  // Kandidaten: zuerst Nicht-Liga-Spieler, sortiert nach Trainingswürdigkeit
-  const nonLeague = available.filter((p) => !leagueIds.has(p.id));
-  const leagueUntrained = available.filter((p) => leagueIds.has(p.id) && !trainedSet.has(p.id));
-  const byPrio = (a: Player, b: Player) => trainingPriority(b, t) - trainingPriority(a, t);
+  const isKeeperType = (p: Player) => p.keeper >= Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
+  const gain = (p: Player, lvl: "voll" | "teilweise") => {
+    const m = before.get(p.id) ?? { full: 0, partly: 0 };
+    const after = lvl === "voll" ? { full: m.full + 90, partly: m.partly } : { full: m.full, partly: m.partly + 90 };
+    return (weekFactor(after) - weekFactor(m)) * trainingPriority(p, t);
+  };
+  const playsElsewhere = (p: Player) => (before.get(p.id)?.sources.length ?? 0) > 0;
 
   const used = new Set<number>();
   const assign: { role: RoleId; player: Player }[] = [];
-
-  // Torwart-Rolle gesondert: ein Torwart muss ins Tor
   const fillRole = (role: RoleId, candidates: Player[]) => {
     let best: Player | null = null,
       bv = -1;
@@ -123,25 +227,35 @@ export function planFriendly(players: Player[], league: Lineup, trainingType: nu
     }
     return best;
   };
+  const trainees = (lvl: "voll" | "teilweise") =>
+    available
+      .filter((p) => !used.has(p.id) && (t.skill === "keeper" || !isKeeperType(p)) && gain(p, lvl) > 0.01)
+      .sort((a, b) => gain(b, lvl) - gain(a, lvl));
 
-  // 1) Trainingsplätze: trainingswürdigste Nicht-Liga-Spieler, dann Liga-Spieler ohne Training
-  const trainees = [...nonLeague.sort(byPrio), ...leagueUntrained.sort(byPrio)].filter((p) => trainingFor(Role.keeper, t) === "voll" || p.keeper < Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing));
-  for (const role of trainingRoles) {
-    if (role === Role.keeper) {
-      fillRole(role, [...nonLeague, ...leagueUntrained]);
-      continue;
+  // 1) volle Trainingsplätze, dann 2) teilweise: aus den drei Spielern mit dem größten Gewinn den passendsten
+  for (const [roles, lvl] of [
+    [fullRoles, "voll"],
+    [partlyRoles, "teilweise"],
+  ] as const) {
+    for (const role of roles) {
+      if (role === Role.keeper) {
+        fillRole(role, trainees(lvl).filter(isKeeperType).slice(0, 3));
+        continue;
+      }
+      const next = trainees(lvl).slice(0, 3);
+      if (!fillRole(role, next)) fillRole(role, available.filter((p) => !playsElsewhere(p) && !isKeeperType(p)));
     }
-    // aus den nächsten Trainees den nehmen, der auf dieser Position am besten passt
-    const next = trainees.filter((p) => !used.has(p.id)).slice(0, 3);
-    fillRole(role, next.length ? next : available);
   }
-  // 2) restliche Plätze: Nicht-Liga-Spieler nach Positionsstärke, notfalls Liga-Spieler
-  for (const role of otherRoles) {
-    if (!fillRole(role, nonLeague)) fillRole(role, available);
+  // 3) übrige Plätze: wer sonst nicht spielt, nach Positionsstärke; notfalls alle
+  const unfilled = [...fullRoles, ...partlyRoles].filter((r) => !assign.some((a) => a.role === r));
+  // (Torhüter nur ins Tor, solange es Feldspieler gibt)
+  for (const role of [...otherRoles, ...unfilled]) {
+    const fits = role === Role.keeper ? available.filter(isKeeperType) : available.filter((p) => !isKeeperType(p));
+    if (!fillRole(role, fits.filter((p) => !playsElsewhere(p))) && !fillRole(role, fits)) fillRole(role, available);
   }
 
   const lineup: Lineup = {
-    formation: bestFormation,
+    formation,
     positions: assign.map((a) => ({ role: a.role, playerId: a.player.id, behaviour: Behaviour.normal as BehaviourId })).sort((a, b) => a.role - b.role),
     bench: {},
     captainId: pickCaptain(assign.map((a) => a.player)),
@@ -150,17 +264,54 @@ export function planFriendly(players: Player[], league: Lineup, trainingType: nu
     attitude: 0,
     styleOfPlay: 0,
   };
+  const after = addPlanned(before, lineup.positions, t, "neu");
+  const gaining = lineup.positions.map((p) => p.playerId).filter((id) => weekFactor(after.get(id)) > weekFactor(before.get(id)) + 1e-9);
+  const notes: string[] = [];
+  if (assign.length < 11) notes.push(`Nur ${assign.length} einsatzfähige Spieler.`);
+  const doubles = assign.filter((a) => playsElsewhere(a.player));
+  if (doubles.length) notes.push(doubles.length === 1 ? "Ein Spieler davon spielt diese Woche schon oder ist schon eingeplant." : `${doubles.length} Spieler davon spielen diese Woche schon oder sind schon eingeplant.`);
+  return { lineup, after, gaining, notes };
+}
 
-  const trainedInFriendly = assign.filter((a) => trainingFor(a.role, t) === "voll").map((a) => a.player.id);
-  const trainedAll = new Set([...trainedInLeague, ...trainedInFriendly]);
-  const untrained = available.filter((p) => !trainedAll.has(p.id)).map((p) => p.id);
+export interface FriendlyPlan {
+  lineup: Lineup;
+  /** Spieler, die in der Liga (gespielt oder geplant) schon volles Training haben */
+  trainedInLeague: number[];
+  /** Spieler, die im Freundschaftsspiel auf einer Trainingsposition stehen */
+  trainedInFriendly: number[];
+  /** Spieler, die diese Woche kein Training bekommen */
+  untrained: number[];
+  /** Minuten je Spieler nach beiden Spielen */
+  week: Map<number, WeekMinutes>;
+  notes: string[];
+}
 
-  if (assign.length < 11) notes.push(`Nur ${assign.length} einsatzfähige Spieler für das Freundschaftsspiel.`);
-  const doubles = assign.filter((a) => leagueIds.has(a.player.id));
-  if (doubles.length) notes.push(`${doubles.length} Spieler müssten in Liga und Freundschaftsspiel ran (Verletzungsrisiko).`);
+/**
+ * Freundschaftsspiel: Spieler, die diese Woche noch nicht (voll) trainiert werden, kommen auf die
+ * Trainingspositionen. `played` = schon gespielte Minuten dieser Woche (aus der HRF); die Liga-Aufstellung
+ * zählt dazu, solange das Ligaspiel noch in dieser Trainingswoche liegt (sonst leere Aufstellung übergeben).
+ */
+export function planFriendly(
+  players: Player[],
+  league: { positions: { role: number; playerId: number }[] },
+  trainingType: number,
+  allowBruised = false,
+  played = new Map<number, WeekMinutes>(),
+  formationExperience: Record<string, number> = {},
+): FriendlyPlan {
+  const t = TRAININGS[trainingType];
+  if (!t) throw new Error(`Unbekannte Trainingsart ${trainingType}`);
+  const before = addPlanned(played, league.positions, t, "Liga");
+  const plan = planTrainingLineup(players, trainingType, before, allowBruised, formationExperience);
+  const available = players.filter((p) => isAvailable(p, allowBruised) || before.has(p.id));
+  const trainedInLeague = [...before].filter(([, m]) => weekFactor(m) >= 1).map(([id]) => id);
+  const trainedInFriendly = plan.lineup.positions.filter((p) => trainingFor(p.role, t) === "voll").map((p) => p.playerId);
+  const untrained = available.filter((p) => weekFactor(plan.after.get(p.id)) === 0).map((p) => p.id);
+  const slots = maxTrainingSlots(t);
+  const notes = [...plan.notes];
   notes.push(
-    `Pro Woche können höchstens ${trainingRoles.length + trainedInLeague.length} Spieler voll „${t.name}“ trainieren (${trainedInLeague.length} in der Liga, ${trainingRoles.length} im Freundschaftsspiel).`,
+    `Höchstens ${2 * slots.full} Spieler pro Woche voll „${t.name}“ (${slots.full} je Spiel${slots.partly ? `, dazu ${2 * slots.partly} mit halbem Training auf ${t.partly.includes("wing") ? "dem Flügel" : "Teilpositionen"}` : ""}). Diese Woche: ${plan.lineup.positions.length ? [...plan.after.values()].filter((m) => weekFactor(m) >= 1).length : trainedInLeague.length} voll.`,
   );
   notes.push("Freundschaftsspiele sind nur in Wochen ohne Pokalspiel möglich.");
-  return { lineup, trainedInLeague, trainedInFriendly, untrained, notes };
+  return { lineup: plan.lineup, trainedInLeague, trainedInFriendly, untrained, week: plan.after, notes };
 }

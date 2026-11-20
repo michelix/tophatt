@@ -5,7 +5,7 @@ import { parseHrf, writeLineupToHrf } from "../core/hrf";
 import { Attitude, Location, Role, Tactic, styleRange, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
 import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
 import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
-import { TRAININGS, planFriendly, trainingFor, trainingPriority, type FriendlyPlan } from "../core/training";
+import { FORMATION_PREFERENCE, TRAININGS, type TrainingWindow, type WeekMinutes, formationSlots, maxTrainingSlots, planFriendly, planTrainingLineup, playedThisWeek, trainingFor, trainingPriority, trainingWindow, weekFactor, type FriendlyPlan } from "../core/training";
 import { advise, type Advice } from "../core/advisor";
 import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type ProjectionPoint, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
@@ -132,6 +132,12 @@ interface State {
   /** Projektion der Fertigkeiten je Spieler (32 Wochen), einmal je Berechnung */
   projection: ((p: Player) => ProjectionPoint[]) | null;
   profiles: SearchProfile[];
+  /** laufende Trainingswoche und was darin laut HRF schon gespielt wurde */
+  week: { window: TrainingWindow; played: Map<number, WeekMinutes> } | null;
+  /** Aufstellung: schon voll trainierte Spieler in der Liste ausblenden */
+  hideTrained: boolean;
+  /** Trainingself aktiv: Formationswechsel stellt weiter nur noch nicht trainierte Spieler auf */
+  trainingMode: boolean;
 }
 
 const state: State = {
@@ -161,6 +167,9 @@ const state: State = {
   planBasis: "",
   projection: null,
   profiles: [],
+  week: null,
+  hideTrained: false,
+  trainingMode: false,
   settings: { location: Location.home, tactic: Tactic.normal, attitude: Attitude.normal, styleOfPlay: 0, teamSpiritSubIndex: 2 },
 };
 
@@ -249,6 +258,7 @@ function afterLoad(resetMatch: boolean) {
   applyStyleRange(hrf);
   if (resetMatch) {
     state.manualEdited = false;
+    state.trainingMode = false;
     state.choices = {};
     const up = state.ho ? upcomingMatches(state.ho).filter((m) => [1, 2, 3].includes(m.type)) : [];
     state.match = up[0] ?? null;
@@ -340,7 +350,8 @@ function compute() {
     if (state.formation) state.formations.push(...bestPerFormation([state.formation]));
     scheduleFormations();
     if (!state.manualEdited) state.manual = formationPositions();
-    state.friendly = planFriendly(hrf.players, state.league.lineup, hrf.team.trainingType, $<HTMLInputElement>("#bruised").checked);
+    state.week = trainingWeekNow();
+    refreshFriendly();
     state.setup = trainingSetup();
     state.outlooks = new Map(hrf.players.map((p) => [p.id, outlookFor(p, startSkills(p), state.setup!, trainingShare(p.id))]));
     const projections = new Map(hrf.players.map((p) => [p.id, project(startSkills(p), p.age, p.ageDays, state.setup!, trainingShare(p.id), 32)]));
@@ -353,6 +364,34 @@ function compute() {
     $("#error").textContent = (e as Error).message;
   }
   render();
+}
+
+/** Laufende Trainingswoche (Termine aus HO) und die schon gespielten Minuten laut HRF */
+function trainingWeekNow(): State["week"] {
+  const hrf = state.hrf!;
+  const t = TRAININGS[hrf.team.trainingType];
+  if (!t) return null;
+  const dates = [...(state.ho?.training ?? []), ...(state.ho?.futureTraining ?? [])].map((x) => x.date);
+  const window = trainingWindow(new Date(), dates);
+  return { window, played: playedThisWeek(hrf.players, t, window) };
+}
+
+/**
+ * Freundschaftsspiel neu planen: schon gespielte Minuten der Woche plus die eigene Liga-Aufstellung,
+ * solange das Ligaspiel noch vor dem nächsten Trainingsupdate liegt.
+ */
+function refreshFriendly() {
+  const hrf = state.hrf;
+  if (!hrf || !state.league) return;
+  const w = state.week;
+  const m = state.match;
+  const leagueInWeek = !w || !m || m.date.getTime() < w.window.end.getTime();
+  const positions = state.manual.length ? state.manual : state.league.lineup.positions;
+  try {
+    state.friendly = planFriendly(hrf.players, { positions: leagueInWeek ? positions : [] }, hrf.team.trainingType, bruisedOk(), w?.played, hrf.team.formationExperience);
+  } catch {
+    state.friendly = null;
+  }
 }
 
 /** Anteil Training der Trainingsfertigkeit pro Woche: Liga- oder Freundschaftsspiel auf Trainingsposition */
@@ -612,6 +651,128 @@ function scheduleFormations() {
 }
 
 /** Aufstellung für die gewählte Formation (oder die beste) */
+/** Abzeichen am Spieler: diese Trainingswoche schon trainiert (✓) oder halb (½), sonst nichts */
+function trainingBadge(id: number): string {
+  const m = state.week?.played.get(id);
+  const f = weekFactor(m);
+  if (f <= 0) return "";
+  const src = m!.sources.join(", ");
+  return f >= 1
+    ? `<span class="trb done" title="Diese Trainingswoche schon trainiert (${esc(src)})">✓</span>`
+    : `<span class="trb half" title="Diese Trainingswoche schon halb trainiert (${esc(src)})">½</span>`;
+}
+
+/**
+ * Trainingself für jede Formation: Trainingsplätze und HatStats der so aufgestellten Elf.
+ * Sortiert: meiste Trainingsplätze zuerst, dann die stärkere Elf (HatStats), dann Erfahrung, dann die ausgewogenere Formation.
+ */
+function trainingChoices() {
+  const hrf = state.hrf!;
+  const t = TRAININGS[hrf.team.trainingType];
+  const byId = playersById();
+  return FORMATIONS.map((f) => {
+    const plan = planTrainingLineup(hrf.players, hrf.team.trainingType, state.week!.played, bruisedOk(), hrf.team.formationExperience, f);
+    const x = formationSlots(t, f);
+    const hatStats = evaluatePositions(plan.lineup.positions, byId, state.settings, teamState()).hatStats;
+    return { f, plan, full: x.full, partly: x.partly, hatStats, exp: hrf.team.formationExperience[f] ?? 0 };
+  }).sort(
+    (a, b) =>
+      b.full * 10 + b.partly - (a.full * 10 + a.partly) ||
+      Math.round(b.hatStats) - Math.round(a.hatStats) ||
+      b.exp - a.exp ||
+      FORMATION_PREFERENCE.indexOf(a.f) - FORMATION_PREFERENCE.indexOf(b.f),
+  );
+}
+
+/** Trainingself für eine Formation ("" = meiste Trainingsplätze, bei Gleichstand stärkste Elf) */
+function trainingPlan(formation: string) {
+  const c = trainingChoices();
+  return (c.find((x) => x.f === formation) ?? c[0]).plan;
+}
+
+/** Formationskarte (Aufstellung und Trainingself) */
+function formationCard(o: { f: string; hatStats: number; exp: number; on: boolean; reco: boolean; min: number; max: number; attr: string; extra?: string }): string {
+  const w = o.max > o.min ? 25 + (75 * (o.hatStats - o.min)) / (o.max - o.min) : 100;
+  return `<button type="button" class="tf-card${o.on ? " on" : ""}${o.reco ? " reco" : ""}" ${o.attr} aria-pressed="${o.on}">
+      ${o.reco ? `<span class="tf-reco">Empfehlung</span>` : ""}<span class="tf-f">${formationLabel(o.f)}</span>
+      <span class="tf-hs"><b>${o.hatStats.toFixed(0)}</b> HatStats${o.extra ?? ""}<i style="width:${w.toFixed(0)}%"></i></span>
+      <span class="tf-exp${o.exp < 6 ? " low" : ""}">${o.exp < 6 ? "⚠ " : ""}Erfahrung ${o.exp}</span>
+    </button>`;
+}
+
+/** Formationswahl für die beste Elf: eingespielte Formationen (Erfahrung ab 6) offen, die übrigen eingeklappt */
+function formationCardsHtml(): string {
+  const F = [...state.formations].sort((a, b) => b.hatStats - a.hatStats);
+  const best = state.league?.lineup.formation;
+  if (!F.length || !best) return `<div class="trmode fpanel"><p class="sub" style="margin:0">Formationen werden berechnet …</p></div>`;
+  const current = state.formation || best;
+  const min = Math.min(...F.map((x) => x.hatStats));
+  const max = Math.max(...F.map((x) => x.hatStats));
+  const bestHs = state.league!.hatStats;
+  const minExp = Number($<HTMLSelectElement>("#minExp").value);
+  const card = (x: (typeof F)[number]) => {
+    const d = x.hatStats - bestHs;
+    return formationCard({
+      f: x.code,
+      hatStats: x.hatStats,
+      exp: x.experience,
+      on: x.code === current,
+      reco: x.code === best,
+      min,
+      max,
+      attr: `data-fc="${x.code === best ? "" : x.code}"`,
+      extra: x.code === best || Math.abs(d) < 0.5 ? "" : ` <span class="tf-d">${d > 0 ? "+" : "−"}${Math.abs(d).toFixed(0)}</span>`,
+    });
+  };
+  const good = F.filter((x) => x.experience >= 6 || x.code === best);
+  const weak = F.filter((x) => !good.includes(x));
+  const stronger = weak.filter((x) => x.hatStats > bestHs + 0.5);
+  const why = `Empfehlung ${formationLabel(best)}: die stärkste Elf nach HatStats${minExp ? ` unter den Formationen mit Erfahrung ab ${minExp}` : ""}.${stronger.length ? ` ${stronger.map((x) => formationLabel(x.code)).join(", ")} ${stronger.length === 1 ? "hätte" : "hätten"} mehr HatStats, aber zu wenig Erfahrung (Gefahr Desorganisation).` : ""}`;
+  return `<div class="trmode fpanel">
+    <div class="trmode-top"><b>Formation</b><span>${esc(why)} Antippen stellt die beste Elf für diese Formation auf.</span></div>
+    <div class="tf-group"><div class="tf-head">Eingespielt (Erfahrung ab 6)</div><div class="tf-grid">${good.map(card).join("")}</div></div>
+    ${weak.length ? `<details class="tf-more"${weak.some((x) => x.code === current) ? " open" : ""}><summary>Wenig Erfahrung (unter 6): ${weak.map((x) => formationLabel(x.code)).join(", ")}</summary><div class="tf-group"><div class="tf-grid">${weak.map(card).join("")}</div></div></details>` : ""}
+  </div>`;
+}
+
+/** Formationswahl im Trainingself-Modus: Karten, gruppiert nach Trainingsplätzen, Empfehlung hervorgehoben */
+function trainingPickHtml(): string {
+  const t = TRAININGS[state.hrf!.team.trainingType];
+  const c = trainingChoices();
+  const top = c[0];
+  const current = state.formation || top.f;
+  const maxHs = Math.max(...c.map((x) => x.hatStats));
+  const minHs = Math.min(...c.map((x) => x.hatStats));
+  const groups = new Map<string, typeof c>();
+  for (const x of c) {
+    const k = `${x.full}|${x.partly}`;
+    groups.set(k, [...(groups.get(k) ?? []), x]);
+  }
+  const dots = (x: (typeof c)[number]) =>
+    `<span class="tf-dots" aria-label="${x.full} volle, ${x.partly} halbe Trainingsplätze">${"<i class=full></i>".repeat(x.full)}${"<i class=half></i>".repeat(x.partly)}</span>`;
+  const card = (x: (typeof c)[number]) =>
+    formationCard({ f: x.f, hatStats: x.hatStats, exp: x.exp, on: x.f === current, reco: x === top, min: minHs, max: maxHs, attr: `data-tf="${x.f}"` });
+  const head = (x: (typeof c)[number]) => `${dots(x)} ${x.full} voll${x.partly ? ` + ${x.partly} halb` : ""}`;
+  const ties = groups.get(`${top.full}|${top.partly}`)!.length;
+  const gs = [...groups.values()];
+  const group = (g: typeof c) => `<div class="tf-group"><div class="tf-head">${head(g[0])}</div><div class="tf-grid">${g.map(card).join("")}</div></div>`;
+  return `<div class="trmode">
+    <div class="trmode-top"><b>Trainingself aktiv</b><span>Auf die Trainingsplätze (${esc(t.name)}) kommen nur Spieler, die diese Woche noch nicht trainiert haben, die Jüngsten zuerst. Formation antippen, der Modus bleibt.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div>
+    <p class="sub tf-why">Empfehlung ${formationLabel(top.f)}: ${ties > 1 ? `die stärkste Elf unter ${ties} Formationen mit gleich vielen Trainingsplätzen` : "die meisten Trainingsplätze"}. Unter Erfahrung 6 droht Desorganisation.</p>
+    ${group(gs[0])}
+    ${gs.length > 1 ? `<details class="tf-more"${gs.slice(1).some((g) => g.some((x) => x.f === current)) ? " open" : ""}><summary>Weitere Formationen mit weniger Trainingsplätzen</summary>${gs.slice(1).map(group).join("")}</details>` : ""}
+  </div>`;
+}
+
+function applyTrainingFormation(f: string) {
+  state.formation = f;
+  const plan = trainingPlan(f);
+  state.manual = plan.lineup.positions.map((p) => ({ ...p }));
+  state.choices = {};
+  editorChanged();
+  toast(`Trainingself ${formationLabel(plan.lineup.formation)}: ${plan.gaining.length} Spieler bekommen dadurch Training.`);
+}
+
 function formationPositions(): FieldPosition[] {
   const f = state.formations.find((x) => x.code === state.formation);
   return (f ? f.positions : state.league!.lineup.positions).map((p) => ({ ...p }));
@@ -620,6 +781,14 @@ function formationPositions(): FieldPosition[] {
 function renderFormationPick() {
   const sel = $<HTMLSelectElement>("#formationPick");
   const best = state.league?.lineup.formation;
+  const t = state.hrf ? TRAININGS[state.hrf.team.trainingType] : undefined;
+  $("#trainingFill").classList.toggle("primary", state.trainingMode);
+  $("#autoFill").classList.toggle("primary", !state.trainingMode);
+  sel.classList.toggle("training", state.trainingMode);
+  // Formation wählt man über die Karten darunter; das Auswahlfeld bleibt nur als Rückfall
+  const training = !!(state.trainingMode && t && state.week);
+  sel.closest("label")!.hidden = training || state.formations.length > 0;
+  $("#trainingModeBar").innerHTML = training ? trainingPickHtml() : formationCardsHtml();
   sel.innerHTML =
     `<option value="">Beste${best ? `: ${formationLabel(best)}` : ""} (automatisch)</option>` +
     [...state.formations]
@@ -683,7 +852,7 @@ function editPitch(): string {
     const ratingTitle = p ? `${p.name}: Positionsstärke ${playerPositionRating(p, role, pos.behaviour).toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${fc === "fit-good" ? "" : fc === "fit-mid" ? " · nicht ganz seine Position" : " · falsche Position"}` : "";
     return `<div class="slot${picked}" draggable="true" data-role="${role}" data-pid="${pos.playerId}" style="${style}" title="${esc(ratingTitle)}">
       <div class="role">${ROLE_DE[role]}</div>
-      <div class="token ${role === Role.keeper ? "gk " : ""}${fc}">${esc(initials(p?.name ?? "?"))}${p ? `<span class="stat">${de(playerPositionRating(p, role, pos.behaviour), 1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}${pos.behaviour ? `<span class="bh" title="${BEHAVIOUR_DE[pos.behaviour]}">${BEHAVIOUR_SHORT[pos.behaviour]}</span>` : ""}</div>
+      <div class="token ${role === Role.keeper ? "gk " : ""}${fc}">${esc(initials(p?.name ?? "?"))}${p ? `<span class="stat">${de(playerPositionRating(p, role, pos.behaviour), 1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}${trainingBadge(pos.playerId)}${pos.behaviour ? `<span class="bh" title="${BEHAVIOUR_DE[pos.behaviour]}">${BEHAVIOUR_SHORT[pos.behaviour]}</span>` : ""}</div>
       <div class="pname">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
       <div class="meta">Form ${p?.form ?? "-"} · Kond. ${p?.stamina ?? "-"} ${tags}</div>
     </div>`;
@@ -693,7 +862,7 @@ function editPitch(): string {
     <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats${hsDiff(mine.hatStats - L.hatStats)}</span><span>${state.manual.length}/11</span></div></div>
     ${benchHtml(C)}
     ${menuHtml(C)}
-    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span></div>
+    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
 `;
 }
 
@@ -725,7 +894,7 @@ function benchHtml(C: Lineup): string {
     const v = slot === "extra" ? Math.max(...[Role.leftCentralDefender, Role.leftBack, Role.leftInnerMidfield, Role.leftWinger, Role.centralForward].map((r) => playerPositionRating(p, r))) : playerPositionRating(p, BENCH_ROLE[slot]);
     return `<div class="bslot${picked}" draggable="true" data-bench="${slot}" data-pid="${p.id}" title="${esc(`${BENCH_DE[slot]}: ${p.name}, Stärke ${v.toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${own ? "" : " · automatisch gewählt"}`)}">
       <div class="role">${BENCH_SHORT[slot]}</div>
-      <div class="token${slot === "keeper" ? " gk" : ""}">${esc(initials(p.name))}<span class="stat">${de(v, 1)}</span></div>
+      <div class="token${slot === "keeper" ? " gk" : ""}">${esc(initials(p.name))}<span class="stat">${de(v, 1)}</span>${trainingBadge(p.id)}</div>
       <div class="pname">${esc(p.name.split(" ").slice(-1)[0])}</div>
       <div class="meta">${own ? "von dir" : "auto"}</div>
     </div>`;
@@ -976,11 +1145,16 @@ function poolHtml(): string {
   const benchIds = new Set(Object.values(myLineup().bench));
   const groups = squadGroups(state.hrf!.players);
   const pick = state.pick;
+  const played = state.week?.played;
+  const trained = (id: number) => weekFactor(played?.get(id));
   const chip = (m: ReturnType<typeof squadGroups>[number]["members"][number], g: string) => {
     const p = m.player;
     const off = unavailable(p);
-    const st = m.availability.status !== "fit" ? ` · <span class="status ${off ? "critical" : "warning"}"><i>${off ? "+" : "!"}</i>${esc(m.availability.label)}</span>` : "";
-    return `<div class="pchip${off ? " off" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off ? "" : `draggable="true"`} data-pid="${p.id}">
+    const tf = trained(p.id);
+    const src = played?.get(p.id)?.sources.join(", ") ?? "";
+    const tr = tf >= 1 ? ` · <span class="status good" title="Diese Trainingswoche schon ${esc(src)}"><i>✓</i>trainiert</span>` : tf > 0 ? ` · <span class="status warning" title="Diese Trainingswoche schon ${esc(src)}"><i>½</i>halb trainiert</span>` : "";
+    const st = (m.availability.status !== "fit" ? ` · <span class="status ${off ? "critical" : "warning"}"><i>${off ? "+" : "!"}</i>${esc(m.availability.label)}</span>` : "") + tr;
+    return `<div class="pchip${off ? " off" : ""}${tf >= 1 ? " tr-done" : tf > 0 ? " tr-half" : state.week ? " tr-open" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off ? "" : `draggable="true"`} data-pid="${p.id}">
       <span class="n">${esc(p.name)}</span><span class="muted">${p.age} J.</span>
       <span class="m">${g} ${m.value.toFixed(1)} · Form ${p.form} · Kond. ${p.stamina}${st}</span></div>`;
   };
@@ -988,7 +1162,7 @@ function poolHtml(): string {
   const shown = new Set<number>();
   for (const g of groups) {
     // Bankspieler stehen schon unter dem Feld, deshalb hier nicht noch einmal
-    const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !benchIds.has(m.player.id) && !unavailable(m.player));
+    const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !benchIds.has(m.player.id) && !unavailable(m.player) && !(state.hideTrained && trained(m.player.id) >= 1));
     if (!ms.length) continue;
     out.push(`<h4>${esc(g.name)}</h4>${ms.map((m) => chip(m, GROUP_SHORT[g.group])).join("")}`);
     ms.forEach((m) => shown.add(m.player.id));
@@ -997,7 +1171,12 @@ function poolHtml(): string {
   if (off.length) out.push(`<h4>Nicht einsetzbar</h4>${off.join("")}`);
   const benchCount = [...benchIds].filter((id) => id && !onField.has(id)).length;
   const rest = state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id)).length;
-  return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${rest}) · ${benchCount} auf der Bank. Hierher ziehen = vom Feld oder von der Bank nehmen.</div>${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
+  const fullyTrained = state.hrf!.players.filter((p) => trained(p.id) >= 1).length;
+  const hidden = state.hideTrained ? state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id) && !unavailable(p) && trained(p.id) >= 1).length : 0;
+  const filter = state.week
+    ? `<label class="trfilter"><input type="checkbox" id="hideTrained"${state.hideTrained ? " checked" : ""}> Schon trainierte ausblenden <span class="muted">(${fullyTrained} diese Woche${hidden ? `, ${hidden} ausgeblendet` : ""})</span></label>`
+    : "";
+  return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${rest}) · ${benchCount} auf der Bank. Hierher ziehen = vom Feld oder von der Bank nehmen.</div>${filter}${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
 }
 
 function renderExplain() {
@@ -1156,6 +1335,7 @@ function renderLineup() {
   $("#lineupSub").textContent = m ? `für ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : "";
   const prev = tokenRects();
   renderFormationPick();
+  const t = TRAININGS[state.hrf!.team.trainingType];
   renderMatchPlan();
   $("#pitchOut").innerHTML = editPitch();
   placeMenu();
@@ -1222,6 +1402,8 @@ function editorChanged() {
   state.pick = null;
   renderLineup();
   renderWeakness();
+  refreshFriendly();
+  renderFriendly();
 }
 
 function initWeakness() {
@@ -1422,6 +1604,10 @@ function initEditor() {
   });
   $("#autoFill").addEventListener("click", () => {
     if (!state.league) return;
+    if (state.trainingMode) {
+      state.trainingMode = false;
+      state.formation = "";
+    }
     state.manual = formationPositions();
     state.manualEdited = !!state.formation;
     state.pick = null;
@@ -1431,13 +1617,57 @@ function initEditor() {
   });
   $("#formationPick").addEventListener("change", () => {
     state.formation = $<HTMLSelectElement>("#formationPick").value;
+    if (state.trainingMode && state.week) return applyTrainingFormation(state.formation);
     state.manual = formationPositions();
     state.manualEdited = !!state.formation;
     state.pick = null;
     state.choices = {};
     renderLineup();
   });
+  $("#trainingFill").addEventListener("click", () => {
+    const hrf = state.hrf;
+    const t = hrf && TRAININGS[hrf.team.trainingType];
+    if (!hrf || !t || !state.week) return toast("Kein Training eingestellt.");
+    state.trainingMode = true;
+    state.formation = "";
+    const plan = trainingPlan("");
+    state.manual = plan.lineup.positions.map((p) => ({ ...p }));
+    state.choices = {};
+    editorChanged();
+    toast(`Trainingself ${formationLabel(plan.lineup.formation)}: ${plan.gaining.length} Spieler bekommen dadurch „${t.name}“-Training. Formation wechseln behält den Modus bei.`);
+  });
+  $("#aufstellung").addEventListener("click", (e) => {
+    const el = e.target as HTMLElement;
+    const card = el.closest<HTMLElement>(".tf-card[data-tf]");
+    if (card) return applyTrainingFormation(card.dataset.tf!);
+    const fc = el.closest<HTMLElement>(".tf-card[data-fc]");
+    if (fc) {
+      const sel = $<HTMLSelectElement>("#formationPick");
+      sel.value = fc.dataset.fc!;
+      sel.dispatchEvent(new Event("change"));
+      return;
+    }
+    if (el.closest("#trainingOff")) $<HTMLButtonElement>("#autoFill").click();
+  });
+  $("#poolOut").addEventListener("change", (e) => {
+    const el = e.target as HTMLInputElement;
+    if (el.id !== "hideTrained") return;
+    state.hideTrained = el.checked;
+    try {
+      localStorage.setItem("tophatt.hideTrained", el.checked ? "1" : "");
+    } catch {
+      /* ohne Speicher geht es auch */
+    }
+    $("#poolOut").innerHTML = poolHtml();
+    drawFlow();
+  });
+  try {
+    state.hideTrained = localStorage.getItem("tophatt.hideTrained") === "1";
+  } catch {
+    /* ohne Speicher geht es auch */
+  }
   $("#clearField").addEventListener("click", () => {
+    state.trainingMode = false;
     state.manual = [];
     state.choices = {};
     editorChanged();
@@ -1780,6 +2010,15 @@ function renderSchedule() {
     <p class="sub">Grüner Rand: Aufstiegsplatz. Tabelle aus den Ergebnissen, die HO kennt.</p>`;
 }
 
+const SECTOR_TRAIN_DE: Record<string, string> = {
+  goal: "Torwart",
+  back: "Außenverteidiger",
+  centralDefence: "Innenverteidiger",
+  wing: "Flügel",
+  innerMidfield: "zentrales Mittelfeld",
+  forward: "Sturm",
+};
+
 function renderFriendly() {
   const F = state.friendly;
   const hrf = state.hrf!;
@@ -1788,17 +2027,39 @@ function renderFriendly() {
   const byId = playersById();
   const names = (ids: number[]) => ids.map((id) => esc(byId.get(id)?.name ?? "")).join(", ") || "–";
   const cupWeek = state.ho ? upcomingMatches(state.ho).some((m) => m.type === 3 && m.date.getTime() - Date.now() < 7 * 864e5) : false;
+  const w = state.week?.window;
+  const day = (d: Date) => d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+  if (w) $("#friendlySub").textContent = `Trainingswoche ${day(w.start)} bis Trainingsupdate ${day(w.end)}`;
+  const slots = maxTrainingSlots(t, hrf.team.formationExperience);
+  const list = (xs: string[]) => xs.map((x) => SECTOR_TRAIN_DE[x] ?? x).join(", ");
+  const rules = `<div class="focus"><b>So zählt „${esc(t.name)}“:</b> Volles Training: ${esc(list(t.full))}.${t.partly.length ? ` Halbes Training: ${esc(list(t.partly))}.` : ""} Alle anderen Positionen nur ein winziger Effekt.
+    Die Minuten aus Liga- und Freundschaftsspiel einer Woche werden addiert, es zählen höchstens 90; Minuten auf voller Position zuerst.
+    Wer im Ligaspiel schon 90 Minuten voll trainiert hat, gewinnt im Freundschaftsspiel nichts mehr dazu.
+    Damit sind pro Woche höchstens <b>${2 * slots.full} Spieler voll</b> (${slots.full} je Spiel)${slots.partly ? ` und ${2 * slots.partly} halb` : ""} möglich.</div>`;
+  const rows = hrf.players
+    .filter((p) => !unavailable(p) || F.week.has(p.id))
+    .map((p) => ({ p, f: weekFactor(F.week.get(p.id)), src: F.week.get(p.id)?.sources ?? [], prio: trainingPriority(p, t) }))
+    .sort((a, b) => b.f - a.f || b.prio - a.prio);
+  const lbl = (f: number) => (f >= 1 ? statusChip("good", "voll", "✓") : f > 0 ? statusChip("warning", `${Math.round(f * 100)} %`, "½") : `<span class="muted">kein Training</span>`);
+  const table = `<table class="trweek"><thead><tr><th>Spieler</th><th>Alter</th><th>Diese Woche</th><th>Training</th></tr></thead><tbody>${rows
+    .map(
+      (r) =>
+        `<tr><td>${esc(r.p.name)}</td><td>${r.p.age}</td><td>${esc(r.src.map((x) => x.replace(/^neu /, "Freundschaft ")).join(" + ") || "–")}</td><td>${lbl(r.f)}</td></tr>`,
+    )
+    .join("")}</tbody></table>`;
   $("#friendlyOut").innerHTML = `
     ${cupWeek ? `<div class="focus">Diese Woche steht ein Pokalspiel an. Freundschaftsspiele gehen nur in Wochen ohne Pokalspiel.</div>` : ""}
+    ${rules}
     <div class="grid2">
       <div>${pitch(F.lineup, true)}</div>
       <div>
-        <p><b>Formation ${formationLabel(F.lineup.formation)}</b> für Training „${esc(t.name)}“</p>
+        <p><b>Formation ${formationLabel(F.lineup.formation)}</b> für Training „${esc(t.name)}“. Auf die Trainingsplätze kommen nur Spieler, die diese Woche noch nicht voll trainiert werden, die Jüngsten mit „${esc(t.name)}“ als Hauptfertigkeit zuerst.</p>
         <ul>${F.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
-        <h3>Volles Training diese Woche</h3><p>${names([...F.trainedInLeague, ...F.trainedInFriendly])}</p>
         <h3>Ohne Training</h3><p>${names(F.untrained)}</p>
       </div>
-    </div>`;
+    </div>
+    <details class="more"><summary>Training je Spieler in dieser Woche</summary><div class="scroll">${table}</div>
+    <p class="sub">„gespielt“ kommt aus dem HO-Download (letztes Spiel jedes Spielers), „Liga“ ist deine Aufstellung auf der Aufstellungsseite, „Freundschaft“ der Vorschlag oben.</p></details>`;
 }
 
 function renderAdvice() {
