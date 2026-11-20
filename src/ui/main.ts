@@ -932,7 +932,7 @@ function menuHtml(C: Lineup): string {
         <button data-cap="${p.id}" aria-pressed="${cap}">${cap ? "✓ Kapitän" : "Zum Kapitän"}</button>
         <button data-sp="${p.id}" aria-pressed="${sp}">${sp ? "✓ Standards" : "Standards schießen"}</button>
       </div>
-      <button class="pm-out" data-remove="${pick.role}">Vom Feld nehmen</button>
+      <div class="pm-opts"><button data-detail="${p.id}">ⓘ Details</button><button class="pm-out" data-remove="${pick.role}">Vom Feld nehmen</button></div>
       <div class="pm-tip">Jetzt eine andere Position, einen Bankplatz oder einen Spieler aus der Liste antippen, um ihn dorthin zu setzen oder zu tauschen.</div>
     </div>`;
   }
@@ -944,7 +944,7 @@ function menuHtml(C: Lineup): string {
       <div class="pm-head"><b>${p ? esc(p.name) : "Platz frei"}</b><span>Bank: ${BENCH_DE[pick.slot]}</span><button class="pm-close" aria-label="Schließen">×</button></div>
       <div class="pm-opts">
         ${own ? `<button data-bench-auto="${pick.slot}">Automatisch wählen</button>` : ""}
-        ${p ? `<button data-bench-empty="${pick.slot}">Platz leer lassen</button>` : ""}
+        ${p ? `<button data-bench-empty="${pick.slot}">Platz leer lassen</button><button data-detail="${p.id}">ⓘ Details</button>` : ""}
       </div>
       <div class="pm-tip">Spieler aus der Liste antippen: kommt auf diesen Platz. Position auf dem Feld antippen: ${p ? "er spielt dort von Anfang an." : "nichts."}</div>
     </div>`;
@@ -1167,7 +1167,7 @@ function poolHtml(): string {
     const tr = tf >= 1 ? ` · <span class="status good" title="Diese Trainingswoche schon ${esc(src)}"><i>✓</i>trainiert</span>` : tf > 0 ? ` · <span class="status warning" title="Diese Trainingswoche schon ${esc(src)}"><i>½</i>halb trainiert</span>` : "";
     const st = (m.availability.status !== "fit" ? ` · <span class="status ${off ? "critical" : "warning"}"><i>${off ? "+" : "!"}</i>${esc(m.availability.label)}</span>` : "") + tr;
     return `<div class="pchip tier-${tierOf(p.id) ?? "R"}${off ? " off" : ""}${tf >= 1 ? " tr-done" : tf > 0 ? " tr-half" : state.week ? " tr-open" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off ? "" : `draggable="true"`} data-pid="${p.id}">
-      <span class="n">${tierBadge(p.id)}${esc(p.name)}</span><span class="muted">${p.age} J.</span>
+      <span class="n">${tierBadge(p.id)}${esc(p.name)}</span><span class="muted">${p.age} J. <button type="button" class="pinfo" data-detail="${p.id}" title="Details zu ${esc(p.name)}" aria-label="Details zu ${esc(p.name)}">i</button></span>
       <span class="m">${g} ${m.value.toFixed(1)} · Form ${p.form} · Kond. ${p.stamina}${st}</span></div>`;
   };
   const out: string[] = [];
@@ -2307,7 +2307,7 @@ function renderTrainingWeek() {
         const seg = (["A", "B", "R"] as SquadTier[])
           .map((x) => `<button type="button" class="kd-btn kd-${x}${r.tier === x ? " on" : ""}" data-twtier="${p.id}:${x}" title="${TIER_NAME[x]}${suggested.get(p.id) === x ? " (Vorschlag)" : ""}">${x === "R" ? "–" : x}</button>`)
           .join("");
-        return `<tr><td>${tierBadge(p.id)}${esc(p.name)}${own && own !== suggested.get(p.id) ? ` <span class="muted" title="von dir zugeordnet">✎</span>` : ""}</td><td>${p.age}</td><td>${p[t.skill]}</td>
+        return `<tr><td>${tierBadge(p.id)}<button type="button" class="linkbtn pname-link" data-detail="${p.id}">${esc(p.name)}</button>${own && own !== suggested.get(p.id) ? ` <span class="muted" title="von dir zugeordnet">✎</span>` : ""}</td><td>${p.age}</td><td>${p[t.skill]}</td>
           <td><span class="tw-nb" style="width:${Math.max(3, Math.round((56 * r.benefit) / maxB))}px" title="Trainingsnutzen ${r.benefit.toFixed(1)}"></span></td>
           <td>${slot(r.leagueRole, r.playedSources)}</td><td>${slot(r.secondRole)}</td><td>${status(r)}</td><td class="kd-seg">${seg}</td></tr>`;
       })
@@ -2381,6 +2381,177 @@ function initTrainingWeek() {
   });
 }
 
+// --- Spielerkarte (Details zu einem Spieler, Seitenleiste) -------------------------------------------
+
+let cardPlayer = 0;
+const skillName = (v: number) => ratingLabel(Math.max(1, Math.floor(v))).replace(/ \(.*\)$/, "");
+const deNum = (x: number, d = 1) => x.toFixed(d).replace(".", ",");
+
+function openPlayerCard(id: number) {
+  if (!state.hrf?.players.some((p) => p.id === id)) return;
+  cardPlayer = id;
+  renderPlayerCard();
+  $("#playerCard").hidden = false;
+  $("#cardScrim").hidden = false;
+  requestAnimationFrame(() => $("#playerCard").classList.add("open"));
+  $<HTMLButtonElement>("#playerCard .pc-close")?.focus();
+}
+
+function closePlayerCard() {
+  cardPlayer = 0;
+  $("#playerCard").classList.remove("open");
+  $("#playerCard").hidden = true;
+  $("#cardScrim").hidden = true;
+}
+
+function renderPlayerCard() {
+  const hrf = state.hrf;
+  const p = hrf?.players.find((x) => x.id === cardPlayer);
+  if (!hrf || !p) return;
+  tierCache = null;
+  const t = TRAININGS[hrf.team.trainingType];
+  const tier = tierOf(p.id) ?? "R";
+  const suggested = suggestedTiers().get(p.id);
+  const onField = state.manual.find((x) => x.playerId === p.id);
+  const bench = Object.entries(myLineup().bench).find(([, id]) => id === p.id)?.[0] as BenchSlot | undefined;
+  const wk = state.week?.played.get(p.id);
+  const wf = weekFactor(wk);
+
+  const chips = [
+    `Form ${p.form}`,
+    `Kondition ${p.stamina}`,
+    `Erfahrung ${p.experience}`,
+    `Führung ${p.leadership}`,
+    ...(p.specialtyLabel ? [`Spezialität: ${p.specialtyLabel}`] : []),
+  ].map((x) => `<span class="pc-chip">${esc(x)}</span>`);
+  if (p.injury > 0) chips.push(`<span class="pc-chip bad">verletzt, ${p.injury} ${p.injury === 1 ? "Woche" : "Wochen"}</span>`);
+  else if (p.injury === 0) chips.push(`<span class="pc-chip warn">angeschlagen</span>`);
+  if (p.cards >= 3) chips.push(`<span class="pc-chip bad">gesperrt</span>`);
+  else if (p.cards > 0) chips.push(`<span class="pc-chip warn">${p.cards} ${p.cards === 1 ? "Gelbe Karte" : "Gelbe Karten"}</span>`);
+  if (t && wf >= 1) chips.push(`<span class="pc-chip good" title="${esc(wk!.sources.join(", "))}">✓ diese Woche ${esc(t.name)}</span>`);
+  else if (t && wf > 0) chips.push(`<span class="pc-chip warn" title="${esc(wk!.sources.join(", "))}">½ diese Woche ${esc(t.name)}</span>`);
+
+  const seg = (["A", "B", "R"] as SquadTier[])
+    .map((x) => `<button type="button" class="kd-btn kd-${x}${tier === x ? " on" : ""}" data-pctier="${x}" title="${TIER_NAME[x]}">${x === "R" ? "–" : x}</button>`)
+    .join("");
+
+  const hist = state.ho?.history.get(p.id);
+  const start = startSkills(p);
+  const skills: DevSkill[] = ["keeper", "defending", "playmaking", "winger", "passing", "scoring", "setPieces"];
+  const trainedSkill = t?.skill;
+  const skillRows = [...skills]
+    .sort((a, b) => (a === trainedSkill ? -1 : b === trainedSkill ? 1 : start[b] - start[a]))
+    .map((s) => {
+      const v = start[s];
+      const tr = s === trainedSkill;
+      return `<div class="pc-sk${tr ? " tr" : ""}"><span>${tr ? "<b>" : ""}${DEV_SKILL_DE[s]}${tr ? "</b>" : ""}</span><span class="pc-bar"><i style="width:${Math.min(100, (v / 20) * 100).toFixed(1)}%"></i></span><span class="v" title="${hist ? "mit Unterstufe aus der HO-Historie" : ""}">${deNum(v, Number.isInteger(v) ? 0 : 1)} ${skillName(v)}</span></div>`;
+    })
+    .join("");
+
+  const groups = GROUPS.map((g) => ({ g, v: groupValue(p, g) })).sort((a, b) => b.v - a.v).slice(0, 3);
+  const curSector = onField ? lineupSector(onField.role) : undefined;
+  const posCards = groups
+    .map((x, i) => `<div class="pc-pos${i === 0 ? " best" : ""}"><span>${GROUP_DE[x.g]}</span><b>${deNum(x.v, 2)}</b><span class="muted">${curSector === x.g ? "spielt hier" : i === 0 ? "beste Position" : ""}</span></div>`)
+    .join("");
+
+  // Training und Entwicklung
+  let trainHtml = "";
+  if (t) {
+    const benefit = trainingPriority(p, t);
+    const lvl = benefit >= 6 ? "hoch" : benefit >= 3 ? "mittel" : "gering";
+    const o = state.outlooks.get(p.id);
+    const proj = state.projection?.(p) ?? [];
+    const sk = (trainedSkill === "setPieces" ? "setPieces" : trainedSkill) as DevSkill;
+    const vals = proj.map((x) => x.values[sk]);
+    let chart = "";
+    if (vals.length > 1) {
+      const lo = Math.floor(Math.min(...vals)), hi = Math.ceil(Math.max(...vals) + 0.01);
+      const W = 360, H = 90;
+      const pts = vals.map((v, i) => `${((i / (vals.length - 1)) * W).toFixed(1)},${(H - 8 - ((v - lo) / Math.max(0.5, hi - lo)) * (H - 20)).toFixed(1)}`).join(" ");
+      const next = vals.findIndex((v) => Math.floor(v) > Math.floor(vals[0]));
+      chart = `<svg class="pc-chart" viewBox="0 0 ${W} ${H + 14}" role="img" aria-label="Prognose ${esc(DEV_SKILL_DE[sk])}">
+        <polyline points="${pts}" fill="none" stroke="var(--good)" stroke-width="2.5"/>
+        <text x="0" y="${H + 12}" font-size="11" fill="var(--muted)">jetzt ${deNum(vals[0])}</text>
+        <text x="${W}" y="${H + 12}" font-size="11" fill="var(--muted)" text-anchor="end">in ${proj.length - 1} Wochen ${deNum(vals[vals.length - 1])}</text></svg>
+        <p class="sub">${next > 0 ? `${esc(DEV_SKILL_DE[sk])} ${Math.floor(vals[0]) + 1} in etwa ${next} ${next === 1 ? "Woche" : "Wochen"}` : `In ${proj.length - 1} Wochen keine ganze Stufe mehr in ${esc(DEV_SKILL_DE[sk])}`}, mit dem Training, das er diese Woche bekommt.</p>`;
+    }
+    trainHtml = `<div class="pc-train">Trainingsnutzen für „${esc(t.name)}“: <b>${lvl}</b> (${deNum(benefit)} von 10).${o ? ` ${esc(o.text)}` : ""}</div>${chart}`;
+  }
+
+  const last =
+    p.lastMatchDate && (p.lastMatchMinutes ?? 0) > 0
+      ? `${new Date(p.lastMatchDate.replace(" ", "T")).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} · ${esc(positionShort(p.lastMatchPosition) || "–")} · ${p.lastMatchMinutes} Minuten${p.lastMatchRating ? ` · ${deNum(p.lastMatchRating)} Sterne` : ""}`
+      : "kein Spiel bekannt";
+
+  const actions = [
+    `<button class="btn primary" data-pcdev>Ganze Entwicklung</button>`,
+    onField ? `<button class="btn" data-pcremove="${onField.role}">Vom Feld nehmen</button>` : "",
+  ].join("");
+
+  $("#playerCard").innerHTML = `<div class="pc-head">
+      <div class="token tk-${tier} fit-good">${esc(initials(p.name))}</div>
+      <div><h2>${esc(p.name)}</h2><div class="sub">${p.age} Jahre, ${p.ageDays} Tage${p.homegrown ? " · Eigengewächs" : ""} · TSI ${p.tsi.toLocaleString("de-DE")} · Gehalt ${p.salary.toLocaleString("de-DE")}</div>
+      <div class="sub">${onField ? `auf dem Feld: ${ROLE_DE[onField.role]}` : bench ? `auf der Bank: ${BENCH_DE[bench]}` : "nicht aufgestellt"}</div></div>
+      <button class="pc-close" aria-label="Schließen">×</button></div>
+    <div class="pc-chips">${chips.join("")}</div>
+    <div class="pc-kader"><span class="sub">Kader</span><span class="kd-seg">${seg}</span><span class="sub">Vorschlag: ${TIER_NAME[suggested ?? "R"]}</span></div>
+    <h3>Fertigkeiten</h3>${skillRows}
+    <h3>Beste Positionen</h3><div class="pc-poss">${posCards}</div>
+    ${trainHtml ? `<h3>Training und Entwicklung</h3>${trainHtml}` : ""}
+    <h3>Letztes Spiel</h3><p class="sub">${last}</p>
+    <div class="pc-actions">${actions}</div>`;
+}
+
+function initPlayerCard() {
+  // Capture: vor den Klick-Handlern des Editors, damit ein Detail-Knopf keinen Spieler auswählt
+  document.addEventListener(
+    "click",
+    (e) => {
+      const d = (e.target as HTMLElement).closest<HTMLElement>("[data-detail]");
+      if (!d) return;
+      e.stopPropagation();
+      e.preventDefault();
+      openPlayerCard(Number(d.dataset.detail));
+    },
+    true,
+  );
+  document.addEventListener("dblclick", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("#aufstellung [data-pid], #kader [data-pid]");
+    if (el) openPlayerCard(Number(el.dataset.pid));
+  });
+  $("#cardScrim").addEventListener("click", closePlayerCard);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && cardPlayer) closePlayerCard();
+  });
+  $("#playerCard").addEventListener("click", (e) => {
+    const el = e.target as HTMLElement;
+    if (el.closest(".pc-close")) return closePlayerCard();
+    const tb = el.closest<HTMLElement>("[data-pctier]");
+    if (tb) {
+      const tier = tb.dataset.pctier as SquadTier;
+      if (suggestedTiers().get(cardPlayer) === tier) delete state.squadOwn[cardPlayer];
+      else state.squadOwn[cardPlayer] = tier;
+      saveOwnSquads();
+      renderPlayerCard();
+      renderLineup();
+      renderTrainingWeek();
+      return;
+    }
+    if (el.closest("[data-pcdev]")) {
+      state.devPlayer = cardPlayer;
+      closePlayerCard();
+      renderDevelopment();
+      location.hash = "#entwicklung";
+      return;
+    }
+    const rm = el.closest<HTMLElement>("[data-pcremove]");
+    if (rm) {
+      removeRole(Number(rm.dataset.pcremove));
+      renderPlayerCard();
+    }
+  });
+}
+
 function renderAdvice() {
   const A = state.advice;
   if (!A) return;
@@ -2447,7 +2618,7 @@ function renderSquad() {
       const role = inLeague.has(p.id) ? "Liga" : onBench.has(p.id) ? "Bank" : "";
       const friendly = inFriendly.has(p.id) ? "FS" : "";
       return `<tr>
-        <td>${esc(p.name)}</td><td class="num">${p.age}</td>
+        <td><button type="button" class="linkbtn pname-link" data-detail="${p.id}">${esc(p.name)}</button></td><td class="num">${p.age}</td>
         <td class="num">${p.keeper}</td><td class="num">${p.defending}</td><td class="num">${p.playmaking}</td><td class="num">${p.winger}</td>
         <td class="num">${p.passing}</td><td class="num">${p.scoring}</td><td class="num">${p.setPieces}</td>
         <td class="num">${p.form}</td><td class="num">${p.stamina}</td><td class="num">${p.experience}</td>
@@ -2601,7 +2772,7 @@ function renderGroups() {
     const status = m.av.status === "fit" ? "" : statusChip(off ? "critical" : "warning", m.av.label, off ? "+" : "!");
     const alts = m.alts.length ? `<span class="alts">auch ${m.alts.map((x) => `<i title="${esc(GROUP_DE[x])}: ${Math.round(fit.rel(p, x) * 100)} % des Kaderbesten">${GROUP_SHORT[x]}</i>`).join("")}</span>` : "";
     return `<div class="member${off ? " out" : ""}" title="Positionsstärke ${m.value.toFixed(2)} · Kondition hält ${Math.round(m.stamina * 100)} % · ${esc(m.av.label)}">
-      <div class="nm"><span class="n">${esc(p.name)}</span> <small>${p.age} J.</small>${m.plays ? `<span class="inxi">${inLineup.get(p.id) === m.g ? "spielt" : `spielt ${GROUP_SHORT[inLineup.get(p.id)!]}`}</span>` : ""}${m.offPos ? `<span class="inxi warn" title="Beste Position: ${esc(GROUP_DE[fit.home(p)])}">nicht beste Pos.</span>` : ""}</div>
+      <div class="nm"><button type="button" class="linkbtn pname-link n" data-detail="${p.id}">${esc(p.name)}</button> <small>${p.age} J.</small>${m.plays ? `<span class="inxi">${inLineup.get(p.id) === m.g ? "spielt" : `spielt ${GROUP_SHORT[inLineup.get(p.id)!]}`}</span>` : ""}${m.offPos ? `<span class="inxi warn" title="Beste Position: ${esc(GROUP_DE[fit.home(p)])}">nicht beste Pos.</span>` : ""}</div>
       <div class="fit" aria-label="Einsatzwert ${Math.round(m.share * 100)} %"><i style="width:${Math.min(100, m.share * 100).toFixed(0)}%"></i></div>
       <div class="attrs">${GROUP_SKILLS[m.g].map((k) => `<span>${SKILL_SHORT[k]} <b>${p[k]}</b></span>`).join("")}<span>Form <b>${p.form}</b></span><span>Kond. <b>${p.stamina}</b></span>${p.cards ? `<span>Gelb <b>${p.cards}</b></span>` : ""}${status}${alts}</div>
     </div>`;
@@ -2738,6 +2909,7 @@ function init() {
   initWeakness();
   initNav();
   initTrainingWeek();
+  initPlayerCard();
   $("#dlFriendly").addEventListener("click", () => {
     const x = secondLineup();
     if (x) download(x.lineup, x.kind);
