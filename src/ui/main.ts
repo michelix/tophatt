@@ -662,10 +662,32 @@ function trainingBadge(id: number): string {
     : `<span class="trb half" title="Diese Trainingswoche schon halb trainiert (${esc(src)})">½</span>`;
 }
 
-/** Trainingself für eine Formation ("" = die mit den meisten Trainingsplätzen) */
-function trainingPlan(formation: string) {
+/**
+ * Trainingself für jede Formation: Trainingsplätze und HatStats der so aufgestellten Elf.
+ * Sortiert: meiste Trainingsplätze zuerst, dann die stärkere Elf (HatStats), dann Erfahrung, dann die ausgewogenere Formation.
+ */
+function trainingChoices() {
   const hrf = state.hrf!;
-  return planTrainingLineup(hrf.players, hrf.team.trainingType, state.week!.played, bruisedOk(), hrf.team.formationExperience, formation || undefined);
+  const t = TRAININGS[hrf.team.trainingType];
+  const byId = playersById();
+  return FORMATIONS.map((f) => {
+    const plan = planTrainingLineup(hrf.players, hrf.team.trainingType, state.week!.played, bruisedOk(), hrf.team.formationExperience, f);
+    const x = formationSlots(t, f);
+    const hatStats = evaluatePositions(plan.lineup.positions, byId, state.settings, teamState()).hatStats;
+    return { f, plan, full: x.full, partly: x.partly, hatStats, exp: hrf.team.formationExperience[f] ?? 0 };
+  }).sort(
+    (a, b) =>
+      b.full * 10 + b.partly - (a.full * 10 + a.partly) ||
+      Math.round(b.hatStats) - Math.round(a.hatStats) ||
+      b.exp - a.exp ||
+      FORMATION_PREFERENCE.indexOf(a.f) - FORMATION_PREFERENCE.indexOf(b.f),
+  );
+}
+
+/** Trainingself für eine Formation ("" = meiste Trainingsplätze, bei Gleichstand stärkste Elf) */
+function trainingPlan(formation: string) {
+  const c = trainingChoices();
+  return (c.find((x) => x.f === formation) ?? c[0]).plan;
 }
 
 function formationPositions(): FieldPosition[] {
@@ -680,20 +702,14 @@ function renderFormationPick() {
   $("#trainingFill").classList.toggle("primary", state.trainingMode);
   $("#autoFill").classList.toggle("primary", !state.trainingMode);
   sel.classList.toggle("training", state.trainingMode);
-  if (state.trainingMode && t) {
-    const exp = state.hrf!.team.formationExperience;
-    const top = maxTrainingSlots(t, exp);
-    const slotText = (f: string) => {
-      const x = formationSlots(t, f);
-      return `${x.full} voll${x.partly ? ` + ${x.partly} halb` : ""}`;
-    };
+  if (state.trainingMode && t && state.week) {
+    const c = trainingChoices();
+    const slotText = (x: (typeof c)[number]) => `${x.full} voll${x.partly ? ` + ${x.partly} halb` : ""}`;
+    const top = c[0];
+    const ties = c.filter((x) => x.full === top.full && x.partly === top.partly).length;
     sel.innerHTML =
-      `<option value="">Trainingself: ${formationLabel(top.formation)} · ${slotText(top.formation)} (meiste Trainingsplätze)</option>` +
-      [...FORMATIONS]
-        .map((f) => ({ f, x: formationSlots(t, f) }))
-        .sort((a, b) => b.x.full * 10 + b.x.partly - (a.x.full * 10 + a.x.partly) || (exp[b.f] ?? 0) - (exp[a.f] ?? 0) || FORMATION_PREFERENCE.indexOf(a.f) - FORMATION_PREFERENCE.indexOf(b.f))
-        .map(({ f }) => `<option value="${f}">Trainingself ${formationLabel(f)} · ${slotText(f)} Trainingsplätze · Erfahrung ${exp[f] ?? 0}</option>`)
-        .join("");
+      `<option value="">Trainingself automatisch: ${formationLabel(top.f)} (${ties > 1 ? `stärkste von ${ties} Formationen mit ${slotText(top)} Trainingsplätzen` : `meiste Trainingsplätze: ${slotText(top)}`})</option>` +
+      c.map((x) => `<option value="${x.f}">Trainingself ${formationLabel(x.f)} · ${slotText(x)} · ${x.hatStats.toFixed(0)} HatStats · Erfahrung ${x.exp}${x.exp < 6 ? " ⚠" : ""}</option>`).join("");
     sel.value = state.formation;
     return;
   }
