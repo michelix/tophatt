@@ -5,7 +5,8 @@ import { parseHrf, writeLineupToHrf } from "../core/hrf";
 import { Attitude, Location, Role, Tactic, styleRange, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
 import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
 import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
-import { FORMATION_PREFERENCE, TRAININGS, type TrainingWindow, type WeekMinutes, formationSlots, maxTrainingSlots, planFriendly, planTrainingLineup, playedThisWeek, trainingFor, trainingPriority, trainingWindow, weekFactor, type FriendlyPlan } from "../core/training";
+import { FORMATION_PREFERENCE, TRAININGS, type TrainingWindow, type WeekMinutes, addPlanned, formationSlots, maxTrainingSlots, planFriendly, planTrainingLineup, playedThisWeek, positionShort, trainingFor, trainingPriority, trainingWindow, weekFactor, type FriendlyPlan } from "../core/training";
+import { type CupPlan, type CupVariant, type LeagueChoice, type SquadTier, type WeekRow, TIER_NAME, chooseLeagueFormation, forgotten, planCup, slotText, suggestSquads, weekRows } from "../core/trainingweek";
 import { advise, type Advice } from "../core/advisor";
 import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type ProjectionPoint, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
@@ -138,6 +139,11 @@ interface State {
   hideTrained: boolean;
   /** Trainingself aktiv: Formationswechsel stellt weiter nur noch nicht trainierte Spieler auf */
   trainingMode: boolean;
+  /** eigene Kaderzuordnung (A/B/Rest), überschreibt den Vorschlag */
+  squadOwn: Record<number, SquadTier>;
+  /** Pokalvarianten der Woche (im Hintergrund gerechnet) */
+  cup: { key: string; plan: CupPlan; opponent: string; known: boolean } | null;
+  cupPick: CupVariant["key"] | null;
 }
 
 const state: State = {
@@ -170,6 +176,9 @@ const state: State = {
   week: null,
   hideTrained: false,
   trainingMode: false,
+  squadOwn: {},
+  cup: null,
+  cupPick: null,
   settings: { location: Location.home, tactic: Tactic.normal, attitude: Attitude.normal, styleOfPlay: 0, teamSpiritSubIndex: 2 },
 };
 
@@ -642,6 +651,9 @@ function scheduleFormations() {
     if (!state.hrf) return;
     state.formations = bestPerFormation(FORMATIONS);
     renderFormationPick();
+    tierCache = null;
+    renderLineup();
+    renderTrainingWeek();
     if (state.weakBasis !== "mine" && state.weakBasis !== "auto") {
       updateAnalysis();
       renderAdvice();
@@ -853,7 +865,7 @@ function editPitch(): string {
     return `<div class="slot${picked}" draggable="true" data-role="${role}" data-pid="${pos.playerId}" style="${style}" title="${esc(ratingTitle)}">
       <div class="role">${ROLE_DE[role]}</div>
       <div class="token ${role === Role.keeper ? "gk " : ""}${fc}">${esc(initials(p?.name ?? "?"))}${p ? `<span class="stat">${de(playerPositionRating(p, role, pos.behaviour), 1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}${trainingBadge(pos.playerId)}${pos.behaviour ? `<span class="bh" title="${BEHAVIOUR_DE[pos.behaviour]}">${BEHAVIOUR_SHORT[pos.behaviour]}</span>` : ""}</div>
-      <div class="pname">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
+      <div class="pname">${tierBadge(pos.playerId)}${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
       <div class="meta">Form ${p?.form ?? "-"} · Kond. ${p?.stamina ?? "-"} ${tags}</div>
     </div>`;
   });
@@ -862,7 +874,7 @@ function editPitch(): string {
     <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats${hsDiff(mine.hatStats - L.hatStats)}</span><span>${state.manual.length}/11</span></div></div>
     ${benchHtml(C)}
     ${menuHtml(C)}
-    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
+    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span><span><b class="kd kd-A">A</b> A-Kader · <b class="kd kd-B">B</b> B-Kader · <b class="kd kd-R">–</b> Rest (Trainingswoche)</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
 `;
 }
 
@@ -895,7 +907,7 @@ function benchHtml(C: Lineup): string {
     return `<div class="bslot${picked}" draggable="true" data-bench="${slot}" data-pid="${p.id}" title="${esc(`${BENCH_DE[slot]}: ${p.name}, Stärke ${v.toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${own ? "" : " · automatisch gewählt"}`)}">
       <div class="role">${BENCH_SHORT[slot]}</div>
       <div class="token${slot === "keeper" ? " gk" : ""}">${esc(initials(p.name))}<span class="stat">${de(v, 1)}</span>${trainingBadge(p.id)}</div>
-      <div class="pname">${esc(p.name.split(" ").slice(-1)[0])}</div>
+      <div class="pname">${tierBadge(p.id)}${esc(p.name.split(" ").slice(-1)[0])}</div>
       <div class="meta">${own ? "von dir" : "auto"}</div>
     </div>`;
   });
@@ -1154,8 +1166,8 @@ function poolHtml(): string {
     const src = played?.get(p.id)?.sources.join(", ") ?? "";
     const tr = tf >= 1 ? ` · <span class="status good" title="Diese Trainingswoche schon ${esc(src)}"><i>✓</i>trainiert</span>` : tf > 0 ? ` · <span class="status warning" title="Diese Trainingswoche schon ${esc(src)}"><i>½</i>halb trainiert</span>` : "";
     const st = (m.availability.status !== "fit" ? ` · <span class="status ${off ? "critical" : "warning"}"><i>${off ? "+" : "!"}</i>${esc(m.availability.label)}</span>` : "") + tr;
-    return `<div class="pchip${off ? " off" : ""}${tf >= 1 ? " tr-done" : tf > 0 ? " tr-half" : state.week ? " tr-open" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off ? "" : `draggable="true"`} data-pid="${p.id}">
-      <span class="n">${esc(p.name)}</span><span class="muted">${p.age} J.</span>
+    return `<div class="pchip tier-${tierOf(p.id) ?? "R"}${off ? " off" : ""}${tf >= 1 ? " tr-done" : tf > 0 ? " tr-half" : state.week ? " tr-open" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off ? "" : `draggable="true"`} data-pid="${p.id}">
+      <span class="n">${tierBadge(p.id)}${esc(p.name)}</span><span class="muted">${p.age} J.</span>
       <span class="m">${g} ${m.value.toFixed(1)} · Form ${p.form} · Kond. ${p.stamina}${st}</span></div>`;
   };
   const out: string[] = [];
@@ -1328,6 +1340,7 @@ function renderMatchPlan() {
 }
 
 function renderLineup() {
+  tierCache = null;
   const L = state.league;
   if (!L) return;
   const byId = playersById();
@@ -2020,46 +2033,352 @@ const SECTOR_TRAIN_DE: Record<string, string> = {
 };
 
 function renderFriendly() {
-  const F = state.friendly;
+  renderTrainingWeek();
+}
+
+// --- Trainingswoche (A-/B-Kader, Liga + zweites Spiel) -------------------------------------------------
+
+const SQUAD_KEY = "tophatt.kader";
+function loadOwnSquads(): Record<number, SquadTier> {
+  try {
+    const raw = localStorage.getItem(SQUAD_KEY);
+    const o = raw ? JSON.parse(raw) : {};
+    return o && typeof o === "object" ? o : {};
+  } catch {
+    return {};
+  }
+}
+function saveOwnSquads() {
+  try {
+    localStorage.setItem(SQUAD_KEY, JSON.stringify(state.squadOwn));
+  } catch {
+    /* ohne Speicher gilt die Zuordnung nur bis zum Neuladen */
+  }
+}
+
+/** Ligaformation für die Woche: stärkste Elf, bei fast gleicher Stärke mehr Trainingsplätze */
+function leagueChoice(): LeagueChoice | null {
+  const hrf = state.hrf;
+  const t = hrf && TRAININGS[hrf.team.trainingType];
+  if (!hrf || !t || !state.formations.length) return null;
+  return chooseLeagueFormation(state.formations, t, Number($<HTMLSelectElement>("#minExp").value));
+}
+
+/** Kaderzuordnung: Vorschlag (A = Ligaelf, B = Trainingsgruppe, Rest) plus eigene Änderungen */
+function squadTiers(): Map<number, SquadTier> {
+  const hrf = state.hrf;
+  if (!hrf) return new Map();
+  const t = TRAININGS[hrf.team.trainingType];
+  const lc = leagueChoice();
+  const ids = (lc ? lc.pick.positions : (state.league?.lineup.positions ?? [])).map((p) => p.playerId);
+  return suggestSquads(hrf.players, ids, t, state.squadOwn);
+}
+
+/** Kaderzuordnung ohne eigene Änderungen (zum Vergleichen) */
+function suggestedTiers(): Map<number, SquadTier> {
+  const own = state.squadOwn;
+  state.squadOwn = {};
+  const s = squadTiers();
+  state.squadOwn = own;
+  return s;
+}
+
+let tierCache: Map<number, SquadTier> | null = null;
+function tierOf(id: number): SquadTier | undefined {
+  if (!tierCache) tierCache = squadTiers();
+  return tierCache.get(id);
+}
+function tierBadge(id: number): string {
+  const tier = tierOf(id);
+  if (!tier) return "";
+  return `<span class="kd kd-${tier}" title="${TIER_NAME[tier]}">${tier === "R" ? "–" : tier}</span>`;
+}
+
+/** Spiele in der laufenden Trainingswoche: Liga (Typ 1) und Pokal (Typ 3) */
+function weekMatches(): { league: HoMatch | null; cup: HoMatch | null } {
+  const w = state.week?.window;
+  if (!w || !state.ho) return { league: null, cup: null };
+  const inWeek = upcomingMatches(state.ho).filter((m) => m.date.getTime() < w.end.getTime());
+  return { league: inWeek.find((m) => m.type === 1) ?? null, cup: inWeek.find((m) => m.type === 3) ?? null };
+}
+
+let cupTimer = 0;
+/** Pokalvarianten im Hintergrund rechnen (dauert etwas) */
+function scheduleCup() {
+  const hrf = state.hrf;
+  const { cup } = weekMatches();
+  const t = hrf && TRAININGS[hrf.team.trainingType];
+  if (!hrf || !cup || !t || !state.week) {
+    state.cup = null;
+    return;
+  }
+  const leagueIn = weekMatches().league;
+  const before = addPlanned(state.week.played, leagueIn ? state.manual : [], t, "Liga");
+  const key = `${cup.id}|${hrf.team.trainingType}|${state.manual.map((p) => `${p.role}:${p.playerId}`).join(",")}|${bruisedOk()}|${$<HTMLSelectElement>("#minExp").value}`;
+  if (state.cup?.key === key) return;
+  clearTimeout(cupTimer);
+  cupTimer = window.setTimeout(() => {
+    const teamId = hrf.team.teamId;
+    const loc = cup.neutral ? Location.neutral : cup.homeId === teamId ? Location.home : Location.away;
+    const settings: MatchSettings = { ...state.settings, location: loc as MatchSettings["location"], tactic: Tactic.normal, attitude: Attitude.normal };
+    const oppId = cup.homeId === teamId ? cup.awayId : cup.homeId;
+    const prof = state.ho ? opponentProfile(state.ho.matchRatings, oppId) : null;
+    try {
+      const plan = planCup(hrf.players, hrf.team.trainingType, before, settings, teamState(), {
+        formationExperience: hrf.team.formationExperience,
+        minExperience: Number($<HTMLSelectElement>("#minExp").value),
+        allowBruised: bruisedOk(),
+        opponent: prof ? { ratings: prof.average, tactic: prof.tactic, level: null } : null,
+      });
+      state.cup = { key, plan, opponent: cup.homeId === teamId ? cup.awayName : cup.homeName, known: !!prof };
+      if (!state.cupPick || !plan.variants.some((v) => v.key === state.cupPick)) state.cupPick = plan.recommended;
+    } catch {
+      state.cup = null;
+    }
+    renderTrainingWeek();
+  }, 60);
+}
+
+/** Aufstellung des zweiten Spiels: gewählte Pokalvariante oder Freundschaftsspiel */
+function secondLineup(): { kind: "pokal" | "freundschaft"; lineup: Lineup } | null {
+  const hrf = state.hrf;
+  if (!hrf) return null;
+  const { cup } = weekMatches();
+  if (cup) {
+    const v = state.cup?.plan.variants.find((x) => x.key === state.cupPick) ?? state.cup?.plan.variants.find((x) => x.key === state.cup?.plan.recommended);
+    if (!v) return null;
+    return { kind: "pokal", lineup: { ...completeLineup(v.positions, hrf.players, state.settings, bruisedOk()), formation: v.formation } };
+  }
+  return state.friendly ? { kind: "freundschaft", lineup: state.friendly.lineup } : null;
+}
+
+const dayTime = (d: Date) => d.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const dayOnly = (d: Date) => d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+
+function renderTrainingWeek() {
+  tierCache = null;
+  scheduleCup();
   const hrf = state.hrf!;
   const t = TRAININGS[hrf.team.trainingType];
-  if (!F || !t) return;
+  const out = $("#friendlyOut");
+  if (!t || !state.week) {
+    out.innerHTML = `<p class="sub">In den HO-Daten ist kein Training eingestellt.</p>`;
+    return;
+  }
+  const w = state.week.window;
+  const { league, cup } = weekMatches();
   const byId = playersById();
-  const names = (ids: number[]) => ids.map((id) => esc(byId.get(id)?.name ?? "")).join(", ") || "–";
-  const cupWeek = state.ho ? upcomingMatches(state.ho).some((m) => m.type === 3 && m.date.getTime() - Date.now() < 7 * 864e5) : false;
-  const w = state.week?.window;
-  const day = (d: Date) => d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
-  if (w) $("#friendlySub").textContent = `Trainingswoche ${day(w.start)} bis Trainingsupdate ${day(w.end)}`;
-  const slots = maxTrainingSlots(t, hrf.team.formationExperience);
+  const lc = leagueChoice();
+  const second = secondLineup();
+  const leaguePositions = league ? state.manual : [];
+  const tiers = squadTiers();
+  tierCache = tiers;
+  const rows = weekRows(hrf.players, tiers, t, state.week.played, leaguePositions, second?.lineup.positions ?? []);
+  const fullCount = rows.filter((r) => r.factor >= 1).length;
+  const halfCount = rows.filter((r) => r.factor > 0 && r.factor < 1).length;
+  const maxFull = 2 * maxTrainingSlots(t).full;
   const list = (xs: string[]) => xs.map((x) => SECTOR_TRAIN_DE[x] ?? x).join(", ");
-  const rules = `<div class="focus"><b>So zählt „${esc(t.name)}“:</b> Volles Training: ${esc(list(t.full))}.${t.partly.length ? ` Halbes Training: ${esc(list(t.partly))}.` : ""} Alle anderen Positionen nur ein winziger Effekt.
-    Die Minuten aus Liga- und Freundschaftsspiel einer Woche werden addiert, es zählen höchstens 90; Minuten auf voller Position zuerst.
-    Wer im Ligaspiel schon 90 Minuten voll trainiert hat, gewinnt im Freundschaftsspiel nichts mehr dazu.
-    Damit sind pro Woche höchstens <b>${2 * slots.full} Spieler voll</b> (${slots.full} je Spiel)${slots.partly ? ` und ${2 * slots.partly} halb` : ""} möglich.</div>`;
-  const rows = hrf.players
-    .filter((p) => !unavailable(p) || F.week.has(p.id))
-    .map((p) => ({ p, f: weekFactor(F.week.get(p.id)), src: F.week.get(p.id)?.sources ?? [], prio: trainingPriority(p, t) }))
-    .sort((a, b) => b.f - a.f || b.prio - a.prio);
-  const lbl = (f: number) => (f >= 1 ? statusChip("good", "voll", "✓") : f > 0 ? statusChip("warning", `${Math.round(f * 100)} %`, "½") : `<span class="muted">kein Training</span>`);
-  const table = `<table class="trweek"><thead><tr><th>Spieler</th><th>Alter</th><th>Diese Woche</th><th>Training</th></tr></thead><tbody>${rows
-    .map(
-      (r) =>
-        `<tr><td>${esc(r.p.name)}</td><td>${r.p.age}</td><td>${esc(r.src.map((x) => x.replace(/^neu /, "Freundschaft ")).join(" + ") || "–")}</td><td>${lbl(r.f)}</td></tr>`,
-    )
-    .join("")}</tbody></table>`;
-  $("#friendlyOut").innerHTML = `
-    ${cupWeek ? `<div class="focus">Diese Woche steht ein Pokalspiel an. Freundschaftsspiele gehen nur in Wochen ohne Pokalspiel.</div>` : ""}
-    ${rules}
-    <div class="grid2">
-      <div>${pitch(F.lineup, true)}</div>
-      <div>
-        <p><b>Formation ${formationLabel(F.lineup.formation)}</b> für Training „${esc(t.name)}“. Auf die Trainingsplätze kommen nur Spieler, die diese Woche noch nicht voll trainiert werden, die Jüngsten mit „${esc(t.name)}“ als Hauptfertigkeit zuerst.</p>
-        <ul>${F.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
-        <h3>Ohne Training</h3><p>${names(F.untrained)}</p>
-      </div>
+  $("#friendlySub").textContent = `Trainingswoche ${dayOnly(w.start)} bis ${dayOnly(w.end)}`;
+
+  // Kopf mit Zeitleiste
+  const now = Date.now();
+  const steps: { d: Date; t: string; x: string }[] = [{ d: w.start, t: "Trainingsupdate", x: "neue Woche beginnt" }];
+  const playedLeague = !league && [...state.week.played.values()].some((m) => m.sources.length);
+  if (league) steps.push({ d: league.date, t: "Ligaspiel", x: "A-Kader, stärkste Elf" });
+  else if (playedLeague) steps.push({ d: w.start, t: "Ligaspiel", x: "schon gespielt" });
+  if (cup) steps.push({ d: cup.date, t: "Pokalspiel", x: "Sieg und Training abwägen" });
+  else steps.push({ d: new Date(Math.min(w.end.getTime() - 864e5, Math.max(now, (league?.date.getTime() ?? now) + 2 * 864e5))), t: "Freundschaftsspiel", x: "nur Training, B-Kader" });
+  steps.push({ d: w.end, t: "Trainingsupdate", x: "Minuten werden gezählt" });
+  const timeline = steps
+    .map((s, i) => {
+      const cls = s.d.getTime() <= now || (i === 1 && playedLeague) ? "done" : steps.slice(0, i).every((p) => p.d.getTime() <= now) ? "now" : "";
+      return `<div class="tw-tl ${cls}"><span class="dot"></span><div class="d">${s.t === "Freundschaftsspiel" ? "frei wählbar" : dayTime(s.d)}</div><div class="t">${esc(s.t)}</div><div class="x">${esc(s.x)}</div></div>`;
+    })
+    .join("");
+  const meter = Array.from({ length: maxFull }, (_, i) => `<i class="${i < fullCount ? "f" : ""}"></i>`).join("");
+  const hero = `<div class="tw-hero">
+    <div>
+      <div class="k">Eingestelltes Training</div>
+      <div class="big">${esc(t.name)}</div>
+      <div class="sub2">Voll: ${esc(list(t.full))}${t.partly.length ? ` · halb: ${esc(list(t.partly))}` : ""}<br>Nächstes Update ${countdown(w.end)}</div>
+      <div class="tw-meter" title="voll trainierte Spieler diese Woche">${meter}</div>
+      <div class="sub2"><b>${fullCount}</b> von höchstens ${maxFull} Spielern voll trainiert${halfCount ? `, ${halfCount} halb` : ""} (gespielt und geplant)</div>
     </div>
-    <details class="more"><summary>Training je Spieler in dieser Woche</summary><div class="scroll">${table}</div>
-    <p class="sub">„gespielt“ kommt aus dem HO-Download (letztes Spiel jedes Spielers), „Liga“ ist deine Aufstellung auf der Aufstellungsseite, „Freundschaft“ der Vorschlag oben.</p></details>`;
+    <div class="tw-timeline">${timeline}</div>
+  </div>`;
+
+  // Ligaspiel
+  let leagueCard = "";
+  if (league) {
+    const cur = formationCode(state.manual);
+    const shown = lc ? lc.options.filter((o) => o === lc.best || o === lc.pick || o.hatStats >= lc.best.hatStats * 0.97).slice(0, 4) : [];
+    const cards = shown
+      .map(
+        (o) => `<button type="button" class="tw-fc${o === lc!.pick ? " reco" : ""}${o.formation === cur ? " on" : ""}" data-twform="${o.formation}">
+        ${o === lc!.pick ? `<span class="tf-reco">Empfehlung</span>` : ""}<b>${formationLabel(o.formation)}</b>
+        <span>${o.hatStats.toFixed(0)} HatStats${o === lc!.best ? " · stärkste" : ""}</span>
+        <span class="tf-dots">${"<i></i>".repeat(o.full)}${'<i class="half"></i>'.repeat(o.partly)}</span>
+        <span class="muted">${slotText(o)} · Erf. ${o.experience}</span></button>`,
+      )
+      .join("");
+    const lineupChips = state.manual
+      .slice()
+      .sort((a, b) => a.role - b.role)
+      .map((p) => {
+        const pl = byId.get(p.playerId);
+        const lvl = trainingFor(p.role, t);
+        return `<span class="tw-pl${lvl === "voll" ? " tr" : lvl === "teilweise" ? " half" : ""}">${tierBadge(p.playerId)}${esc((pl?.name ?? "?").split(" ").slice(-1)[0])} <i>${positionShort(p.role)}</i></span>`;
+      })
+      .join("");
+    const differs = lc && cur !== lc.pick.formation;
+    leagueCard = `<div class="card tw-card"><header><h3>1. Ligaspiel · ${dayTime(league.date)}</h3><span class="tw-goal">Ziel: Sieg, dann Training</span></header>
+      ${lc ? `<div class="tw-forms">${cards}</div><p class="sub">${esc(lc.reason)}</p>` : `<p class="sub">Formationen werden gerechnet …</p>`}
+      <div class="tw-sub">Deine Aufstellung (Aufstellungsseite) · ${formationLabel(cur)}</div>
+      <div class="tw-lineup">${lineupChips}</div>
+      ${differs ? `<p><button class="btn primary" data-twapply="${lc!.pick.formation}">${formationLabel(lc!.pick.formation)} in die Aufstellung übernehmen</button></p>` : ""}
+    </div>`;
+  } else {
+    leagueCard = `<div class="card tw-card"><header><h3>1. Ligaspiel</h3><span class="tw-goal">Ziel: Sieg, dann Training</span></header>
+      <p class="sub">${playedLeague ? "Das Ligaspiel dieser Trainingswoche ist schon gespielt. Wer dabei trainiert hat, steht unten als „gespielt“." : "In dieser Trainingswoche steht kein Ligaspiel mehr an."}</p></div>`;
+  }
+
+  // Zweites Spiel
+  let secondCard = "";
+  const chips = (positions: FieldPosition[]) =>
+    positions
+      .slice()
+      .sort((a, b) => a.role - b.role)
+      .map((p) => {
+        const lvl = trainingFor(p.role, t);
+        return `<span class="tw-pl${lvl === "voll" ? " tr" : lvl === "teilweise" ? " half" : ""}">${tierBadge(p.playerId)}${esc((byId.get(p.playerId)?.name ?? "?").split(" ").slice(-1)[0])} <i>${positionShort(p.role)}</i></span>`;
+      })
+      .join("");
+  const pct = (x: number | null) => (x === null ? "–" : `${Math.round(x * 100)} %`);
+  if (cup) {
+    const C = state.cup;
+    const opp = cup.homeId === hrf.team.teamId ? cup.awayName : cup.homeName;
+    const head = `<header><h3>2. Spiel: Pokal · ${dayTime(cup.date)}</h3><span class="tw-goal b">Sieg + möglichst viel Training</span></header>`;
+    if (!C) secondCard = `<div class="card tw-card">${head}<p class="sub">Pokalvarianten gegen ${esc(opp)} werden gerechnet …</p></div>`;
+    else {
+      const v = C.plan.variants.find((x) => x.key === state.cupPick) ?? C.plan.variants[0];
+      const table = `<table class="tw-cmp"><thead><tr><th>Variante</th><th>Formation</th><th>${C.known ? "Siegchance" : "HatStats"}</th><th>neu trainiert</th></tr></thead><tbody>${C.plan.variants
+        .map(
+          (x) => `<tr class="${x.key === C.plan.recommended ? "rec" : ""}${x.key === v.key ? " on" : ""}" data-twcup="${x.key}"><td>${esc(x.label)}${x.key === C.plan.recommended ? ` <span class="tf-reco">Empfehlung</span>` : ""}</td><td>${formationLabel(x.formation)}</td><td>${C.known ? pct(x.win) : x.hatStats.toFixed(0)}</td><td>${x.newTrainees}</td></tr>`,
+        )
+        .join("")}</tbody></table>`;
+      secondCard = `<div class="card tw-card">${head}
+        <p class="sub">Gegner ${esc(C.opponent)}${C.known ? "" : " · keine Bewertungen bekannt, verglichen wird die eigene Stärke"}. Zeile antippen, um eine Variante zu wählen.</p>
+        ${table}<p class="sub">${esc(C.plan.reason)}</p>
+        <div class="tw-sub">${esc(v.label)} · ${formationLabel(v.formation)}</div><div class="tw-lineup">${chips(v.positions)}</div></div>`;
+    }
+  } else if (state.friendly) {
+    const F = state.friendly;
+    secondCard = `<div class="card tw-card"><header><h3>2. Spiel: Freundschaftsspiel</h3><span class="tw-goal b">Nur Training</span></header>
+      <p class="sub">Der Sieg ist egal. Die ${maxTrainingSlots(t).full} Trainingsplätze bekommen die Spieler mit dem größten Trainingsnutzen (jung, „${esc(t.name)}“ hoch im Profil, Fertigkeit noch niedrig), die diese Woche noch nicht voll trainiert sind. Freundschaftsspiele gehen nur ohne Pokalspiel in der Woche.</p>
+      <div class="tw-sub">Vorschlag · ${formationLabel(F.lineup.formation)} · ${F.trainedInFriendly.length} Trainingsplätze</div>
+      <div class="tw-lineup">${chips(F.lineup.positions)}</div></div>`;
+  }
+
+  // Kader-Tabellen
+  const suggested = suggestedTiers();
+  const status = (r: WeekRow) => {
+    const p = r.player;
+    if (p.injury > 0) return statusChip("critical", `verletzt ${p.injury} W.`, "+");
+    if (r.factor >= 1) return statusChip("good", "voll", "✓");
+    if (r.factor > 0) return statusChip("warning", `${Math.round(r.factor * 100)} %`, "½");
+    if (p.injury === 0 && !bruisedOk()) return statusChip("warning", "angeschlagen", "!");
+    const kt = p.keeper >= Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
+    if (kt && t.skill !== "keeper") return `<span class="muted">Torwart</span>`;
+    return r.benefit >= 3 ? `<span class="tw-open">offen</span>` : `<span class="muted">kein</span>`;
+  };
+  const slot = (role: number, src: string[] = []) => {
+    if (!role) return src.length ? `<span class="tw-slot played" title="${esc(src.join(", "))}">gespielt</span>` : `<span class="muted">–</span>`;
+    const lvl = trainingFor(role, t);
+    return `<span class="tw-slot${lvl === "voll" ? " v" : lvl === "teilweise" ? " h" : ""}">${positionShort(role)}</span>`;
+  };
+  const maxB = Math.max(1, ...rows.map((r) => r.benefit));
+  const table = (tier: SquadTier) => {
+    const rs = rows.filter((r) => r.tier === tier);
+    if (!rs.length) return `<p class="sub">Keine Spieler.</p>`;
+    return `<div class="scroll"><table class="tw-sq"><thead><tr><th>Spieler</th><th>Alter</th><th title="${esc(t.name)}: aktueller Wert der trainierten Fertigkeit">Wert</th><th>Nutzen</th><th>Liga</th><th>2. Spiel</th><th>Woche</th><th>Kader</th></tr></thead><tbody>${rs
+      .map((r) => {
+        const p = r.player;
+        const own = state.squadOwn[p.id];
+        const seg = (["A", "B", "R"] as SquadTier[])
+          .map((x) => `<button type="button" class="kd-btn kd-${x}${r.tier === x ? " on" : ""}" data-twtier="${p.id}:${x}" title="${TIER_NAME[x]}${suggested.get(p.id) === x ? " (Vorschlag)" : ""}">${x === "R" ? "–" : x}</button>`)
+          .join("");
+        return `<tr><td>${tierBadge(p.id)}${esc(p.name)}${own && own !== suggested.get(p.id) ? ` <span class="muted" title="von dir zugeordnet">✎</span>` : ""}</td><td>${p.age}</td><td>${p[t.skill]}</td>
+          <td><span class="tw-nb" style="width:${Math.max(3, Math.round((56 * r.benefit) / maxB))}px" title="Trainingsnutzen ${r.benefit.toFixed(1)}"></span></td>
+          <td>${slot(r.leagueRole, r.playedSources)}</td><td>${slot(r.secondRole)}</td><td>${status(r)}</td><td class="kd-seg">${seg}</td></tr>`;
+      })
+      .join("")}</tbody></table></div>`;
+  };
+  const count = (x: SquadTier) => rows.filter((r) => r.tier === x).length;
+  const forgot = forgotten(rows, t).filter((r) => r.player.injury < 0);
+  const ownCount = Object.keys(state.squadOwn).length;
+  const squads = `<div class="tw-squads">
+    <div class="card tw-card"><header><h3><span class="kd kd-A">A</span> A-Kader <span class="muted">Stammelf, ${count("A")}</span></h3></header>${table("A")}</div>
+    <div class="card tw-card"><header><h3><span class="kd kd-B">B</span> B-Kader <span class="muted">Trainingsgruppe, ${count("B")}</span></h3></header>${table("B")}</div>
+  </div>
+  <div class="card tw-card"><header><h3><span class="kd kd-R">–</span> Rest <span class="muted">${count("R")}</span></h3>
+    <span class="sub">Vorschlag: A = Ligaelf, B = ein Torwart + die 10 mit dem größten Trainingsnutzen. ${ownCount ? `${ownCount} von dir geändert · <button type="button" class="linkbtn" id="twResetTiers">Vorschlag wiederherstellen</button>` : "Mit A / B / – änderst du die Zuordnung, sie bleibt gespeichert."}</span></header>${table("R")}</div>`;
+  const alert = forgot.length
+    ? `<div class="tw-alert"><b>Nicht vergessen:</b> ${forgot
+        .slice(0, 6)
+        .map((r) => `${esc(r.player.name)} (${r.player.age})`)
+        .join(", ")} ${forgot.length === 1 ? "hat" : "haben"} spürbaren Trainingsnutzen und ${forgot.length === 1 ? "bekommt" : "bekommen"} diese Woche kein Training. Nächste Woche zuerst einplanen${fullCount >= maxFull ? " (diese Woche sind alle Plätze belegt)" : " oder im zweiten Spiel auf eine Trainingsposition stellen"}.</div>`
+    : `<div class="tw-alert ok">Niemand mit spürbarem Trainingsnutzen geht diese Woche leer aus.</div>`;
+  const rules = `<details class="more"><summary>So zählt „${esc(t.name)}“</summary><p class="sub">Voll: ${esc(list(t.full))}.${t.partly.length ? ` Halb: ${esc(list(t.partly))}.` : ""} Die Minuten aller Spiele einer Woche werden addiert, höchstens 90 zählen, Minuten auf voller Position zuerst. Wer im Ligaspiel schon 90 Minuten voll trainiert hat, gewinnt im zweiten Spiel nichts mehr dazu. „gespielt“ kommt aus dem HO-Download (letztes Spiel je Spieler).</p></details>`;
+
+  out.innerHTML = `${hero}<div class="tw-games">${leagueCard}${secondCard}</div>${alert}${squads}${rules}`;
+  const dl = $<HTMLButtonElement>("#dlFriendly");
+  dl.textContent = second?.kind === "pokal" ? "Pokal-Aufstellung für HO speichern" : "Freundschaftsspiel für HO speichern";
+  $("#friendlyIdLabel").firstChild!.textContent = second?.kind === "pokal" ? "Spiel-ID Pokalspiel" : "Spiel-ID Freundschaftsspiel";
+  if (second?.kind === "pokal" && cup) $<HTMLInputElement>("#friendlyMatchId").value ||= String(cup.id);
+}
+
+function initTrainingWeek() {
+  state.squadOwn = loadOwnSquads();
+  $("#training").addEventListener("click", (e) => {
+    const el = e.target as HTMLElement;
+    const tierBtn = el.closest<HTMLElement>("[data-twtier]");
+    if (tierBtn) {
+      const [id, tier] = tierBtn.dataset.twtier!.split(":");
+      const sugg = suggestedTiers().get(Number(id));
+      if (sugg === tier) delete state.squadOwn[Number(id)];
+      else state.squadOwn[Number(id)] = tier as SquadTier;
+      saveOwnSquads();
+      renderTrainingWeek();
+      renderLineup();
+      return;
+    }
+    if (el.closest("#twResetTiers")) {
+      state.squadOwn = {};
+      saveOwnSquads();
+      renderTrainingWeek();
+      renderLineup();
+      return;
+    }
+    const cupRow = el.closest<HTMLElement>("[data-twcup]");
+    if (cupRow) {
+      state.cupPick = cupRow.dataset.twcup as CupVariant["key"];
+      renderTrainingWeek();
+      return;
+    }
+    const f = el.closest<HTMLElement>("[data-twapply], [data-twform]");
+    if (f) {
+      const code = f.dataset.twapply ?? f.dataset.twform!;
+      state.trainingMode = false;
+      state.formation = code;
+      state.manual = formationPositions();
+      state.manualEdited = true;
+      state.pick = null;
+      state.choices = {};
+      editorChanged();
+      renderTrainingWeek();
+      toast(`Ligaaufstellung: beste Elf in ${formationLabel(code)}.`);
+    }
+  });
 }
 
 function renderAdvice() {
@@ -2151,7 +2470,7 @@ function renderSquad() {
 // --- Navigation ------------------------------------------------------------------------
 
 const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "spielplan"];
-const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag" };
+const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training" };
 let currentView = "";
 
 function route() {
@@ -2312,7 +2631,7 @@ function renderGroups() {
 
 // --- HRF für HO speichern --------------------------------------------------------------
 
-function download(lineup: Lineup, kind: "liga" | "freundschaft") {
+function download(lineup: Lineup, kind: "liga" | "freundschaft" | "pokal") {
   if (!state.hrf) return;
   const idInput = $<HTMLInputElement>(kind === "liga" ? "#matchId" : "#friendlyMatchId");
   const matchId = Number(idInput.value);
@@ -2322,7 +2641,7 @@ function download(lineup: Lineup, kind: "liga" | "freundschaft") {
     return;
   }
   // HO-Spieltypen: 1 = Liga, 3 = Pokal, 4 = Freundschaftsspiel
-  const matchType = kind === "liga" ? Number($<HTMLSelectElement>("#matchType").value) : 4;
+  const matchType = kind === "liga" ? Number($<HTMLSelectElement>("#matchType").value) : kind === "pokal" ? 3 : 4;
   const text = writeLineupToHrf(state.hrf, lineup, matchId, matchType);
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const a = document.createElement("a");
@@ -2418,7 +2737,11 @@ function init() {
   initSaveBar();
   initWeakness();
   initNav();
-  $("#dlFriendly").addEventListener("click", () => state.friendly && download(state.friendly.lineup, "freundschaft"));
+  initTrainingWeek();
+  $("#dlFriendly").addEventListener("click", () => {
+    const x = secondLineup();
+    if (x) download(x.lineup, x.kind);
+  });
   // Countdown und Datenstand jede Minute auffrischen
   setInterval(() => state.hrf && (renderHero(), renderDataChip()), 60_000);
   initFolder();
