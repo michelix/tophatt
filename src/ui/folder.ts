@@ -90,6 +90,16 @@ export async function newestFile(h: DirHandle): Promise<File | null> {
   return pickNewest(files);
 }
 
+/** Alle HO-Exporte im Ordner (für den Finanzverlauf). */
+export async function allExports(h: DirHandle): Promise<File[]> {
+  const files: File[] = [];
+  for await (const entry of h.values()) {
+    if (entry.kind !== "file" || !isHoExport(entry.name)) continue;
+    files.push(await (entry as FileSystemFileHandle).getFile());
+  }
+  return files;
+}
+
 export const DATA_FILE = "tophatt-data.json";
 
 /** Liest eine bestimmte Datei aus dem Ordner (null, wenn sie fehlt). */

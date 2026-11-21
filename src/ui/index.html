@@ -111,6 +111,20 @@ select,input[type=number]{font:inherit;font-size:14px;padding:6px 8px;border:1px
 .slot.weak{box-shadow:inset 3px 0 0 var(--critical)}
 .slot.soft{box-shadow:inset 3px 0 0 var(--warning)}
 
+/* Finanzen */
+.fin-tiles{margin-top:8px}
+.fin-tile .sub{font-size:12px;color:var(--muted)}
+.fin-tile.neg .v,td.neg,th.neg{color:var(--critical)}
+.fin-tile.pos .v,td.pos,th.pos{color:var(--good-ink)}
+.fin-plan{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface-2)}
+.fin-plan input[type=number]{min-width:0;width:150px}
+.fin-verdict{display:grid;gap:4px;margin:12px 0;padding:10px 12px;border:1px solid var(--line);border-left-width:4px;border-radius:8px;background:var(--surface)}
+.fin-verdict.good{border-left-color:var(--good)}.fin-verdict.warning{border-left-color:var(--warning)}.fin-verdict.critical{border-left-color:var(--critical)}
+.fin-verdict .sub{font-size:13px;color:var(--ink-2)}
+.fin-bal tr.grp th{padding-top:12px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.fin-bal tfoot th,.fin-staff tfoot th{border-bottom:0;color:var(--ink);font-size:14px}
+@media (max-width:600px){.fin-plan input[type=number]{width:120px}.tiles.fin-tiles{grid-template-columns:1fr 1fr;gap:8px}.fin-tile{padding:10px 12px}.fin-tile .v{font-size:17px}.fin-plan{padding:10px}}
+
 /* Tabellen */
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
@@ -581,6 +595,8 @@ select.training{border-color:var(--brand);font-weight:600}
     <a href="#training" data-view="training"><svg viewBox="0 0 24 24"><path d="M6 4v16M18 4v16M6 12h12M3 8v8M21 8v8"/></svg>Trainingswoche</a>
     <div class="navgroup">Saison</div>
     <a href="#spielplan" data-view="spielplan"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/></svg>Spielplan &amp; Tabelle</a>
+    <div class="navgroup">Verein</div>
+    <a href="#finanzen" data-view="finanzen"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Finanzen</a>
   </nav>
 </aside>
 <div class="scrim" id="scrim" hidden></div>
@@ -698,6 +714,7 @@ select.training{border-color:var(--brand);font-weight:600}
       </div>
     </section>
 
+    <section class="card" id="finanzen" data-view="finanzen"><header><h2>Finanzen</h2><span class="sub">Kontostand, Wochenbilanz und ob sich Trainer &amp; Personal rechnen</span></header><div id="finOut"></div></section>
     <section class="card" id="transfers" data-view="transfers"><header><h2>Transfers</h2></header><div id="adviceOut"></div></section>
     <section class="card" id="kader" data-view="kader">
       <header><h2>Kader</h2>
