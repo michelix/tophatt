@@ -391,6 +391,15 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
 @media (prefers-reduced-motion:reduce){svg.flow path{animation:none}}
 .field .slot.flow-target .token{box-shadow:0 0 0 3px var(--flow),0 0 16px 4px rgba(243,215,122,.6)}
 .field .slot.flow-hint .token{--hc:#b4bcc4;outline:2px dashed color-mix(in srgb,var(--hc) 75%,transparent);outline-offset:3px}
+/* Spieler gewählt: passende Positionen heraus, Rest blasser (Linien und Punkte bleiben voll sichtbar) */
+.pitch.edit .slot,.bench .bslot{transition:opacity .2s ease,filter .2s ease}
+.editor.flow-focus .pitch.edit .slot:not(.flow-target):not(.flow-hint):not(.flow-src):not(.picked):not(.over),
+.editor.flow-focus .bench .bslot:not(.flow-src):not(.picked):not(.over){opacity:.32;filter:grayscale(.75)}
+.editor.flow-focus .pitch.edit .slot.flow-hint:not(.flow-src){opacity:.62;filter:grayscale(.35)}
+.editor.flow-focus .field .slot.flow-target .token{transform:scale(1.08)}
+.editor.flow-focus .field .slot.flow-target.empty .token{border-color:#fff;background:rgba(255,255,255,.22)}
+.editor.flow-focus .field .slot.flow-target .pname{background:#14261a;box-shadow:0 0 0 2px var(--flow)}
+@media (prefers-reduced-motion:reduce){.pitch.edit .slot,.bench .bslot{transition:none}}
 .field .slot.flow-hint[data-fq="fq1"] .token{--hc:#3ddc6a}.field .slot.flow-hint[data-fq="fq2"] .token{--hc:#ffd23f}.field .slot.flow-hint[data-fq="fq3"] .token{--hc:#ff5a4a}
 .editor{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(240px,1fr);gap:16px;align-items:start}
 @media (max-width:860px){.editor{grid-template-columns:minmax(0,1fr)}}
