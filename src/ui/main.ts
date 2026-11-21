@@ -2,6 +2,7 @@
 
 import { DATA_FILE, type DirHandle, allExports, askPermission, chooseFolder, fileByName, folderApiAvailable, hasPermission, newestFile, storedFolder } from "./folder";
 import { parseHrf, writeLineupToHrf } from "../core/hrf";
+import { initHistory, importFile as importHistory, recordHrf, renderHistory, syncFolder as syncHistoryFolder } from "./history-view";
 import { Attitude, Location, Role, Tactic, styleRange, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
 import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
 import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
@@ -212,6 +213,7 @@ async function setHrf(file: File) {
   state.finance = parseFinance(text);
   if (state.finance) state.financeWeeks = pastWeeks([state.finance]);
   if (!hrf.players.length) throw new Error(`In ${file.name} wurden keine Spieler gefunden. Ist es eine HRF-Datei aus HO?`);
+  recordHrf(text);
   state.hrf = hrf;
   state.hrfName = file.name;
   state.hrfTime = file.lastModified;
@@ -240,7 +242,9 @@ async function loadFiles(files: File[]) {
   $("#error").textContent = "";
   try {
     const hrfs = files.filter((f) => f.name.toLowerCase().endsWith(".hrf")).sort((a, b) => b.lastModified - a.lastModified);
-    const json = files.find((f) => f.name.toLowerCase().endsWith(".json"));
+    const isHistory = (f: File) => /verlauf/i.test(f.name);
+    for (const f of files) if (f.name.toLowerCase().endsWith(".json") && isHistory(f)) await importHistory(f);
+    const json = files.find((f) => f.name.toLowerCase().endsWith(".json") && !isHistory(f));
     if (hrfs[0]) await setHrf(hrfs[0]);
     if (hrfs.length > 1) await setFinanceWeeks(hrfs);
     if (json) await setHoData(json);
@@ -263,6 +267,7 @@ async function loadFromFolder(h: DirHandle) {
   state.ho = data ? parseHoData(await data.text()) : null;
   $("#folderStatus").textContent = `Verbunden mit „${h.name}“. Geladen: ${hrf.name}${data ? ` und ${DATA_FILE}` : ""}.`;
   afterLoad(true);
+  void syncHistoryFolder(h);
 }
 
 async function refresh() {
@@ -473,6 +478,7 @@ function render() {
   renderGroups();
   renderFinance($("#finOut"), state.finance, state.financeWeeks);
   renderTrainerPage($("#trainerOut"), hrf.raw);
+  renderHistory();
   route();
 }
 
@@ -2676,8 +2682,8 @@ function renderSquad() {
 
 // --- Navigation ------------------------------------------------------------------------
 
-const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "trainer", "spielplan", "finanzen"];
-const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training" };
+const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "trainer", "spielplan", "finanzen", "verlauf"];
+const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training", historie: "verlauf" };
 let currentView = "";
 
 function route() {
@@ -2948,6 +2954,7 @@ function init() {
   initTrainingWeek();
   initPlayerCard();
   initTrainerPage($("#trainerOut"));
+  initHistory(() => state.folder);
   $("#dlFriendly").addEventListener("click", () => {
     const x = secondLineup();
     if (x) download(x.lineup, x.kind);
