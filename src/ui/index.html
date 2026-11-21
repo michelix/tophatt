@@ -154,15 +154,21 @@ select,input[type=number]{font:inherit;font-size:14px;padding:6px 8px;border:1px
 .sect-nav button:hover{border-color:var(--brand)}
 .sect-nav .step{width:18px;height:18px;font-size:11px;margin-right:6px}
 .sug-block{margin:6px 0 4px}
+.sug-controls{gap:8px 12px}
+.tag.sug-on{border-color:var(--brand);color:var(--brand);font-size:11px;padding:1px 6px;white-space:nowrap}
 .sug-sub{text-transform:none;letter-spacing:0;font-weight:400}
 .subpill{display:inline-flex;align-items:center;gap:3px;border:0;border-radius:999px;padding:1px 8px 1px 6px;font-size:11px;font-weight:700;line-height:16px;background:rgba(10,20,12,.78);color:#fff;cursor:pointer;white-space:nowrap;max-width:100%;overflow:hidden;font-variant-numeric:tabular-nums}
 .subpill b{font-size:10px}
+.lg-bad{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;background:var(--critical);color:#fff;font-size:10px}
 .lg-out{color:#e5483a}.lg-in{color:#2fae55}.lg-swap{color:var(--gold)}
 .subpill.out b{color:#ff6b5c}.subpill.in b{color:#3ddc6a}.subpill.swap b{color:var(--gold-2)}
 .subpill .sp-who{font-weight:500;overflow:hidden;text-overflow:ellipsis}
+.subpill.bad{background:var(--critical);color:#fff}.subpill.bad b{color:#fff}
+.bk-res{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.ord-stale{margin:6px 0}.ord-stale .controls{margin-top:6px}
 .bslot .subpill{margin-top:1px}.bslot .subpill .sp-who{display:none}
 .slot .subpill + .subpill,.bslot .subpill + .subpill{margin-top:2px}
-@media (max-width:600px){.subpill{font-size:10px;padding:0 5px}.subpill .sp-who{display:none}}
+@media (max-width:600px){.subpill{font-size:10px;padding:0 5px}.subpill .sp-who{display:none}.bk-res{display:none}}
 .sug-list{list-style:none;padding:0;margin:8px 0}
 .sug-row{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0;background:var(--surface)}
 .sug-min{font-weight:700;font-variant-numeric:tabular-nums;min-width:34px;font-size:15px}
