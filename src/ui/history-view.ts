@@ -308,11 +308,14 @@ function settingsLine(w: WeekSnapshot): string {
 }
 
 function planLine(w: WeekSnapshot): string {
-  const p = w.plans?.trainerPlan as { trainerLevel?: number; assistants?: { level?: number }[]; intensity?: number; staminaShare?: number } | undefined;
-  if (!p || typeof p !== "object") return "";
+  type Plan = { trainerLevel?: number; assistants?: unknown[]; intensity?: number; staminaShare?: number };
+  const raw = w.plans?.trainerPlan as (Plan & { plan?: Plan }) | undefined;
+  if (!raw || typeof raw !== "object") return "";
+  const p: Plan = raw.plan && typeof raw.plan === "object" ? raw.plan : raw;
   const bits: string[] = [];
   if (typeof p.trainerLevel === "number") bits.push(`Trainer ${p.trainerLevel}`);
-  if (Array.isArray(p.assistants)) bits.push(`Assistenten ${p.assistants.reduce((s, a) => s + (Number(a?.level) || 0), 0)}`);
+  if (Array.isArray(p.assistants))
+    bits.push(`Assistenten ${p.assistants.reduce<number>((s, a) => s + (typeof a === "number" ? a : Number((a as { level?: number })?.level) || 0), 0)}`);
   if (typeof p.intensity === "number") bits.push(`Intensität ${p.intensity} %`);
   if (typeof p.staminaShare === "number") bits.push(`Kondition ${p.staminaShare} %`);
   return bits.length ? `<p class="sub">Geplant (Trainer-Planung): ${esc(bits.join(" · "))}</p>` : "";
