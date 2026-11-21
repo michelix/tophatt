@@ -6,7 +6,7 @@ TopHatt is a match-day cockpit for [Hattrick](https://www.hattrick.org). It read
 Hattrick Organizer (HO), suggests the lineup, tactics and substitutions for the next match, and writes the result
 back as an HRF file that HO uploads to Hattrick. Everything runs locally in the browser, in light or dark mode, in German, English, Spanish, Italian or Polish.
 
-![Lineup page with pitch, formation suggestion, player list and bench](docs/img/aufstellung.png)
+![Lineup page with pitch, formation suggestion, player list and bench](docs/img/en/aufstellung.png)
 
 <sub>All screenshots show a made-up club with made-up players and values; the player pictures are Hattrick avatars from HO.
 The app itself is in German, so the screenshots are too; German labels are given in quotes below.</sub>
@@ -26,7 +26,7 @@ The pages follow the menu on the left of the app. Every section can be expanded.
 Opponent, kick-off, expected HatStats, formation, biggest weak spot and the upcoming matches. Below that, tiles that
 lead straight to the matching page.
 
-![Overview](docs/img/spieltag.png)
+![Overview](docs/img/en/spieltag.png)
 </details>
 
 <details open>
@@ -48,7 +48,7 @@ Pitch laid out as in HO (goalkeeper at the top). The numbered buttons at the top
 **Player clicked:** the player card shows age, TSI, wage, form, stamina, all skills, the best positions (in the same
 colours as the lines on the pitch) and the latest match rating.
 
-![Player card after clicking a player, with lines to the positions that fit](docs/img/spielerkarte.png)
+![Player card after clicking a player, with lines to the positions that fit](docs/img/en/spielerkarte.png)
 </details>
 
 <details>
@@ -58,7 +58,7 @@ colours as the lines on the pitch) and the latest match rating.
 Recommended tactic, team attitude and style of play from HO's match prediction against the opponent's strength, with
 win, draw and loss chances. Styles of play are only offered as far as coach type and tactical assistants allow.
 
-![Tactics recommendation](docs/img/taktik.png)
+![Tactics recommendation](docs/img/en/taktik.png)
 </details>
 
 <details>
@@ -69,7 +69,7 @@ Suggestions based on stamina, training and playing time, with the goals **Win**,
 **Automatic** adapts the substitutions to every change of the lineup, **Manual** leaves them as they are. Below them
 the match orders as in HO; anything that no longer fits the lineup is flagged.
 
-![Substitution suggestions and match orders](docs/img/auswechslungen.png)
+![Substitution suggestions and match orders](docs/img/en/auswechslungen.png)
 </details>
 
 <details>
@@ -78,7 +78,7 @@ the match orders as in HO; anything that no longer fits the lineup is flagged.
 
 Order as in HO, from experience, set pieces and scoring; automatic or sorted by hand.
 
-![Penalty takers](docs/img/elfmeter.png)
+![Penalty takers](docs/img/en/elfmeter.png)
 </details>
 
 <details>
@@ -88,7 +88,7 @@ Order as in HO, from experience, set pieces and scoring; automatic or sorted by 
 The reserves are the second row of the bench: automatically the strongest other bench player per position.
 “Save for HO” writes an HRF file with lineup, tactics, captain, set pieces taker, bench, reserves, penalty takers and orders.
 
-![Bench reserves and saving](docs/img/reserve-speichern.png)
+![Bench reserves and saving](docs/img/en/reserve-speichern.png)
 </details>
 </details>
 
@@ -99,7 +99,7 @@ The reserves are the second row of the bench: automatically the strongest other 
 The opponent's strength from their latest competitive matches (HO's opponent check), possession, and a duel-by-duel
 comparison against your own eleven.
 
-![Opponent check](docs/img/gegner.png)
+![Opponent check](docs/img/en/gegner.png)
 </details>
 
 ### Team
@@ -111,7 +111,7 @@ comparison against your own eleven.
 Squad by team section, with a match value from position strength, stamina and injury; every player once, either
 balanced, by best position or as lined up.
 
-![Squad](docs/img/kader.png)
+![Squad](docs/img/en/kader.png)
 </details>
 
 <details>
@@ -120,7 +120,7 @@ balanced, by best position or as lined up.
 
 Rating per team section for your own lineup, the biggest lever, and a comparison of all formations.
 
-![Weak spots](docs/img/schwachstellen.png)
+![Weak spots](docs/img/en/schwachstellen.png)
 </details>
 
 <details>
@@ -129,7 +129,7 @@ Rating per team section for your own lineup, the biggest lever, and a comparison
 
 Chart with a forecast from HO's training model, age decline, and a hint when it is time to sell or find a replacement.
 
-![Player development](docs/img/entwicklung.png)
+![Player development](docs/img/en/entwicklung.png)
 </details>
 
 ### Planning
@@ -138,7 +138,7 @@ Chart with a forecast from HO's training model, age decline, and a hint when it 
 <summary><b>Squad planning</b> („Kaderplanung“): where will a gap open in one or two seasons?</summary>
 <br>
 
-![Squad planning](docs/img/kaderplanung.png)
+![Squad planning](docs/img/en/kaderplanung.png)
 </details>
 
 <details>
@@ -147,7 +147,7 @@ Chart with a forecast from HO's training model, age decline, and a hint when it 
 
 Budget, search profiles for the transfer market and candidates that match the weak spots.
 
-![Transfers](docs/img/transfers.png)
+![Transfers](docs/img/en/transfers.png)
 </details>
 
 <details>
@@ -156,7 +156,7 @@ Budget, search profiles for the transfer market and candidates that match the we
 
 A squad and B squad, and a plan for league, cup and friendly matches by training benefit.
 
-![Training week](docs/img/training.png)
+![Training week](docs/img/en/training.png)
 </details>
 
 <details>
@@ -165,7 +165,7 @@ A squad and B squad, and a plan for league, cup and friendly matches by training
 
 Training efficiency as in Hattrick's sandbox, cost per efficiency point, the cheapest ways to more efficiency, and coach prices.
 
-![Coach and efficiency](docs/img/trainer.png)
+![Coach and efficiency](docs/img/en/trainer.png)
 </details>
 
 ### Season and club
@@ -174,7 +174,7 @@ Training efficiency as in Hattrick's sandbox, cost per efficiency point, the che
 <summary><b>Fixtures & table</b> („Spielplan & Tabelle“)</summary>
 <br>
 
-![Fixtures and table](docs/img/spielplan.png)
+![Fixtures and table](docs/img/en/spielplan.png)
 </details>
 
 <details>
@@ -183,7 +183,7 @@ Training efficiency as in Hattrick's sandbox, cost per efficiency point, the che
 
 Cash, weekly balance, staff, and a traffic light with a forecast of whether planned spending leads into debt.
 
-![Finances](docs/img/finanzen.png)
+![Finances](docs/img/en/finanzen.png)
 </details>
 
 <details>
@@ -192,7 +192,7 @@ Cash, weekly balance, staff, and a traffic light with a forecast of whether plan
 
 One snapshot per training week of training, staff, finances, team and squad; export and import as JSON.
 
-![History](docs/img/verlauf.png)
+![History](docs/img/en/verlauf.png)
 </details>
 
 ## Install

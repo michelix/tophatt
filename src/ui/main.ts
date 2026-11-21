@@ -1260,7 +1260,7 @@ function renderExplain() {
   const d = E.hatStatsMine - E.hatStatsAuto;
   const arrow = (v: number) => (Math.abs(v) < 0.05 ? `<span class="muted">±0</span>` : `<span class="delta ${v > 0 ? "up" : "down"}">${v > 0 ? "▲ +" : "▼ "}${de(v)}</span>`);
   const stale = staleOrders(myLineup(), playersById());
-  const warns = [...E.warnings.map((w) => esc(w)), ...(stale.length ? [`${stale.length} ${stale.length === 1 ? "Anweisung passt" : "Anweisungen passen"} nicht mehr zur Aufstellung. <button class="linkbtn" data-goto="secSubs">ansehen</button>`] : [])];
+  const warns = [...E.warnings.map((w) => esc(w)), ...(stale.length ? [`${stale.length === 1 ? "1 Anweisung passt" : `${stale.length} Anweisungen passen`} nicht mehr zur Aufstellung. <button class="linkbtn" data-goto="secSubs">ansehen</button>`] : [])];
   $("#lineupWarn").innerHTML = warns.length ? `<div class="warnbar">${warns.map((w) => `<div><b>!</b> ${w}</div>`).join("")}</div>` : "";
   const changedRows = E.sectors.filter((x) => Math.abs(x.delta) >= 0.05);
   const changeBlock = E.same
@@ -2672,7 +2672,7 @@ function renderTrainingWeek() {
     ? `<div class="tw-alert"><b>Nicht vergessen:</b> ${forgot
         .slice(0, 6)
         .map((r) => `${esc(r.player.name)} (${r.player.age})`)
-        .join(", ")} ${forgot.length === 1 ? "hat" : "haben"} spürbaren Trainingsnutzen und ${forgot.length === 1 ? "bekommt" : "bekommen"} diese Woche kein Training. Nächste Woche zuerst einplanen${fullCount >= maxFull ? " (diese Woche sind alle Plätze belegt)" : " oder im zweiten Spiel auf eine Trainingsposition stellen"}.</div>`
+        .join(", ")} ${forgot.length === 1 ? "hat spürbaren Trainingsnutzen und bekommt" : "haben spürbaren Trainingsnutzen und bekommen"} diese Woche kein Training. Nächste Woche zuerst einplanen${fullCount >= maxFull ? " (diese Woche sind alle Plätze belegt)" : " oder im zweiten Spiel auf eine Trainingsposition stellen"}.</div>`
     : `<div class="tw-alert ok">Niemand mit spürbarem Trainingsnutzen geht diese Woche leer aus.</div>`;
   const rules = `<details class="more"><summary>So zählt „${esc(t.name)}“</summary><p class="sub">Voll: ${esc(list(t.full))}.${t.partly.length ? ` Halb: ${esc(list(t.partly))}.` : ""} Die Minuten aller Spiele einer Woche werden addiert, höchstens 90 zählen, Minuten auf voller Position zuerst. Wer im Ligaspiel schon 90 Minuten voll trainiert hat, gewinnt im zweiten Spiel nichts mehr dazu. „gespielt“ kommt aus dem HO-Download (letztes Spiel je Spieler).</p></details>`;
 

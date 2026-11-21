@@ -282,24 +282,6 @@
    "{0} darebbe più HatStats, ma con poca esperienza (rischio di disorganizzazione).",
    "{0} dałoby więcej HatStats, ale za mało doświadczenia (ryzyko dezorganizacji)."
   ],
-  "{0} {1} nicht mehr zur Aufstellung (rot markiert), meist weil du danach die Aufstellung geändert hast. So kann TopHatt nicht für HO speichern.": [
-   "{0} no longer {1:fits|fit} the lineup (marked red), usually because you changed the lineup afterwards. TopHatt cannot save for HO like this.",
-   "{0} ya no encaja{1:n} con la alineación (en rojo), normalmente porque cambiaste la alineación después. Así TopHatt no puede guardar para HO.",
-   "{0} non è più coerente con la formazione (in rosso), di solito perché hai cambiato la formazione dopo. Così TopHatt non può salvare per HO.",
-   "{0} nie pasuje już do składu (na czerwono), zwykle dlatego, że potem zmieniłeś skład. W tej postaci TopHatt nie może zapisać dla HO."
-  ],
-  "{0} {1} nicht mehr zur Aufstellung.": [
-   "{0} no longer {1:fits|fit} the lineup.",
-   "{0} ya no encaja{1:n} con la alineación.",
-   "{0} non è più coerente con la formazione.",
-   "{0} nie pasuje już do składu."
-  ],
-  "{0} {1} spürbaren Trainingsnutzen und {2} diese Woche kein Training. Nächste Woche zuerst einplanen{3}.": [
-   "{0} {1:has|have} a noticeable training benefit and {2:gets|get} no training this week. Plan them in first next week{3}.",
-   "{0} tiene{1:n} un beneficio de entrenamiento notable y no entrena{2:n} esta semana. La próxima semana planifícalos primero{3}.",
-   "{0} ha{1:nno} un beneficio di allenamento notevole e questa settimana non si allena{2:no}. La prossima settimana pianificali per primi{3}.",
-   "{0}: zauważalna korzyść z treningu, a w tym tygodniu bez treningu. W przyszłym tygodniu zaplanuj ich w pierwszej kolejności{3}."
-  ],
   "{0} {1} voll{2}": [
    "{0} {1} full{2}",
    "{0} {1} completas{2}",
@@ -324,10 +306,16 @@
    "{0} non cambia le valutazioni d'attacco ma indirizza gli attacchi: il {1} % passa dal centro invece del 37 %,",
    "{0} nie zmienia ocen ataku, tylko kieruje ataki: {1} % idzie środkiem zamiast 37 %,"
   ],
+  "{0} ändert nicht die Angriffsbewertungen, sondern lenkt die Angriffe: {1} % laufen durch die Mitte statt 37 %, je {2} % über jeden Flügel. Taktikstärke {3} (aus Passspiel und Treue der Elf).": [
+   "{0} does not change the attack ratings but steers the attacks: {1} % go through the middle instead of 37 %, {2} % over each wing. Tactic skill {3} (from passing and the team's loyalty).",
+   "{0} no cambia las valoraciones de ataque, sino que dirige los ataques: el {1} % va por el centro en lugar del 37 %, el {2} % por cada banda. Nivel de táctica {3} (de pases y fidelidad del equipo).",
+   "{0} non cambia le valutazioni d'attacco, ma indirizza gli attacchi: il {1} % passa per il centro invece del 37 %, il {2} % su ciascuna fascia. Livello tattica {3} (da passaggi e fedeltà della squadra).",
+   "{0} nie zmienia ocen ataku, tylko kieruje ataki: {1} % idzie środkiem zamiast 37 %, po {2} % każdym skrzydłem. Poziom taktyki {3} (z podań i lojalności drużyny)."
+  ],
   "{0} angeschlagen": [
    "{0} bruised",
-   "{0} tocado{0:s}",
-   "{0} acciaccat{0:o|i}",
+   "{0} tocados",
+   "{0} acciaccati",
    "lekko kontuzjowani: {0}"
   ],
   "{0} Antippen stellt die beste Elf für diese Formation auf.": [
@@ -335,6 +323,18 @@
    "{0} Toca para alinear el mejor once para esta formación.",
    "{0} Tocca per schierare il miglior undici per questo modulo.",
    "{0} Dotknij, aby ustawić najlepszą jedenastkę dla tej formacji."
+  ],
+  "{0} Anweisungen passen nicht mehr zur Aufstellung (rot markiert), meist weil du danach die Aufstellung geändert hast.": [
+   "{0} orders no longer fit the lineup (marked red), usually because you changed the lineup afterwards.",
+   "{0} órdenes ya no encajan con la alineación (en rojo), normalmente porque cambiaste la alineación después.",
+   "{0} ordini non sono più coerenti con la formazione (in rosso), di solito perché hai cambiato la formazione dopo.",
+   "{0} polecenia nie pasują już do składu (na czerwono), zwykle dlatego, że potem zmieniłeś skład."
+  ],
+  "{0} Anweisungen passen nicht mehr zur Aufstellung.": [
+   "{0} orders no longer fit the lineup.",
+   "{0} órdenes ya no encajan con la alineación.",
+   "{0} ordini non sono più coerenti con la formazione.",
+   "{0} polecenia nie pasują już do składu."
   ],
   "{0} bis {1}": [
    "{0} to {1}",
@@ -362,8 +362,8 @@
   ],
   "{0} gesperrt": [
    "{0} suspended",
-   "{0} sancionado{0:s}",
-   "{0} squalificat{0:o|i}",
+   "{0} sancionados",
+   "{0} squalificati",
    "zawieszeni: {0}"
   ],
   "{0} haben seit {1} schon voll trainiert{2}": [
@@ -371,6 +371,12 @@
    "{0} ya han entrenado completamente desde {1}{2}",
    "{0} si sono già allenati del tutto dal {1}{2}",
    "{0} już w pełni trenowało od {1}{2}"
+  ],
+  "{0} haben spürbaren Trainingsnutzen und bekommen diese Woche kein Training.": [
+   "{0} have a noticeable training benefit and get no training this week.",
+   "{0} tienen un beneficio de entrenamiento notable y no entrenan esta semana.",
+   "{0} hanno un beneficio di allenamento notevole e questa settimana non si allenano.",
+   "{0} mają zauważalną korzyść z treningu, a w tym tygodniu nie trenują."
   ],
   "{0} hat 2 Gelbe Karten, bei der nächsten ist er gesperrt.": [
    "{0} has 2 yellow cards; with the next one he is suspended.",
@@ -407,6 +413,12 @@
    "{0} ya tiene sus 90 minutos de entrenamiento de la semana",
    "{0} ha già i suoi 90 minuti di allenamento della settimana",
    "{0} ma już swoje 90 minut treningowych w tygodniu"
+  ],
+  "{0} hat spürbaren Trainingsnutzen und bekommt diese Woche kein Training.": [
+   "{0} has a noticeable training benefit and gets no training this week.",
+   "{0} tiene un beneficio de entrenamiento notable y no entrena esta semana.",
+   "{0} ha un beneficio di allenamento notevole e questa settimana non si allena.",
+   "{0} ma zauważalną korzyść z treningu, a w tym tygodniu nie trenuje."
   ],
   "{0} ist {1} ({2}).": [
    "{0} is {1} ({2}).",
@@ -638,8 +650,8 @@
   ],
   "{0} verletzt": [
    "{0} injured",
-   "{0} lesionado{0:s}",
-   "{0} infortunat{0:o|i}",
+   "{0} lesionados",
+   "{0} infortunati",
    "kontuzjowani: {0}"
   ],
   "{0} verliert in etwa {1} Wochen eine ganze Stufe. Nachfolger aufbauen oder kaufen.": [
@@ -714,6 +726,12 @@
    "{0} come allenatore livello {1}",
    "{0} jako trener poziom {1}"
   ],
+  "{0}, {1} Jahre": [
+   "{0}, {1} years",
+   "{0}, {1} años",
+   "{0}, {1} anni",
+   "{0}, {1} lat"
+  ],
   "{0}, {1} Jahre: {2}": [
    "{0}, {1} years: {2}",
    "{0}, {1} años: {2}",
@@ -762,11 +780,23 @@
    "{0}: {1} invece di {2}.",
    "{0}: {1} zamiast {2}."
   ],
+  "{0}: {1}, Stärke {2}, Form {3}, Kondition {4}": [
+   "{0}: {1}, strength {2}, form {3}, stamina {4}",
+   "{0}: {1}, fuerza {2}, forma {3}, resistencia {4}",
+   "{0}: {1}, forza {2}, forma {3}, resistenza {4}",
+   "{0}: {1}, siła {2}, forma {3}, kondycja {4}"
+  ],
   "{0}: aktueller Wert der trainierten Fertigkeit": [
    "{0}: current value of the trained skill",
    "{0}: valor actual de la habilidad entrenada",
    "{0}: valore attuale dell'abilità allenata",
    "{0}: obecna wartość trenowanej umiejętności"
+  ],
+  "{0}: Positionsstärke {1}, Form {2}, Kondition {3}": [
+   "{0}: position strength {1}, form {2}, stamina {3}",
+   "{0}: fuerza en la posición {1}, forma {2}, resistencia {3}",
+   "{0}: forza nel ruolo {1}, forma {2}, resistenza {3}",
+   "{0}: siła na pozycji {1}, forma {2}, kondycja {3}"
   ],
   "{0}: unverändert": [
    "{0}: unchanged",
@@ -1055,6 +1085,36 @@
    "€ por punto",
    "€ per punto",
    "€ za punkt"
+  ],
+  "1 angeschlagen": [
+   "1 bruised",
+   "1 tocado",
+   "1 acciaccato",
+   "lekko kontuzjowany: 1"
+  ],
+  "1 Anweisung passt nicht mehr zur Aufstellung (rot markiert), meist weil du danach die Aufstellung geändert hast.": [
+   "1 order no longer fits the lineup (marked red), usually because you changed the lineup afterwards.",
+   "1 orden ya no encaja con la alineación (en rojo), normalmente porque cambiaste la alineación después.",
+   "1 ordine non è più coerente con la formazione (in rosso), di solito perché hai cambiato la formazione dopo.",
+   "1 polecenie nie pasuje już do składu (na czerwono), zwykle dlatego, że potem zmieniłeś skład."
+  ],
+  "1 Anweisung passt nicht mehr zur Aufstellung.": [
+   "1 order no longer fits the lineup.",
+   "1 orden ya no encaja con la alineación.",
+   "1 ordine non è più coerente con la formazione.",
+   "1 polecenie nie pasuje już do składu."
+  ],
+  "1 gesperrt": [
+   "1 suspended",
+   "1 sancionado",
+   "1 squalificato",
+   "zawieszony: 1"
+  ],
+  "1 verletzt": [
+   "1 injured",
+   "1 lesionado",
+   "1 infortunato",
+   "kontuzjowany: 1"
   ],
   "1 Wo.": [
    "1 wk.",
@@ -1416,6 +1476,12 @@
    "Visualizza: passando il mouse su un giocatore si vede la scheda, toccando la fissi. Non cambia nulla.",
    "Podgląd: najechanie na zawodnika pokazuje kartę, dotknięcie ją przypina. Nic się nie zmienia."
   ],
+  "Antippen stellt die beste Elf für diese Formation auf.": [
+   "Tap to field the best XI for this formation.",
+   "Toca para alinear el mejor once para esta formación.",
+   "Tocca per schierare il miglior undici per questo modulo.",
+   "Dotknij, aby ustawić najlepszą jedenastkę dla tej formacji."
+  ],
   "Antippen zeigt die Karte. Zum Aufstellen oben auf „Ändern“ schalten.": [
    "Tap shows the card. To field players, switch to “Edit” at the top.",
    "Tocar muestra la ficha. Para alinear, cambia arriba a «Editar».",
@@ -1758,12 +1824,6 @@
    "Sostituzioni e ordini",
    "Zmiany i polecenia"
   ],
-  "Auswechslungen &amp; Anweisungen": [
-   "Substitutions &amp; orders",
-   "Sustituciones y órdenes",
-   "Sostituzioni e ordini",
-   "Zmiany i polecenia"
-  ],
   "auto": [
    "auto",
    "auto",
@@ -1787,6 +1847,12 @@
    "Alinear automáticamente",
    "Schiera automaticamente",
    "Ustaw automatycznie"
+  ],
+  "automatisch gewählt": [
+   "chosen automatically",
+   "elegido automáticamente",
+   "scelto automaticamente",
+   "wybrany automatycznie"
   ],
   "Automatisch wählen": [
    "Choose automatically",
@@ -2377,10 +2443,10 @@
    "Słabo obsadzone"
   ],
   "Dünn besetzt: {0} einsatzbereit für {1} {2} (Ziel: {3} mit Ersatz).{4}": [
-   "Thin: {0} available for {1} {1:place|places} (target: {3} with backups).{4}",
-   "Escaso: {0} disponibles para {1} plazas (objetivo: {3} con suplentes).{4}",
-   "Scarso: {0} disponibili per {1} posti (obiettivo: {3} con riserve).{4}",
-   "Słabo obsadzone: {0} dostępnych na {1} miejsc (cel: {3} ze zmiennikami).{4}"
+   "Thin: {0} available for {1} {2} (target: {3} with backups).{4}",
+   "Escaso: {0} disponibles para {1} {2} (objetivo: {3} con suplentes).{4}",
+   "Scarso: {0} disponibili per {1} {2} (obiettivo: {3} con riserve).{4}",
+   "Słabo obsadzone: {0} dostępnych na {1} {2} (cel: {3} ze zmiennikami).{4}"
   ],
   "Durchschnitt {5}": [
    "Average {5}",
@@ -2491,7 +2557,7 @@
    "nasz napastnik wyrzucony"
   ],
   "Ein {0} mit 2 Stufen mehr {1} als {2} hebt diesen Teil um {3} ({4}{5} HatStats).": [
-   "A {0} with 2 levels more {1} than {2} raises this section by {3} ({4}{5} HatStats).",
+   "One {0} with 2 levels more {1} than {2} raises this section by {3} ({4}{5} HatStats).",
    "Un {0} con 2 niveles más de {1} que {2} sube esta zona {3} ({4}{5} HatStats).",
    "Un {0} con 2 livelli in più di {1} rispetto a {2} alza questo settore di {3} ({4}{5} HatStats).",
    "{0} z 2 poziomami więcej w {1} niż {2} podnosi tę strefę o {3} ({4}{5} HatStats)."
@@ -2633,6 +2699,18 @@
    "Recomendación",
    "Consiglio",
    "Rekomendacja"
+  ],
+  "Empfehlung {0}: die stärkste Elf nach HatStats unter den Formationen mit Erfahrung ab {1}.": [
+   "Recommendation {0}: the strongest XI by HatStats among the formations with experience from {1}.",
+   "Recomendación {0}: el once más fuerte por HatStats entre las formaciones con experiencia desde {1}.",
+   "Consiglio {0}: l'undici più forte per HatStats tra i moduli con esperienza da {1}.",
+   "Rekomendacja {0}: najsilniejsza jedenastka według HatStats spośród formacji z doświadczeniem od {1}."
+  ],
+  "Empfehlung {0}: die stärkste Elf nach HatStats.": [
+   "Recommendation {0}: the strongest XI by HatStats.",
+   "Recomendación {0}: el once más fuerte por HatStats.",
+   "Consiglio {0}: l'undici più forte per HatStats.",
+   "Rekomendacja {0}: najsilniejsza jedenastka według HatStats."
   ],
   "Empfehlung {0}: die stärkste Elf nach HatStats{1}.{2}": [
    "Recommendation {0}: the strongest XI by HatStats{1}.{2}",
@@ -2867,6 +2945,12 @@
    "Sale del once titular: {0}.",
    "Esce dall'undici titolare: {0}.",
    "Wypada z podstawowej jedenastki: {0}."
+  ],
+  "falsche Position": [
+   "wrong position",
+   "posición equivocada",
+   "ruolo sbagliato",
+   "zła pozycja"
   ],
   "fantastisch": [
    "magnificent",
@@ -3180,6 +3264,18 @@
    "Giocatore avversario{0}",
    "Zawodnik rywala{0}"
   ],
+  "gegenüber Normal: HatStats {0} statt {1} ({2}),": [
+   "compared with Normal: HatStats {0} instead of {1} ({2}),",
+   "frente a Normal: HatStats {0} en lugar de {1} ({2}),",
+   "rispetto a Normale: HatStats {0} invece di {1} ({2}),",
+   "w porównaniu z Normalną: HatStats {0} zamiast {1} ({2}),"
+  ],
+  "gegenüber Normal: HatStats {0} statt {1} ({2}).": [
+   "compared with Normal: HatStats {0} instead of {1} ({2}).",
+   "frente a Normal: HatStats {0} en lugar de {1} ({2}).",
+   "rispetto a Normale: HatStats {0} invece di {1} ({2}).",
+   "w porównaniu z Normalną: HatStats {0} zamiast {1} ({2})."
+  ],
   "gegenüber Normal: HatStats {2} statt {3} ({4}{5}){6}.": [
    "compared to normal: HatStats {2} instead of {3} ({4}{5}){6}.",
    "respecto a normal: HatStats {2} en lugar de {3} ({4}{5}){6}.",
@@ -3245,6 +3341,12 @@
    "Análisis del rival",
    "Analisi avversario",
    "Sprawdzenie rywala"
+  ],
+  "Gegnerstärke": [
+   "Opponent strength",
+   "Fuerza del rival",
+   "Forza dell'avversario",
+   "Siła rywala"
   ],
   "Gehalt": [
    "Wage",
@@ -4350,8 +4452,8 @@
    "Previsione contanti su {3} settimane",
    "Prognoza gotówki na {3} tygodni"
   ],
-  "Kontostand, Wochenbilanz und ob sich Trainer &amp; Personal rechnen": [
-   "Cash, weekly balance and whether coach &amp; staff pay off",
+  "Kontostand, Wochenbilanz und ob sich Trainer & Personal rechnen": [
+   "Cash, weekly balance and whether coach & staff pay off",
    "Dinero, balance semanal y si compensan entrenador y personal",
    "Contanti, bilancio settimanale e se allenatore e staff rendono",
    "Gotówka, bilans tygodniowy i czy trener i personel się opłacają"
@@ -4524,6 +4626,12 @@
    "Terzino sinistro",
    "Lewy obrońca"
   ],
+  "links gegen ihre Abwehr rechts": [
+   "left attack against their right defence",
+   "ataque izquierdo contra su defensa derecha",
+   "attacco sinistro contro la loro difesa destra",
+   "lewy atak przeciw ich prawej obronie"
+  ],
   "Liste der Spieler": [
    "List of players",
    "Lista de jugadores",
@@ -4674,6 +4782,12 @@
    "Nel modulo attuale qui non gioca nessuno.",
    "W obecnej formacji nikt tu nie gra."
   ],
+  "Mit diesem Plan": [
+   "With this plan",
+   "Con este plan",
+   "Con questo piano",
+   "Z tym planem"
+  ],
   "Mit diesem Plan:": [
    "With this plan:",
    "Con este plan:",
@@ -4709,6 +4823,12 @@
    "con subnivel del historial de HO",
    "con sottolivello dallo storico HO",
    "z podpoziomem z historii HO"
+  ],
+  "Mitte gegen ihre Abwehr Mitte": [
+   "central attack against their central defence",
+   "ataque central contra su defensa central",
+   "attacco centrale contro la loro difesa centrale",
+   "środkowy atak przeciw ich środkowi obrony"
   ],
   "mittel": [
    "medium",
@@ -4793,6 +4913,18 @@
    "Sucesor para formar",
    "Successore da far crescere",
    "Następca do wychowania"
+  ],
+  "Nächste Woche zuerst einplanen (diese Woche sind alle Plätze belegt).": [
+   "Plan them in first next week (all slots are taken this week).",
+   "La próxima semana planifícalos primero (esta semana todas las plazas están ocupadas).",
+   "La prossima settimana pianificali per primi (questa settimana tutti i posti sono occupati).",
+   "W przyszłym tygodniu zaplanuj ich w pierwszej kolejności (w tym tygodniu wszystkie miejsca są zajęte)."
+  ],
+  "Nächste Woche zuerst einplanen oder im zweiten Spiel auf eine Trainingsposition stellen.": [
+   "Plan them in first next week or put them in a training position in the second match.",
+   "La próxima semana planifícalos primero o ponlos en una posición de entrenamiento en el segundo partido.",
+   "La prossima settimana pianificali per primi o mettili in una posizione di allenamento nella seconda partita.",
+   "W przyszłym tygodniu zaplanuj ich w pierwszej kolejności albo ustaw na pozycji treningowej w drugim meczu."
   ],
   "Nächstes Spiel": [
    "Next match",
@@ -4901,6 +5033,12 @@
    "No disponible",
    "Non disponibile",
    "Niedostępny"
+  ],
+  "nicht ganz seine Position": [
+   "not quite his position",
+   "no es del todo su posición",
+   "non proprio il suo ruolo",
+   "nie do końca jego pozycja"
   ],
   "nicht im Rückstand": [
    "not behind",
@@ -5135,6 +5273,12 @@
    "sin cambios: {0}",
    "senza modifiche: {0}",
    "bez zmian: {0}"
+  ],
+  "Ohne Änderungen": [
+   "Without changes",
+   "Sin cambios",
+   "Senza modifiche",
+   "Bez zmian"
   ],
   "Ohne Änderungen:": [
    "Without changes:",
@@ -5502,6 +5646,12 @@
    "Terzino destro",
    "Prawy obrońca"
   ],
+  "rechts gegen ihre Abwehr links": [
+   "right attack against their left defence",
+   "ataque derecho contra su defensa izquierda",
+   "attacco destro contro la loro difesa sinistra",
+   "prawy atak przeciw ich lewej obronie"
+  ],
   "Regen": [
    "Rain",
    "Lluvia",
@@ -5573,6 +5723,18 @@
    "Reserva del banquillo",
    "Riserva della panchina",
    "Rezerwa ławki"
+  ],
+  "Reserve reicht heute ({0}), in einer Saison aber nicht mehr ({1}).": [
+   "Reserve is enough today ({0}), but no longer in one season ({1}).",
+   "El suplente basta hoy ({0}), pero en una temporada ya no ({1}).",
+   "La riserva basta oggi ({0}), ma tra una stagione non più ({1}).",
+   "Zmiennik wystarcza dziś ({0}), ale za sezon już nie ({1})."
+  ],
+  "Reserve reicht heute ({0}), in einer Saison aber nicht mehr.": [
+   "Reserve is enough today ({0}), but no longer in one season.",
+   "El suplente basta hoy ({0}), pero en una temporada ya no.",
+   "La riserva basta oggi ({0}), ma tra una stagione non più.",
+   "Zmiennik wystarcza dziś ({0}), ale za sezon już nie."
   ],
   "Reserve reicht heute ({0}), in einer Saison aber nicht mehr{1}.": [
    "Reserve is enough today ({0}), but no longer in one season{1}.",
@@ -5850,6 +6012,12 @@
    "Come ottenerlo: esegui l'analisi avversario per {1} in HO, avvia TopHatt.bat e clicca «Aggiorna».",
    "Jak ją uzyskać: sprawdź rywala {1} w HO, uruchom TopHatt.bat i kliknij „Odśwież”."
   ],
+  "So kann TopHatt nicht für HO speichern.": [
+   "TopHatt cannot save for HO like this.",
+   "Así TopHatt no puede guardar para HO.",
+   "Così TopHatt non può salvare per HO.",
+   "W tej postaci TopHatt nie może zapisać dla HO."
+  ],
   "So trainierst du jetzt": [
    "How you train now",
    "Cómo entrenas ahora",
@@ -6090,12 +6258,6 @@
    "Calendario e classifica",
    "Terminarz i tabela"
   ],
-  "Spielplan &amp; Tabelle": [
-   "Fixtures &amp; table",
-   "Calendario y clasificación",
-   "Calendario e classifica",
-   "Terminarz i tabela"
-  ],
   "Spielplan und Gegner fehlen noch. Starte": [
    "Fixtures and opponent are still missing. Start",
    "Faltan el calendario y el rival. Inicia",
@@ -6252,6 +6414,12 @@
    "La forza di {0} non è ancora nota. Esegui l'analisi avversario in HO e avvia TopHatt.bat.",
    "Siła {0} nie jest jeszcze znana. Sprawdź rywala w HO i uruchom TopHatt.bat."
   ],
+  "stärkste": [
+   "strongest",
+   "más fuerte",
+   "più forte",
+   "najsilniejsza"
+  ],
   "Stärkste Elf": [
    "Strongest XI",
    "Once más fuerte",
@@ -6335,6 +6503,12 @@
    "Nivel {0}",
    "Livello {0}",
    "Poziom {0}"
+  ],
+  "Stufe {0}, {1}/Woche": [
+   "level {0}, {1}/week",
+   "nivel {0}, {1}/semana",
+   "livello {0}, {1}/settimana",
+   "poziom {0}, {1}/tydz."
   ],
   "Stufe {1}": [
    "Level {1}",
@@ -6504,6 +6678,12 @@
    "Ritmo",
    "Tempo"
   ],
+  "tiefster Stand {0} in Woche {1}, Puffer {2} hält.": [
+   "lowest balance {0} in week {1}, buffer of {2} holds.",
+   "saldo mínimo {0} en la semana {1}, el colchón de {2} se mantiene.",
+   "saldo minimo {0} nella settimana {1}, il margine di {2} regge.",
+   "najniższy stan {0} w tygodniu {1}, bufor {2} wystarcza."
+  ],
   "titanisch": [
    "titanic",
    "titánico",
@@ -6566,12 +6746,6 @@
   ],
   "Trainer & Effizienz": [
    "Coach & efficiency",
-   "Entrenador y eficiencia",
-   "Allenatore ed efficienza",
-   "Trener i efektywność"
-  ],
-  "Trainer &amp; Effizienz": [
-   "Coach &amp; efficiency",
    "Entrenador y eficiencia",
    "Allenatore ed efficienza",
    "Trener i efektywność"
@@ -6918,6 +7092,12 @@
    "tra i moduli con esperienza da {0}",
    "spośród formacji z doświadczeniem od {0}"
   ],
+  "unvollständig, nutzt Vorschlag": [
+   "incomplete, uses suggestion",
+   "incompleta, usa la sugerencia",
+   "incompleta, usa il suggerimento",
+   "niepełny, używa propozycji"
+  ],
   "Variante": [
    "Option",
    "Variante",
@@ -7037,6 +7217,12 @@
    "completo",
    "pieno",
    "pełny"
+  ],
+  "Voll": [
+   "Full",
+   "Completo",
+   "Completo",
+   "Pełny"
   ],
   "voll trainierte Spieler diese Woche": [
    "fully trained players this week",
@@ -7290,6 +7476,12 @@
    "Noi (previsto)",
    "My (oczekiwane)"
   ],
+  "wir: {0}": [
+   "us: {0}",
+   "nosotros: {0}",
+   "noi: {0}",
+   "my: {0}"
+  ],
   "Wird für eine Position ein Ersatz gebraucht (Verletzung) und der Bankspieler dieses Platzes ist schon im Spiel, kommt die Reserve. Sie sitzt selbst auf einem anderen Bankplatz, bringt also keinen zusätzlichen Spieler. Automatisch: der stärkste andere Bankspieler für diese Position.": [
    "If a replacement is needed for a position (injury) and the bench player for that place is already on, the reserve comes on. The reserve sits on another bench place himself, so it does not add an extra player. Automatic: the strongest other bench player for that position.",
    "Si hace falta un sustituto para un puesto (lesión) y el suplente de esa plaza ya está jugando, entra la reserva. La reserva ocupa otra plaza del banquillo, así que no añade un jugador más. Automático: el suplente más fuerte para ese puesto.",
@@ -7409,6 +7601,12 @@
    "Objetivo",
    "Obiettivo",
    "Cel"
+  ],
+  "Ziel {0}": [
+   "Goal {0}",
+   "Objetivo {0}",
+   "Obiettivo {0}",
+   "Cel {0}"
   ],
   "Ziel: Sieg, dann Training": [
    "Goal: win, then training",

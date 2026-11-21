@@ -12,6 +12,10 @@ const table: Table = {
   Ligaspiel: ["League match", "Partido de liga", "Partita di campionato", "Mecz ligowy"],
   "{0}. Spieltag": ["Matchday {0}", "Jornada {0}", "{0}ª giornata", "{0}. kolejka"],
   "{0} von {1} verfügbar": ["{0} of {1} available", "{0} de {1} disponibles", "{0} su {1} disponibili", "{0} z {1} dostępnych"],
+  "{2} von 7 Plätzen besetzt{3}": ["{2} of 7 places filled{3}", "", "", ""],
+  "{0} verliert eine Stufe. Nachfolger kaufen.": ["{0} loses a level. Buy a successor.", "", "", ""],
+  "{0}, {1} Jahre": ["{0}, {1} years", "", "", ""],
+  "{0} HatStats{1}": ["{0} HatStats{1}", "", "", ""],
   "{0} Woche{1}": ["{0} week{1:s}", "{0} semana{1:s}", "{0} settiman{1:a|e}", "{0} tydz."],
 };
 const en = createTranslator(table, 0);
@@ -36,6 +40,8 @@ describe("Übersetzer", () => {
   it("setzt Werte in Muster ein und übersetzt sie mit", () => {
     expect(en("21 von 22 verfügbar")).toBe("21 of 22 available");
     expect(en("3. Spieltag")).toBe("Matchday 3");
+    // Schlüssel, deren Platzhalter nicht bei {0} beginnen
+    expect(en("6 von 7 Plätzen besetzt")).toBe("6 of 7 places filled");
   });
   it("Pluralendungen", () => {
     expect(fillTemplate("{0} week{1:s}", ["2", "n"])).toBe("2 weeks");
@@ -47,6 +53,12 @@ describe("Übersetzer", () => {
     expect(en("Mittelfeld · schwach (hoch)")).toBe("Midfield · poor (high)");
     expect(en("4 Kader")).toBe("4 Squad");
     expect(en("(schwach)")).toBe("(poor)");
+  });
+  it("Schlüssel über zwei Sätze, Etikett davor, gleichlautende Muster fangen nichts ab", () => {
+    expect(en("Max Muster, 34 Jahre: Mittelfeld verliert eine Stufe. Nachfolger kaufen. Kader")).toBe(
+      "Max Muster, 34 years: Midfield loses a level. Buy a successor. Squad",
+    );
+    expect(en("schwach. Kader (+2 HatStats).")).toBe("poor. Squad (+2 HatStats).");
   });
   it("ein Platzhalter überspannt keine Bausteine", () => {
     expect(en("Nächstes Spiel · Ligaspiel · 2. Spieltag")).toBe("Next match · League match · Matchday 2");
