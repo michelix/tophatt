@@ -1,6 +1,6 @@
 {
   "name": "tophatt",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "TopHatt: Spieltag, Aufstellung, Schwachstellen und Spielerentwicklung fuer Hattrick, mit Daten aus Hattrick Organizer",
   "license": "LGPL-3.0-or-later",

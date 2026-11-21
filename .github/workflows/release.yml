@@ -1,0 +1,37 @@
+# Baut TopHatt bei jedem veröffentlichten Release und hängt die fertigen Dateien an.
+name: Release-Dateien
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Paket schnüren
+        run: |
+          name="TopHatt-${{ github.event.release.tag_name }}"
+          mkdir -p "pkg/$name/dist" "pkg/$name/sync"
+          cp TopHatt.bat README.md COPYING COPYING.LESSER "pkg/$name/"
+          cp dist/tophatt.html "pkg/$name/dist/"
+          cp sync/TopHattSync.jar "pkg/$name/sync/"
+          (cd pkg && zip -r "../$name.zip" "$name")
+          cp dist/tophatt.html tophatt.html
+      - name: An das Release hängen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "TopHatt-${{ github.event.release.tag_name }}.zip" tophatt.html --clobber

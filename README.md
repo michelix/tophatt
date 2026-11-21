@@ -8,7 +8,7 @@ das Ergebnis als HRF-Datei zurück, die HO zu Hattrick hochlädt. Alles läuft l
 
 <sub>Alle Screenshots zeigen einen erfundenen Verein mit erfundenen Spielern und Werten; die Spielerbilder sind Hattrick-Avatare aus HO.</sub>
 
-**Inhalt:** [Die Seiten](#die-seiten) · [Benutzen](#benutzen) · [Aufbau](#aufbau) · [Entwickeln](#entwickeln) · [Lizenz](#lizenz)
+**Inhalt:** [Die Seiten](#die-seiten) · [Installieren](#installieren) · [Benutzen](#benutzen) · [Aufbau](#aufbau) · [Entwickeln](#entwickeln) · [Lizenz](#lizenz)
 
 ## Die Seiten
 
@@ -190,6 +190,13 @@ Je Trainingswoche ein Schnappschuss von Training, Personal, Finanzen, Mannschaft
 ![Verlauf](docs/img/verlauf.png)
 </details>
 
+## Installieren
+
+Ohne Build: unter [Releases](https://github.com/michelix/tophatt/releases/latest) die Datei `TopHatt-<Version>.zip`
+herunterladen und entpacken. Darin liegen `TopHatt.bat`, `dist/tophatt.html` und `sync/TopHattSync.jar`.
+Vorausgesetzt wird nur eine Installation von [Hattrick Organizer](https://github.com/ho-dev/HattrickOrganizer);
+dessen Java wird für den Sync mitbenutzt. Nur die App ohne HO-Datenbank: `tophatt.html` aus dem Release reicht.
+
 ## Benutzen
 
 1. In HO wie gewohnt die Daten herunterladen (am besten mit Gegnercheck). Die `.hrf`-Datei landet im HO-Datenordner,
@@ -233,14 +240,14 @@ Die Pfade zu HO stehen oben in `TopHatt.bat` und lassen sich dort anpassen. Spie
 npm install
 npm test          # Tests mit test/fixtures (anonymisierter Testverein)
 npm run typecheck
-npm run build     # erzeugt dist/tophatt.html
+npm run build     # erzeugt dist/tophatt.html (nicht im Repository, fertig gebaut im Release)
 
 # TopHatt-Sync bauen (JDK 17+, hsqldb-2.7.4.jar aus HO)
 javac --release 17 -cp hsqldb-2.7.4.jar -d sync/build sync/src/TopHattSync.java
 jar cfe sync/TopHattSync.jar TopHattSync -C sync/build .
 ```
 
-Zum Ausprobieren ohne eigene HO-Daten `dist/tophatt.html` öffnen und `test/fixtures/team.hrf` zusammen mit
+Zum Ausprobieren ohne eigene HO-Daten `tophatt.html` aus dem Release (oder nach dem Build `dist/tophatt.html`) öffnen und `test/fixtures/team.hrf` zusammen mit
 `test/fixtures/tophatt-data.json` ins Fenster ziehen. Auf diesen Daten beruhen auch die Screenshots in `docs/img`
 (Namen und einige Werte geändert, Spielerbilder ergänzt).
 
