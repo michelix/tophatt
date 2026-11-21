@@ -11,6 +11,7 @@ import { SECTOR_DE } from "./weakness";
 import { Role } from "./model";
 import { Evaluator, HATSTATS_OBJECTIVE, hatStatsOf } from "./optimizer";
 import { TRAININGS, trainingPriority } from "./training";
+import { loc } from "./locale";
 
 type SkillKey = "keeper" | "defending" | "playmaking" | "passing" | "winger" | "scoring";
 
@@ -126,7 +127,7 @@ export function advise(
     if (inLineup.has(p.id)) continue;
     const reasons: string[] = [];
     if (p.age >= 28) reasons.push(`${p.age} Jahre, entwickelt sich kaum noch`);
-    if (p.salary >= 1000) reasons.push(`Gehalt ${Math.round(p.salary).toLocaleString("de-DE")} €/Woche`);
+    if (p.salary >= 1000) reasons.push(`Gehalt ${Math.round(p.salary).toLocaleString(loc())} €/Woche`);
     // Verletzte sind nur vorübergehend nicht in der Elf – kein Verkaufsgrund
     if (p.injury > 0) continue;
     if (reasons.length) sellCandidates.push({ playerId: p.id, name: p.name, reason: `Weder Startelf noch Bank; ${reasons.join(", ")}.` });
@@ -137,7 +138,7 @@ export function advise(
     const sorted = [...keepers].sort((a, b) => playerPositionRating(b, Role.keeper) - playerPositionRating(a, Role.keeper));
     for (const k of sorted.slice(2)) {
       if (!sellCandidates.some((s) => s.playerId === k.id) && !inLineup.has(k.id))
-        sellCandidates.push({ playerId: k.id, name: k.name, reason: `${keepers.length} Torhüter im Kader, zwei reichen. Gehalt ${Math.round(k.salary).toLocaleString("de-DE")} €/Woche.` });
+        sellCandidates.push({ playerId: k.id, name: k.name, reason: `${keepers.length} Torhüter im Kader, zwei reichen. Gehalt ${Math.round(k.salary).toLocaleString(loc())} €/Woche.` });
     }
   }
 

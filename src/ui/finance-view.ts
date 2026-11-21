@@ -3,6 +3,7 @@
 // Seite „Finanzen“: Kontostand, Wochenbilanz, Personal und eine Was-wäre-wenn-Prognose,
 // damit Trainer-/Assistenten-Investitionen den Verein nicht in die Schulden treiben.
 
+import { loc } from "../core/locale";
 import {
   DEFAULT_BUFFER,
   DEFAULT_HORIZON,
@@ -22,11 +23,11 @@ export const TRAINER_WEEKLY = [1250, 2500, 5000, 10000, 20000];
 export const TRAINER_PRICE_EXTERNAL = [10000, 65100, 521000, 1758500, 12505200];
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const eur = (x: number) => `${(Math.round(x) || 0).toLocaleString("de-DE")} €`;
-const signed = (x: number) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(Math.round(x)).toLocaleString("de-DE")} €`;
+const eur = (x: number) => `${(Math.round(x) || 0).toLocaleString(loc())} €`;
+const signed = (x: number) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(Math.round(x)).toLocaleString(loc())} €`;
 const fmtDay = (s: string) => {
   const d = new Date(s.replace(" ", "T"));
-  return isNaN(d.getTime()) ? s : d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+  return isNaN(d.getTime()) ? s : d.toLocaleDateString(loc(), { weekday: "short", day: "2-digit", month: "2-digit" });
 };
 
 interface Inputs {
@@ -140,7 +141,7 @@ function skeleton(s: FinanceSnapshot): string {
 
   <details><summary>Wann wird es gefährlich?</summary>
     <p class="sub">Laut Hattrick-Regeln kann man auch bei 0 weiter Geld ausgeben, zahlt im Minus aber hohe Zinsen.
-    Ab ${RULES.spendingLimitUsd.toLocaleString("de-DE")} US$ Schulden sind Ausgaben eingeschränkt, ab ${RULES.bankruptcyWarningUsd.toLocaleString("de-DE")} US$ Schulden gibt es die Bankrottwarnung,
+    Ab ${RULES.spendingLimitUsd.toLocaleString(loc())} US$ Schulden sind Ausgaben eingeschränkt, ab ${RULES.bankruptcyWarningUsd.toLocaleString(loc())} US$ Schulden gibt es die Bankrottwarnung,
     und wer dann nicht binnen ${RULES.bankruptcyGraceWeeks} Wochen wieder darüber liegt, fliegt aus dem Ligasystem.
     TopHatt zieht die rote Linie deshalb schon bei 0 € und warnt gelb, wenn der Stand unter den Mindest-Puffer fällt.
     Die Prognose rechnet mit den laufenden Kosten dieser Woche, den aktuellen Sponsoren und dem Zuschauerschnitt; Transfers, Prämien und Pokalspiele sind nicht eingeplant.
@@ -339,7 +340,7 @@ function niceStep(raw: number): number {
 function short(v: number): string {
   const a = Math.abs(v);
   const sign = v < 0 ? "−" : "";
-  if (a >= 1e6) return `${sign}${(a / 1e6).toLocaleString("de-DE", { maximumFractionDigits: 1 })} Mio`;
-  if (a >= 1e3) return `${sign}${Math.round(a / 1e3).toLocaleString("de-DE")} T`;
+  if (a >= 1e6) return `${sign}${(a / 1e6).toLocaleString(loc(), { maximumFractionDigits: 1 })} Mio`;
+  if (a >= 1e3) return `${sign}${Math.round(a / 1e3).toLocaleString(loc())} T`;
   return `${sign}${Math.round(a)}`;
 }

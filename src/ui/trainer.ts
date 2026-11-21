@@ -22,12 +22,13 @@ import {
   weeksInClub,
 } from "../core/staff";
 import { TRAININGS } from "../core/training";
+import { loc } from "../core/locale";
 
 const STORE = "tophatt.trainerPlan";
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const euro = (v: number) => `${Math.round(v).toLocaleString("de-DE")} €`;
+const euro = (v: number) => `${Math.round(v).toLocaleString(loc())} €`;
 const pct = (v: number) => `${Math.round(v * 100)} %`;
-const signed = (v: number, unit = "") => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(Math.round(v)).toLocaleString("de-DE")}${unit}`;
+const signed = (v: number, unit = "") => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(Math.round(v)).toLocaleString(loc())}${unit}`;
 
 interface Saved {
   plan: StaffPlan;
@@ -196,7 +197,7 @@ function draw() {
     })
     .join("");
   const asstRows = [1, 2, 3, 4, 5]
-    .map((l) => `<tr><td>Stufe ${l}</td><td class="num">+${(l * 3.5).toLocaleString("de-DE")} %</td><td class="num">${euro(staffWeeklyCost(l, 16))}</td><td class="num">${euro(staffWeeklyCost(l, 8))}</td><td class="num">${euro(staffWeeklyCost(l, 1))}</td></tr>`)
+    .map((l) => `<tr><td>Stufe ${l}</td><td class="num">+${(l * 3.5).toLocaleString(loc())} %</td><td class="num">${euro(staffWeeklyCost(l, 16))}</td><td class="num">${euro(staffWeeklyCost(l, 8))}</td><td class="num">${euro(staffWeeklyCost(l, 1))}</td></tr>`)
     .join("");
 
   root.innerHTML = `

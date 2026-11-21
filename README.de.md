@@ -4,7 +4,7 @@
 
 TopHatt ist ein Spieltags-Cockpit für [Hattrick](https://www.hattrick.org). Es liest die Daten aus
 Hattrick Organizer (HO), schlägt Aufstellung, Taktik und Wechsel für das nächste Spiel vor und schreibt
-das Ergebnis als HRF-Datei zurück, die HO zu Hattrick hochlädt. Alles läuft lokal im Browser, hell oder dunkel.
+das Ergebnis als HRF-Datei zurück, die HO zu Hattrick hochlädt. Alles läuft lokal im Browser, hell oder dunkel, auf Deutsch, Englisch, Spanisch, Italienisch oder Polnisch.
 
 ![Aufstellungsseite mit Spielfeld, Formationsvorschlag, Spielerliste und Ersatzbank](docs/img/aufstellung.png)
 

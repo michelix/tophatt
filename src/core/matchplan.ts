@@ -8,6 +8,7 @@ import { Attitude, type FieldPosition, type MatchSettings, type Player, Tactic }
 import type { SectorRatings, TeamState } from "./rating";
 import { Evaluator, hatStatsOf } from "./optimizer";
 import { tacticLevel, TACTIC_NAME, ATTITUDE_NAME } from "./tactics";
+import { fixed } from "./locale";
 
 export interface Side {
   ratings: SectorRatings;
@@ -177,7 +178,7 @@ export interface MatchPlan {
 const STYLE_NAME: Record<number, string> = { [-10]: "defensiv", [-5]: "eher defensiv", 0: "ausgewogen", 5: "eher offensiv", 10: "offensiv" };
 export const styleName = (s: number) => STYLE_NAME[s] ?? String(s);
 const pct = (x: number) => `${Math.round(x * 100)} %`;
-const de = (x: number) => x.toFixed(2).replace(".", ",");
+const de = (x: number) => fixed(x, 2);
 
 /**
  * Alle sinnvollen Kombinationen aus Taktik und Ausrichtung mit der gegebenen Elf durchrechnen und nach
@@ -244,7 +245,7 @@ export function planMatch(
 
   const notes: string[] = [];
   if (best.settings.tactic !== Tactic.normal && best.level !== null)
-    notes.push(`Taktikstärke ${TACTIC_NAME[best.settings.tactic]}: ${best.level.toFixed(1).replace(".", ",")}. Sie ergibt sich aus den Fertigkeiten der aufgestellten Spieler, einspielen muss man eine Taktik nicht.`);
+    notes.push(`Taktikstärke ${TACTIC_NAME[best.settings.tactic]}: ${fixed(best.level, 1)}. Sie ergibt sich aus den Fertigkeiten der aufgestellten Spieler, einspielen muss man eine Taktik nicht.`);
   const diff = best.prediction.points - neutral.prediction.points;
   if (diff > 0.02) notes.push(`Gegenüber Normal/ausgewogen: +${de(diff)} erwartete Punkte (Siegchance ${pct(neutral.prediction.win)} → ${pct(best.prediction.win)}).`);
   else notes.push("Normal und ausgewogen ist hier schon so gut wie die beste Einstellung.");

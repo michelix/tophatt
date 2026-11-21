@@ -7,10 +7,11 @@ import { type BenchSlot, type Lineup, type MatchOrder, type OrderKind, type Play
 import { CARD_DE, ORDER_KIND_DE, STANDING_DE, autoBackups, benchSlotValue, maxOrders, newOrder, orderProblems, penaltyStrength } from "../core/orders";
 import { MAX_SUBSTITUTIONS, SUB_MODE_DE, type SubMode, type SubSuggestion, ruleOfThumb, suggestSubstitutions, suggestionToOrder } from "../core/substitutions";
 import type { TrainingDef, WeekMinutes } from "../core/training";
+import { loc } from "../core/locale";
 
 const STORE = "tophatt.orders";
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const de = (v: number) => v.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const de = (v: number) => v.toLocaleString(loc(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const ROLE_NAME: [number, string][] = [
   [Role.keeper, "Torwart"],
@@ -325,7 +326,7 @@ export function renderOrdersPage() {
       <h3><span class="step">3</span>Auswechslungen &amp; Anweisungen <span class="sub">${counted} von ${limit} Anweisungen (5 + Taktik-Assistent Stufe ${ta})${hasMarking ? " · plus 1 Manndeckung" : ""} · davon höchstens ${MAX_SUBSTITUTIONS} Wechsel</span></h3>
       ${suggestionsBlock(l, byId)}
       <div class="mp-head sect-sub">Deine Anweisungen</div>
-      ${problems.some((p) => p.length) ? `<div class="warnbar ord-stale"><div><b>!</b> ${problems.filter((p) => p.length).length} ${problems.filter((p) => p.length).length === 1 ? "Anweisung passt" : "Anweisungen passen"} nicht mehr zur Aufstellung (rot markiert), meist weil du danach die Aufstellung geändert hast. So kann TopHatt nicht für HO speichern.</div><div class="controls"><button class="btn" data-oclean>Unpassende entfernen</button></div></div>` : ""}
+      ${problems.some((p) => p.length) ? `<div class="warnbar ord-stale"><div><b>!</b> ${problems.filter((p) => p.length).length === 1 ? "1 Anweisung passt" : `${problems.filter((p) => p.length).length} Anweisungen passen`} nicht mehr zur Aufstellung (rot markiert), meist weil du danach die Aufstellung geändert hast. So kann TopHatt nicht für HO speichern.</div><div class="controls"><button class="btn" data-oclean>Unpassende entfernen</button></div></div>` : ""}
       <div class="controls ord-add">${addBtn("sub", "Auswechslung", full)}${addBtn("behaviour", "Verhalten", full)}${addBtn("swap", "Positionstausch", full)}${addBtn("marking", "Manndeckung", hasMarking)}
         ${store.orders.length ? `<button class="btn" data-oclear>Alle löschen</button>` : ""}</div>
       ${store.orders.map((o, i) => renderOrder(o, i, store.orders.length, l, byId, problems[i])).join("") || `<p class="sub">Noch keine Anweisungen. Ohne Anweisungen wechselt Hattrick nur bei Verletzungen aus.</p>`}

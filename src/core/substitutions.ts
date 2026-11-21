@@ -14,6 +14,7 @@
 import { type Lineup, type MatchOrder, type Player, Tactic } from "./model";
 import { playerPositionRating, staminaFactor } from "./rating";
 import { type TrainingDef, type WeekMinutes, trainingFor, trainingPriority } from "./training";
+import { loc } from "./locale";
 
 export type SubMode = "sieg" | "ausgewogen" | "training";
 
@@ -142,7 +143,7 @@ const hasPlayed = (id: number, week?: Map<number, WeekMinutes>) => {
 };
 
 const lastName = (p?: Player) => (p?.name ?? "?").split(" ").slice(-1)[0];
-const pct = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toLocaleString("de-DE", { maximumFractionDigits: 1, minimumFractionDigits: 1 })} %`;
+const pct = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toLocaleString(loc(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })} %`;
 
 interface Option extends SubSuggestion {
   score: number;
