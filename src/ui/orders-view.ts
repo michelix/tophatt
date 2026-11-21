@@ -7,10 +7,11 @@ import { type BenchSlot, type Lineup, type MatchOrder, type OrderKind, type Play
 import { CARD_DE, ORDER_KIND_DE, STANDING_DE, autoBackups, benchSlotValue, maxOrders, newOrder, orderProblems, penaltyStrength } from "../core/orders";
 import { MAX_SUBSTITUTIONS, SUB_MODE_DE, type SubMode, type SubSuggestion, ruleOfThumb, suggestSubstitutions, suggestionToOrder } from "../core/substitutions";
 import type { TrainingDef, WeekMinutes } from "../core/training";
+import { loc } from "../core/locale";
 
 const STORE = "tophatt.orders";
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const de = (v: number) => v.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const de = (v: number) => v.toLocaleString(loc(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const ROLE_NAME: [number, string][] = [
   [Role.keeper, "Torwart"],

@@ -4,7 +4,7 @@
 
 TopHatt is a match-day cockpit for [Hattrick](https://www.hattrick.org). It reads your data from
 Hattrick Organizer (HO), suggests the lineup, tactics and substitutions for the next match, and writes the result
-back as an HRF file that HO uploads to Hattrick. Everything runs locally in the browser, in light or dark mode.
+back as an HRF file that HO uploads to Hattrick. Everything runs locally in the browser, in light or dark mode, in German, English, Spanish, Italian or Polish.
 
 ![Lineup page with pitch, formation suggestion, player list and bench](docs/img/aufstellung.png)
 

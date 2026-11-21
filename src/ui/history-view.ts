@@ -19,6 +19,7 @@ import {
   weekOf,
 } from "../core/history";
 import { type DirHandle, fileByName, isHoExport } from "./folder";
+import { loc } from "../core/locale";
 
 export const HISTORY_FILE = "tophatt-verlauf.json";
 const KEY = "tophatt.verlauf";
@@ -200,7 +201,7 @@ const shortDe = (week: string) => {
   const [, m, d] = week.split("-");
   return `${d}.${m}.`;
 };
-const fmtNum = (v: number) => Math.round(v).toLocaleString("de-DE");
+const fmtNum = (v: number) => Math.round(v).toLocaleString(loc());
 
 function renderStatus() {
   const el = $("#historyStore");
@@ -221,7 +222,7 @@ interface Series {
 }
 
 /** Geld kurz für Achsen: 14.660 € → 14,7 T€, 921.000 € → 921 T€ */
-const euroShort = (v: number) => (Math.abs(v) >= 1e6 ? `${(v / 1e6).toLocaleString("de-DE", { maximumFractionDigits: 2 })} Mio €` : Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString("de-DE", { maximumFractionDigits: Math.abs(v) >= 1e5 ? 0 : 1 })} T€` : `${Math.round(v)} €`);
+const euroShort = (v: number) => (Math.abs(v) >= 1e6 ? `${(v / 1e6).toLocaleString(loc(), { maximumFractionDigits: 2 })} Mio €` : Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString(loc(), { maximumFractionDigits: Math.abs(v) >= 1e5 ? 0 : 1 })} T€` : `${Math.round(v)} €`);
 
 /** Kleines Liniendiagramm über die Wochen (gleich breite Schritte) */
 function lineChart(weeks: string[], series: Series[], opt: { invert?: boolean; integer?: boolean; bars?: boolean; min?: number; max?: number } = {}): string {

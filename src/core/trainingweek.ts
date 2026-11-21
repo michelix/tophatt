@@ -9,6 +9,7 @@ import type { SectorRatings, TeamState } from "./rating";
 import { FORMATIONS, HATSTATS_OBJECTIVE, Evaluator, hatStatsOf, isAvailable, optimizeLineup } from "./optimizer";
 import { predict, type Side } from "./matchplan";
 import { type TrainingDef, type WeekMinutes, FORMATION_PREFERENCE, TRAININGS, addPlanned, formationSlots, planTrainingLineup, trainingFor, trainingPriority, weekFactor } from "./training";
+import { fixed } from "./locale";
 
 export type SquadTier = "A" | "B" | "R";
 export const TIER_NAME: Record<SquadTier, string> = { A: "A-Kader", B: "B-Kader", R: "Rest" };
@@ -84,7 +85,7 @@ export function chooseLeagueFormation(
   const near = opts.filter((o) => o.hatStats >= best.hatStats * (1 - tolerance));
   const slots = (o: FormationOption) => o.full * 10 + o.partly;
   const pick = [...near].sort((a, b) => slots(b) - slots(a) || b.hatStats - a.hatStats || b.experience - a.experience)[0];
-  const pct = (x: number) => `${(x * 100).toFixed(1).replace(".", ",").replace(",0", "")} %`;
+  const pct = (x: number) => `${fixed(x * 100, 1).replace(/[.,]0$/, "")} %`;
   const reason =
     pick === best
       ? `${label(best.formation)} ist die stärkste Formation und hat unter den fast gleich starken (bis ${pct(tolerance)} weniger HatStats) die meisten Trainingsplätze.`

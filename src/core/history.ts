@@ -6,6 +6,7 @@
 // bleibt erhalten, auch wenn alte HRF-Dateien gelöscht werden.
 
 import { parseHrf, parseSections } from "./hrf";
+import { loc } from "./locale";
 
 export const HISTORY_FORMAT = 1;
 
@@ -307,7 +308,7 @@ export const SKILL_DE: Record<SkillKey, string> = {
 const TRAINER_TYPE_DE: Record<number, string> = { 0: "defensiv", 1: "offensiv", 2: "ausgeglichen" };
 const SPIRIT_DE = ["am Boden", "katastrophal", "schlecht", "ruhig", "ruhig", "zufrieden", "gut", "sehr gut", "himmelhoch", "euphorisch", "paradiesisch"];
 
-export const euro = (v: number) => `${Math.round(v).toLocaleString("de-DE")} €`;
+export const euro = (v: number) => `${Math.round(v).toLocaleString(loc())} €`;
 const signed = (v: number, f: (x: number) => string) => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${f(Math.abs(v))}`;
 
 export interface SkillUp {

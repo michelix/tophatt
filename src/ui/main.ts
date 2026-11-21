@@ -29,12 +29,14 @@ import { type PlannedMove, currentBackups, initOrdersPage, loadOrders, ordersBlo
 import { teamPlayers } from "../core/hodata";
 import { avatarHtml, cutoutAvatars } from "./avatar";
 import { LEVEL_DE } from "../core/staff";
+import { fixed, loc } from "../core/locale";
+import { LANGS, currentLang, setLang, startI18n, type Lang } from "./i18n";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const fmtDate = (d: Date) => d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
-const fmtDateTime = (d: Date) => d.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-const fmtShort = (d: Date) => d.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const fmtDate = (d: Date) => d.toLocaleDateString(loc(), { weekday: "short", day: "2-digit", month: "2-digit" });
+const fmtDateTime = (d: Date) => d.toLocaleString(loc(), { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const fmtShort = (d: Date) => d.toLocaleString(loc(), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 const ROLE_DE: Record<number, string> = {
   [Role.keeper]: "TW",
@@ -884,7 +886,7 @@ const FIELD_LINES = `<svg class="lines" viewBox="0 0 100 100" preserveAspectRati
   <path d="M44 98.5 v1.2 h12 v-1.2"/>
 </g></svg>`;
 
-const de = (x: number, d = 2) => x.toFixed(d).replace(".", ",");
+const de = (x: number, d = 2) => fixed(x, d);
 const hsDiff = (d: number) => (Math.abs(d) < 0.5 ? "" : ` <span class="${d > 0 ? "up" : "down"}">(${d > 0 ? "+" : ""}${d.toFixed(0)} zum Vorschlag)</span>`);
 function warnText(p: Player): string {
   const w: string[] = [];
@@ -1240,7 +1242,7 @@ function poolHtml(): string {
   const fullyTrained = state.hrf!.players.filter((p) => trained(p.id) >= 1).length;
   const hidden = state.hideTrained ? state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id) && !unavailable(p) && trained(p.id) >= 1).length : 0;
   const w = state.week?.window;
-  const since = w ? w.start.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" }) : "";
+  const since = w ? w.start.toLocaleDateString(loc(), { weekday: "short", day: "2-digit", month: "2-digit" }) : "";
   const count = fullyTrained
     ? `${fullyTrained} haben seit ${since} schon voll trainiert${hidden ? `, ${hidden} ausgeblendet` : ""}`
     : `seit dem Trainingsupdate ${since} noch kein Spiel, daher niemand`;
@@ -1612,7 +1614,7 @@ function inspectCardHtml(pid: number, pinned: boolean, pick: Pick): string {
 
   const last =
     p.lastMatchDate && (p.lastMatchMinutes ?? 0) > 0
-      ? `${p.lastMatchRating ? `<span class="stars" aria-label="${deNum(p.lastMatchRating)} Sterne">${STAR.repeat(Math.max(1, Math.floor(p.lastMatchRating)))}${p.lastMatchRating % 1 ? "½" : ""}</span><b>${deNum(p.lastMatchRating)}</b>` : ""}<span>${new Date(p.lastMatchDate.replace(" ", "T")).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} · ${esc(positionShort(p.lastMatchPosition) || "–")} · ${p.lastMatchMinutes} Min.</span>`
+      ? `${p.lastMatchRating ? `<span class="stars" aria-label="${deNum(p.lastMatchRating)} Sterne">${STAR.repeat(Math.max(1, Math.floor(p.lastMatchRating)))}${p.lastMatchRating % 1 ? "½" : ""}</span><b>${deNum(p.lastMatchRating)}</b>` : ""}<span>${new Date(p.lastMatchDate.replace(" ", "T")).toLocaleDateString(loc(), { day: "2-digit", month: "2-digit" })} · ${esc(positionShort(p.lastMatchPosition) || "–")} · ${p.lastMatchMinutes} Min.</span>`
       : `<span class="muted">kein Spiel bekannt</span>`;
 
   let actions = "";
@@ -1640,7 +1642,7 @@ function inspectCardHtml(pid: number, pinned: boolean, pick: Pick): string {
   return `${handle}<div class="ic-top"><div class="ic-av tk-${tier}">${avatarHtml(p.id, state.ho?.avatars, shirtNo(p))}</div>
       <div class="ic-id"><h4>${shirtNo(p) ? `<small>${shirtNo(p)}</small>` : ""}${esc(p.name)}</h4>
         <div class="ic-sub">${p.age} Jahre, ${p.ageDays} Tage · ${esc(where)} · ${TIER_NAME[tier]}</div>
-        <div class="ic-kv"><span>TSI <b>${p.tsi.toLocaleString("de-DE")}</b></span><span>Gehalt <b>${p.salary.toLocaleString("de-DE")} €</b></span><span>Erfahrung <b>${p.experience}</b> · Führung <b>${p.leadership}</b></span>${p.specialtyLabel ? `<span>✦ <b>${esc(p.specialtyLabel)}</b></span>` : ""}</div>
+        <div class="ic-kv"><span>TSI <b>${p.tsi.toLocaleString(loc())}</b></span><span>Gehalt <b>${p.salary.toLocaleString(loc())} €</b></span><span>Erfahrung <b>${p.experience}</b> · Führung <b>${p.leadership}</b></span>${p.specialtyLabel ? `<span>✦ <b>${esc(p.specialtyLabel)}</b></span>` : ""}</div>
       </div>${pin}</div>
     <div class="ic-fk"><span>Form</span>${bar(p.form, 8, lvl(p.form))}<b>${p.form} ${skillName(p.form)}</b><span>Kondition</span>${bar(p.stamina, 9, lvl(p.stamina))}<b>${p.stamina} ${skillName(p.stamina)}</b></div>
     ${chips.length ? `<div class="ic-chips">${chips.join("")}</div>` : ""}
@@ -2174,7 +2176,7 @@ function renderDevelopment() {
     .map((p) => {
       const o = state.outlooks.get(p.id)!;
       const [cls, icon] = OUTLOOK_STATUS[o.outlook];
-      const f = (v: number) => v.toFixed(1).replace(".", ",");
+      const f = (v: number) => fixed(v, 1);
       return `<tr data-player="${p.id}" style="cursor:pointer">
         <td>${esc(p.name)}</td><td class="num">${p.age}</td><td>${DEV_SKILL_DE[o.mainSkill]}</td>
         <td class="num">${f(o.now)}</td><td class="num">${f(o.inOneSeason)}</td><td class="num">${f(o.inTwoSeasons)}</td>
@@ -2263,7 +2265,7 @@ function renderDevChart() {
       const hp = histPts.length ? `<path d="${path([...histPts, projPts[0]], s)}" fill="none" stroke="${col}" stroke-width="2"/>` : "";
       return `${hp}<path d="${path(projPts, s)}" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="6 4"/>
         ${histPts.map((h) => `<circle cx="${X(h.t)}" cy="${Y(h.v[s])}" r="4" fill="${col}" stroke="var(--surface)" stroke-width="2"/>`).join("")}
-        <text x="${X(last.t) + 8}" y="${labelY.get(s)! + 4}" font-size="12" fill="var(--ink)">${DEV_SKILL_DE[s]} ${last.v[s].toFixed(1).replace(".", ",")}</text>`;
+        <text x="${X(last.t) + 8}" y="${labelY.get(s)! + 4}" font-size="12" fill="var(--ink)">${DEV_SKILL_DE[s]} ${fixed(last.v[s], 1)}</text>`;
     })
     .join("");
   const o = state.outlooks.get(p.id)!;
@@ -2293,8 +2295,8 @@ function renderDevChart() {
     cross.setAttribute("x2", String(cx));
     cross.setAttribute("visibility", "visible");
     tip.hidden = false;
-    tip.innerHTML = `<b>${new Date(best.t).toLocaleDateString("de-DE")}</b> · ${best.age} J. ${best.ageDays} T.<br><span class="muted">${best.kind}</span><br>${skills
-      .map((s, i) => `<span style="color:${SERIES_VARS[i]}">●</span> ${DEV_SKILL_DE[s]}: ${best.v[s].toFixed(2).replace(".", ",")} <span class="muted">(${ratingLabel(best.v[s]).split(" (")[0]})</span>`)
+    tip.innerHTML = `<b>${new Date(best.t).toLocaleDateString(loc())}</b> · ${best.age} J. ${best.ageDays} T.<br><span class="muted">${best.kind}</span><br>${skills
+      .map((s, i) => `<span style="color:${SERIES_VARS[i]}">●</span> ${DEV_SKILL_DE[s]}: ${fixed(best.v[s], 2)} <span class="muted">(${ratingLabel(best.v[s]).split(" (")[0]})</span>`)
       .join("<br>")}`;
     const px = (cx / W) * r.width;
     tip.style.left = `${Math.min(r.width - 190, Math.max(0, px + 12))}px`;
@@ -2496,8 +2498,8 @@ function secondLineup(): { kind: "pokal" | "freundschaft"; lineup: Lineup } | nu
   return state.friendly ? { kind: "freundschaft", lineup: state.friendly.lineup } : null;
 }
 
-const dayTime = (d: Date) => d.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-const dayOnly = (d: Date) => d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+const dayTime = (d: Date) => d.toLocaleString(loc(), { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const dayOnly = (d: Date) => d.toLocaleDateString(loc(), { weekday: "short", day: "2-digit", month: "2-digit" });
 
 function renderTrainingWeek() {
   tierCache = null;
@@ -2730,7 +2732,7 @@ function initTrainingWeek() {
 let cardPlayer = 0;
 /** Fähigkeitsname wie auf Hattrick (5 durchschnittlich, 6 passabel …) */
 const skillName = (v: number) => LEVEL_DE[Math.max(0, Math.min(LEVEL_DE.length - 1, Math.floor(v)))];
-const deNum = (x: number, d = 1) => x.toFixed(d).replace(".", ",");
+const deNum = (x: number, d = 1) => fixed(x, d);
 
 function openPlayerCard(id: number) {
   if (!state.hrf?.players.some((p) => p.id === id)) return;
@@ -2825,7 +2827,7 @@ function renderPlayerCard() {
 
   const last =
     p.lastMatchDate && (p.lastMatchMinutes ?? 0) > 0
-      ? `${new Date(p.lastMatchDate.replace(" ", "T")).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} · ${esc(positionShort(p.lastMatchPosition) || "–")} · ${p.lastMatchMinutes} Minuten${p.lastMatchRating ? ` · ${deNum(p.lastMatchRating)} Sterne` : ""}`
+      ? `${new Date(p.lastMatchDate.replace(" ", "T")).toLocaleDateString(loc(), { day: "2-digit", month: "2-digit" })} · ${esc(positionShort(p.lastMatchPosition) || "–")} · ${p.lastMatchMinutes} Minuten${p.lastMatchRating ? ` · ${deNum(p.lastMatchRating)} Sterne` : ""}`
       : "kein Spiel bekannt";
 
   const actions = [
@@ -2835,7 +2837,7 @@ function renderPlayerCard() {
 
   $("#playerCard").innerHTML = `<div class="pc-head">
       <div class="token tk-${tier} fit-good">${esc(initials(p.name))}</div>
-      <div><h2>${esc(p.name)}</h2><div class="sub">${p.age} Jahre, ${p.ageDays} Tage${p.homegrown ? " · Eigengewächs" : ""} · TSI ${p.tsi.toLocaleString("de-DE")} · Gehalt ${p.salary.toLocaleString("de-DE")}</div>
+      <div><h2>${esc(p.name)}</h2><div class="sub">${p.age} Jahre, ${p.ageDays} Tage${p.homegrown ? " · Eigengewächs" : ""} · TSI ${p.tsi.toLocaleString(loc())} · Gehalt ${p.salary.toLocaleString(loc())}</div>
       <div class="sub">${onField ? `auf dem Feld: ${ROLE_DE[onField.role]}` : bench ? `auf der Bank: ${BENCH_DE[bench]}` : "nicht aufgestellt"}</div></div>
       <button class="pc-close" aria-label="Schließen">×</button></div>
     <div class="pc-chips">${chips.join("")}</div>
@@ -2903,7 +2905,7 @@ function renderAdvice() {
   const hrf = state.hrf!;
   const cash = hrf.team.expectedCash ?? hrf.team.cash;
   const B = budget(hrf.players, cash);
-  const euro = (v: number) => `${Math.round(v).toLocaleString("de-DE")} €`;
+  const euro = (v: number) => `${Math.round(v).toLocaleString(loc())} €`;
   const profiles = state.profiles.length
     ? `<div class="profiles">${state.profiles
         .map(
@@ -2972,7 +2974,7 @@ function renderSquad() {
         <td class="num">${t ? trainingPriority(p, t).toFixed(1) : ""}</td>
         <td>${[role, friendly].filter(Boolean).join(" + ")}</td>
         <td>${status}</td>
-        <td class="num">${Math.round(p.salary).toLocaleString("de-DE")} €</td>
+        <td class="num">${Math.round(p.salary).toLocaleString(loc())} €</td>
       </tr>`;
     })
     .join("");
@@ -3236,6 +3238,7 @@ function init() {
     input.click();
   });
   initTheme();
+  initLang();
   $("#refresh").addEventListener("click", refresh);
   $("#openSettings").addEventListener("click", openSettings);
   $("#closeSettings").addEventListener("click", () => $<HTMLDialogElement>("#settings").close());
@@ -3323,6 +3326,20 @@ function initTheme() {
   label();
 }
 
+/** Sprachumschalter: Wahl wird gespeichert, ohne Wahl gilt die Browsersprache, sonst Deutsch. */
+function initLang() {
+  const sel = $<HTMLSelectElement>("#langSel");
+  sel.innerHTML = LANGS.map((l) => `<option value="${l.code}" lang="${l.code}">${l.name}</option>`).join("");
+  sel.value = currentLang();
+  sel.addEventListener("change", () => {
+    setLang(sel.value as Lang, () => {
+      if (!state.hrf) return;
+      render();
+      renderPlayerCard();
+    });
+  });
+}
+
 /** Bedienhinweis nur zeigen, bis das Feld einmal bearbeitet wurde. */
 function initEditorHint() {
   const KEY = "tophatt.editorHintSeen";
@@ -3343,4 +3360,5 @@ function initEditorHint() {
 
 /** Speichern ohne Scrollen: Knopf in der Kopfzeile, auf dem Handy als Leiste unten. */
 
+startI18n();
 init();

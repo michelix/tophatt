@@ -5,6 +5,7 @@
 // Geld steht in der HRF in der Hattrick-Basiseinheit; [xtra] CurrencyRate rechnet in Euro um (EUR: 10).
 
 import { parseSections } from "./hrf";
+import { loc } from "./locale";
 
 /** Hattrick-Regeln (Wirtschaft): Grenzen stehen dort in US$. */
 export const RULES = {
@@ -224,7 +225,7 @@ export function forecast(s: FinanceSnapshot, normal: NormalWeek, plan: Plan, wee
   return out;
 }
 
-const eur = (x: number) => `${Math.round(x).toLocaleString("de-DE")} €`;
+const eur = (x: number) => `${Math.round(x).toLocaleString(loc())} €`;
 
 export function checkAffordability(
   s: FinanceSnapshot,
@@ -254,7 +255,7 @@ export function checkAffordability(
   const verdict: Affordability["verdict"] = minCash < 0 ? "gefahr" : minCash < buffer ? "knapp" : "ok";
   const text =
     verdict === "gefahr"
-      ? `In Woche ${debtAt + 1} rutscht das Konto ins Minus (tiefster Stand ${eur(minCash)}). Schulden kosten hohe Zinsen; ab ${RULES.bankruptcyWarningUsd.toLocaleString("de-DE")} US$ Schulden droht die Bankrottwarnung.`
+      ? `In Woche ${debtAt + 1} rutscht das Konto ins Minus (tiefster Stand ${eur(minCash)}). Schulden kosten hohe Zinsen; ab ${RULES.bankruptcyWarningUsd.toLocaleString(loc())} US$ Schulden droht die Bankrottwarnung.`
       : verdict === "knapp"
         ? `Es bleibt im Plus, aber in Woche ${minWeek + 1} nur ${eur(minCash)} – unter dem Puffer von ${eur(buffer)}.`
         : `Tragbar: tiefster Stand ${eur(minCash)} in Woche ${minWeek + 1}, Puffer ${eur(buffer)} hält.`;
