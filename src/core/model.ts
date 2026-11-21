@@ -48,6 +48,8 @@ export interface Player {
   lastMatchDate?: string;
   lastMatchMinutes?: number;
   lastMatchId?: number;
+  /** Rückennummer (HRF PlayerNumber), 0/fehlend = keine */
+  number?: number;
 }
 
 export interface TeamInfo {
