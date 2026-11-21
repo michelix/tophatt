@@ -21,6 +21,7 @@ import { Behaviour, type BenchSlot, type FieldPosition } from "../core/model";
 import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 import { type FinanceSnapshot, type PastWeek, parseFinance, pastWeeks } from "../core/finance";
 import { renderFinance } from "./finance-view";
+import { initTrainerPage, renderTrainerPage } from "./trainer";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -471,6 +472,7 @@ function render() {
   renderSquad();
   renderGroups();
   renderFinance($("#finOut"), state.finance, state.financeWeeks);
+  renderTrainerPage($("#trainerOut"), hrf.raw);
   route();
 }
 
@@ -2674,7 +2676,7 @@ function renderSquad() {
 
 // --- Navigation ------------------------------------------------------------------------
 
-const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "spielplan", "finanzen"];
+const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "trainer", "spielplan", "finanzen"];
 const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training" };
 let currentView = "";
 
@@ -2945,6 +2947,7 @@ function init() {
   initNav();
   initTrainingWeek();
   initPlayerCard();
+  initTrainerPage($("#trainerOut"));
   $("#dlFriendly").addEventListener("click", () => {
     const x = secondLineup();
     if (x) download(x.lineup, x.kind);
