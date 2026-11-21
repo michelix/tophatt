@@ -2,59 +2,193 @@
 
 TopHatt ist ein Spieltags-Cockpit für [Hattrick](https://www.hattrick.org). Es liest die Daten aus
 Hattrick Organizer (HO), schlägt Aufstellung, Taktik und Wechsel für das nächste Spiel vor und schreibt
-das Ergebnis als HRF-Datei zurück, die HO zu Hattrick hochlädt. Alles läuft lokal im Browser.
+das Ergebnis als HRF-Datei zurück, die HO zu Hattrick hochlädt. Alles läuft lokal im Browser, hell oder dunkel.
 
-![Aufstellungsseite mit Spielfeld, Formationsvorschlag, Spielerkarten und Ersatzbank](docs/img/aufstellung.png)
+![Aufstellungsseite mit Spielfeld, Formationsvorschlag, Spielerliste und Ersatzbank](docs/img/aufstellung.png)
 
-<sub>Die Screenshots zeigen einen erfundenen Verein mit erfundenen Spielern und Werten; die Spielerbilder sind Hattrick-Avatare aus HO.</sub>
+<sub>Alle Screenshots zeigen einen erfundenen Verein mit erfundenen Spielern und Werten; die Spielerbilder sind Hattrick-Avatare aus HO.</sub>
 
-## Was TopHatt kann
+**Inhalt:** [Die Seiten](#die-seiten) · [Benutzen](#benutzen) · [Aufbau](#aufbau) · [Entwickeln](#entwickeln) · [Lizenz](#lizenz)
+
+## Die Seiten
+
+Die Seiten folgen dem Menü links in der App. Jeder Abschnitt lässt sich aufklappen.
 
 ### Spieltag
 
-- **Übersicht**: das nächste Spiel mit erwarteten HatStats, Formation, größter Schwachstelle und den folgenden Spielen.
-- **Aufstellung**: Spielfeld wie in HO (Torwart oben). Die Seite ist in sechs nummerierte Bereiche gegliedert:
-  1. **Spielfeld und Bank**: Formationsvorschlag als Karten (eingespielte Formationen zuerst), „Automatisch aufstellen“,
-     Trainingself, Spieler per Drag-and-drop oder Antippen aufstellen. Der Umschalter **Ansehen/Ändern** schützt vor
-     versehentlichem Verschieben. Eine **Spielerkarte** neben dem Feld zeigt Fertigkeiten, Form, Kondition und Verletzungen,
-     passende Positionen werden auf dem Feld hervorgehoben. Spielerbilder kommen aus HO; fehlt eins, zeichnet TopHatt
-     ein eigenes. Kaderfarben zeigen A-Kader, B-Kader und Rest.
-  2. **Taktik**: Empfehlung für Taktik, Einstellung und Ausrichtung aus der HO-Spielvorhersage, nur im Rahmen von
-     Trainertyp und Taktik-Assistenten.
-  3. **Auswechslungen und Anweisungen**: Vorschläge nach Kondition, Training und Einsatzzeit mit den Zielen Sieg,
-     Ausgewogen oder Training. **Automatisch** passt die Wechsel jeder Änderung der Aufstellung an, **Manuell** lässt sie
-     stehen. Geplante Wechsel erscheinen mit Minute auf Feld und Bank; Anweisungen, die nicht mehr zur Aufstellung passen,
-     werden markiert.
-  4. **Elfmeterschützen**: Reihenfolge wie in HO, automatisch oder von Hand.
-  5. **Reserve der Ersatzbank**: die zweite Bankreihe, automatisch der stärkste andere Bankspieler je Position.
-  6. **Speichern**: eine HRF-Datei mit Aufstellung, Taktik, Kapitän, Standards, Bank, Reserve, Elfmeterschützen und
-     Anweisungen für den Import in HO.
-- **Gegner-Check**: Stärke des Gegners aus seinen letzten Pflichtspielen (HO-Gegnercheck), Duell für Duell gegen die eigene Elf.
+<details open>
+<summary><b>Übersicht</b>: das nächste Spiel auf einen Blick</summary>
+<br>
 
-![Auswechslungs-Vorschläge mit Automatisch/Manuell und den Zielen Sieg, Ausgewogen, Training](docs/img/auswechslungen.png)
+Gegner, Anstoß, erwartete HatStats, Formation, größte Schwachstelle und die nächsten Spiele. Darunter Kacheln, die
+direkt zur passenden Seite führen.
 
-### Mannschaft und Planung
+![Übersicht](docs/img/spieltag.png)
+</details>
 
-- **Kader** nach Mannschaftsteilen mit Einsatzwert aus Positionsstärke, Kondition und Verletzung.
-- **Schwachstellen** je Mannschaftsteil für die eigene Aufstellung und Formation, mit dem stärksten Hebel.
-- **Spielerentwicklung** als Graph mit Prognose aus dem HO-Trainingsmodell und Alterswarnung.
-- **Kaderplanung**: wer trägt welchen Mannschaftsteil jetzt, in einer und in zwei Saisons, wo droht eine Lücke.
-- **Transfers**: Budget, Suchprofile für den Transfermarkt und Hinweise passend zu den Schwachstellen.
-- **Trainingswoche**: A-Kader und B-Kader, Plan für Liga-, Pokal- und Freundschaftsspiel nach Trainingsnutzen,
-  schon trainierte Spieler ausblenden.
-- **Trainer & Effizienz**: Trainingseffizienz wie die Hattrick-Sandbox, Kosten je Effizienzpunkt, günstigste Wege
-  zu mehr Effizienz und Trainerpreise.
+<details open>
+<summary><b>Aufstellung</b>: in sechs Schritten zur fertigen HRF-Datei</summary>
+<br>
+
+Spielfeld wie in HO (Torwart oben). Oben springt man über die nummerierten Knöpfe zu den Bereichen.
+
+<details open>
+<summary>1 · Spielfeld und Bank</summary>
+<br>
+
+- Formationsvorschlag als Karten, eingespielte Formationen zuerst; „Automatisch aufstellen“, „Trainingself“, „Feld leeren“.
+- **Ansehen/Ändern**: Im Ansehen-Modus zeigt ein Spieler beim Darüberfahren seine Karte, Antippen hält sie fest, nichts
+  verschiebt sich versehentlich. Im Ändern-Modus Spieler ziehen oder antippen; die Linien zeigen, wo er am besten passt.
+- Rahmenfarbe = Eignung für die Position, Kreisfarbe = Kader (A lila, B blau, Rest grau), Pfeile = geplante Wechsel mit Minute.
+
+**Spieler angeklickt:** Die Spielerkarte zeigt Alter, TSI, Gehalt, Form, Kondition, alle Fähigkeiten, die besten
+Positionen (in denselben Farben wie die Linien auf dem Feld) und die letzte Bewertung.
+
+![Spielerkarte nach Klick auf einen Spieler, Linien zu den passenden Positionen](docs/img/spielerkarte.png)
+</details>
+
+<details>
+<summary>2 · Taktik</summary>
+<br>
+
+Empfehlung für Taktik, Einstellung und Ausrichtung aus der HO-Spielvorhersage gegen die Gegnerstärke, mit Sieg-,
+Remis- und Niederlagenchance. Ausrichtungen gibt es nur, soweit Trainertyp und Taktik-Assistenten sie erlauben.
+
+![Taktik-Empfehlung](docs/img/taktik.png)
+</details>
+
+<details>
+<summary>3 · Auswechslungen und Anweisungen</summary>
+<br>
+
+Vorschläge nach Kondition, Training und Einsatzzeit mit den Zielen **Sieg**, **Ausgewogen** oder **Training**.
+**Automatisch** passt die Wechsel jeder Änderung der Aufstellung an, **Manuell** lässt sie stehen. Darunter die
+Anweisungen wie in HO; was nicht mehr zur Aufstellung passt, wird markiert.
+
+![Auswechslungs-Vorschläge und Anweisungen](docs/img/auswechslungen.png)
+</details>
+
+<details>
+<summary>4 · Elfmeterschützen</summary>
+<br>
+
+Reihenfolge wie in HO aus Erfahrung, Standards und Torschuss, automatisch oder von Hand sortiert.
+
+![Elfmeterschützen](docs/img/elfmeter.png)
+</details>
+
+<details>
+<summary>5 · Reserve und 6 · Speichern</summary>
+<br>
+
+Die Reserve ist die zweite Bankreihe: automatisch der stärkste andere Bankspieler je Position. „Für HO speichern“
+schreibt eine HRF-Datei mit Aufstellung, Taktik, Kapitän, Standards, Bank, Reserve, Elfmeterschützen und Anweisungen.
+
+![Reserve der Ersatzbank und Speichern](docs/img/reserve-speichern.png)
+</details>
+</details>
+
+<details>
+<summary><b>Gegner-Check</b>: wie stark ist der nächste Gegner?</summary>
+<br>
+
+Stärke des Gegners aus seinen letzten Pflichtspielen (HO-Gegnercheck), Ballbesitz und Duell für Duell gegen die eigene Elf.
+
+![Gegner-Check](docs/img/gegner.png)
+</details>
+
+### Mannschaft
+
+<details>
+<summary><b>Kader</b>: wer ist einsatzbereit, und wo?</summary>
+<br>
+
+Kader nach Mannschaftsteilen mit Einsatzwert aus Positionsstärke, Kondition und Verletzung; jeder Spieler einmal,
+wahlweise ausgewogen, nach bester Position oder wie aufgestellt.
+
+![Kader](docs/img/kader.png)
+</details>
+
+<details>
+<summary><b>Schwachstellen</b>: wo verliert die Mannschaft am meisten?</summary>
+<br>
+
+Bewertung je Mannschaftsteil für die eigene Aufstellung, der stärkste Hebel und ein Vergleich aller Formationen.
+
+![Schwachstellen](docs/img/schwachstellen.png)
+</details>
+
+<details>
+<summary><b>Spielerentwicklung</b>: wohin entwickelt sich ein Spieler?</summary>
+<br>
+
+Graph mit Prognose aus dem HO-Trainingsmodell, Altersabbau und Hinweis, wann ein Verkauf oder Ersatz ansteht.
+
+![Spielerentwicklung](docs/img/entwicklung.png)
+</details>
+
+### Planung
+
+<details>
+<summary><b>Kaderplanung</b>: wo droht in ein, zwei Saisons eine Lücke?</summary>
+<br>
+
+![Kaderplanung](docs/img/kaderplanung.png)
+</details>
+
+<details>
+<summary><b>Transfers</b>: welche Verstärkung bringt am meisten?</summary>
+<br>
+
+Budget, Suchprofile für den Transfermarkt und Kandidaten passend zu den Schwachstellen.
+
+![Transfers](docs/img/transfers.png)
+</details>
+
+<details>
+<summary><b>Trainingswoche</b>: wer spielt wo, damit möglichst viele trainieren?</summary>
+<br>
+
+A-Kader und B-Kader, Plan für Liga-, Pokal- und Freundschaftsspiel nach Trainingsnutzen.
+
+![Trainingswoche](docs/img/training.png)
+</details>
+
+<details>
+<summary><b>Trainer & Effizienz</b>: lohnt sich ein besserer Trainer?</summary>
+<br>
+
+Trainingseffizienz wie die Hattrick-Sandbox, Kosten je Effizienzpunkt, günstigste Wege zu mehr Effizienz und Trainerpreise.
+
+![Trainer & Effizienz](docs/img/trainer.png)
+</details>
 
 ### Saison und Verein
 
-- **Spielplan & Tabelle** der Liga.
-- **Finanzen**: Kontostand, Wochenbilanz, Personal und eine Ampel mit Prognose, ob geplante Ausgaben in die Schulden führen.
-- **Verlauf**: je Trainingswoche ein Schnappschuss von Training, Personal, Finanzen, Mannschaft und Kader, damit sich
-  der Plan über Wochen prüfen lässt. Export und Import als JSON.
+<details>
+<summary><b>Spielplan & Tabelle</b></summary>
+<br>
 
-Oben rechts schaltet ein Knopf zwischen **hell und dunkel**; die Wahl bleibt gespeichert.
+![Spielplan und Tabelle](docs/img/spielplan.png)
+</details>
 
-![Übersicht im dunklen Modus](docs/img/uebersicht-dunkel.png)
+<details>
+<summary><b>Finanzen</b>: kann sich der Verein das leisten?</summary>
+<br>
+
+Kontostand, Wochenbilanz, Personal und eine Ampel mit Prognose, ob geplante Ausgaben in die Schulden führen.
+
+![Finanzen](docs/img/finanzen.png)
+</details>
+
+<details>
+<summary><b>Verlauf</b>: geht der Plan über die Wochen auf?</summary>
+<br>
+
+Je Trainingswoche ein Schnappschuss von Training, Personal, Finanzen, Mannschaft und Kader; Export und Import als JSON.
+
+![Verlauf](docs/img/verlauf.png)
+</details>
 
 ## Benutzen
 
@@ -108,7 +242,7 @@ jar cfe sync/TopHattSync.jar TopHattSync -C sync/build .
 
 Zum Ausprobieren ohne eigene HO-Daten `dist/tophatt.html` öffnen und `test/fixtures/team.hrf` zusammen mit
 `test/fixtures/tophatt-data.json` ins Fenster ziehen. Auf diesen Daten beruhen auch die Screenshots in `docs/img`
-(Vereinsname geändert, Spielerbilder ergänzt).
+(Namen und einige Werte geändert, Spielerbilder ergänzt).
 
 ## Lizenz
 
