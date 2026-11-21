@@ -111,6 +111,36 @@ select,input[type=number]{font:inherit;font-size:14px;padding:6px 8px;border:1px
 .slot.weak{box-shadow:inset 3px 0 0 var(--critical)}
 .slot.soft{box-shadow:inset 3px 0 0 var(--warning)}
 
+/* Anweisungen & Elfmeter */
+.ord-block{border-top:1px solid var(--line);padding-top:6px;margin-top:14px}
+.ord-block:first-child{border-top:0;margin-top:0}
+.ord-block h3 .sub{font-weight:400;margin-left:6px}
+.ord-add{margin-bottom:10px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sm{padding:3px 8px;font-size:13px;min-width:30px;justify-content:center}
+.ord-row{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:var(--surface-2)}
+.ord-row.bad{border-color:var(--critical)}
+.ord-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.ord-top .sub{overflow-wrap:anywhere}
+.ord-row select,.ord-row input[type=number]{min-width:0}
+.ord-row input[type=number]{width:110px}
+.ord-row input[data-of=playerIn]{width:200px}
+.ord-row .ord-wide select{min-width:200px;max-width:100%}
+.ord-warn{margin:6px 0 0;padding-left:18px;color:var(--critical);font-size:13px}
+.pen-list{list-style:none;padding:0;margin:8px 0;display:grid;gap:4px}
+.pen-list li{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:4px 8px;background:var(--surface-2)}
+.pen-n{font-weight:700;width:22px;text-align:center;color:var(--brand)}
+.pen-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.pen-v{font-variant-numeric:tabular-nums;font-weight:600}
+.pen-add{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.chipbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:13px}
+.chipbtn:hover{border-color:var(--brand)}
+.bk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.bk-grid label{color:var(--muted)}
+.bk-own{color:var(--ink);font-weight:600}
+.bk-grid select{min-width:0;width:100%}
+@media (max-width:600px){.ord-row .controls label{flex:1 1 40%;min-width:0}.ord-row .controls select,.ord-row .controls input[type=number]{width:100%}.ord-row .ord-wide select{min-width:0;width:100%}.ord-row .ord-wide{flex:1 1 100%}.pen-list .sub{display:block}}
+
 /* Finanzen */
 .fin-tiles{margin-top:8px}
 .fin-tile .sub{font-size:12px;color:var(--muted)}
@@ -630,6 +660,7 @@ select.training{border-color:var(--brand);font-weight:600}
     <div class="navgroup">Spieltag</div>
     <a href="#spieltag" data-view="spieltag"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7l3 2-1 4h-4l-1-4z"/></svg>Übersicht</a>
     <a href="#aufstellung" data-view="aufstellung"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16M9 3v3h6V3M9 21v-3h6v3"/></svg>Aufstellung</a>
+    <a href="#anweisungen" data-view="anweisungen"><svg viewBox="0 0 24 24"><path d="M7 4v12M3 12l4 4 4-4M17 20V8M13 12l4-4 4 4"/></svg>Anweisungen &amp; Elfmeter</a>
     <a href="#gegner" data-view="gegner"><svg viewBox="0 0 24 24"><path d="M5 19l6-6M13 11l6-6M5 5l14 14"/></svg>Gegner-Check</a>
     <div class="navgroup">Mannschaft</div>
     <a href="#kader" data-view="kader"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14c3 0 5 2 5 5"/></svg>Kader</a>
@@ -726,6 +757,13 @@ select.training{border-color:var(--brand);font-weight:600}
       <details class="more"><summary>Details: Wirkung der Einstellungen und Änderungen gegenüber dem Vorschlag</summary>
         <div id="explainOut"></div>
       </details>
+    </section>
+
+    <section class="card" id="anweisungen" data-view="anweisungen">
+      <header><h2>Anweisungen &amp; Elfmeter</h2><span class="sub">Auswechslungen, Verhalten, Positionstausch, Manndeckung, Elfmeterschützen und Reserve der Bank, wie in HO</span>
+        <button class="btn primary" id="saveOrders" title="Aufstellung samt Anweisungen als HRF für HO speichern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Für HO speichern</button></header>
+      <p class="sub">Gilt für die Aufstellung auf der Seite <a href="#aufstellung">Aufstellung</a> und wird beim Speichern mitgeschrieben. HO zeigt alles danach unter Aufstellung → Auswechslungen / Anweisungen und Elfmeterschützen.</p>
+      <div id="ordersOut"></div>
     </section>
 
     <section class="card" id="schwachstellen" data-view="schwachstellen">

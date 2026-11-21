@@ -23,6 +23,8 @@ import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 import { type FinanceSnapshot, type PastWeek, parseFinance, pastWeeks } from "../core/finance";
 import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
+import { initOrdersPage, loadOrders, ordersBlocking, ordersSummary, renderOrdersPage, withOrders } from "./orders-view";
+import { teamPlayers } from "../core/hodata";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -401,6 +403,7 @@ function compute() {
     updateAnalysis();
     const m = state.match;
     state.opponent = m && state.ho ? opponentProfile(state.ho.matchRatings, m.homeId === hrf.team.teamId ? m.awayId : m.homeId) : null;
+    loadOrders(m?.id || hrf.lineupMatchId);
     $("#error").textContent = "";
   } catch (e) {
     $("#error").textContent = (e as Error).message;
@@ -468,6 +471,7 @@ function render() {
   renderTiles();
   renderOpponent();
   renderLineup();
+  renderOrdersPage();
   renderWeakness();
   renderDevelopment();
   renderPlan();
@@ -1412,6 +1416,7 @@ function renderLineup() {
       <tr><td class="muted">Kapitän</td><td>${who(C.captainId, C.captainId === ch.captainId)}</td></tr>
       <tr><td class="muted">Standards</td><td>${who(C.setPiecesId, C.setPiecesId === ch.setPiecesId)}</td></tr>
       <tr><td class="muted">Ersatzbank</td><td>${benchCount} von 7 Plätzen besetzt${Object.keys(ch.bench ?? {}).length ? ` <span class="muted">(${Object.keys(ch.bench!).length} von dir)</span>` : ""}</td></tr>
+      <tr><td class="muted">Anweisungen</td><td><span id="ordersInfo">${ordersSummary()}</span> · <a href="#anweisungen">Auswechslungen, Elfmeter, Reserve</a></td></tr>
       <tr><td class="muted"><abbr title="LoddarStats (aus HO) gewichten wie HatStats die Mannschaftsteile, berücksichtigen aber auch, wohin die Angriffe laufen und die Konterstärke. Höher ist besser.">LoddarStats</abbr></td><td>${de(loddarStats(mine.ratings, state.settings.tactic, tl), 1)}</td></tr>
     </tbody></table>
     <p class="sub">Spieler auf dem Feld antippen, um Kapitän und Standards zu setzen. Die Bank stellst du unter dem Feld zusammen. Alles wird so für HO gespeichert.</p>
@@ -2682,8 +2687,8 @@ function renderSquad() {
 
 // --- Navigation ------------------------------------------------------------------------
 
-const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "trainer", "spielplan", "finanzen", "verlauf"];
-const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training", historie: "verlauf" };
+const VIEWS = ["spieltag", "aufstellung", "anweisungen", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "trainer", "spielplan", "finanzen", "verlauf"];
+const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training", historie: "verlauf", elfmeter: "anweisungen", auswechslungen: "anweisungen" };
 let currentView = "";
 
 function route() {
@@ -2695,6 +2700,7 @@ function route() {
   if (v !== currentView) {
     window.scrollTo(0, 0);
     if (v === "aufstellung") requestAnimationFrame(kickoffAnimation);
+    if (v === "anweisungen") renderOrdersPage();
     // eigene Aufstellung kann sich geändert haben
     if (v === "schwachstellen" || v === "transfers" || v === "spieltag" || v === "kaderplanung") {
       updateAnalysis();
@@ -2939,12 +2945,14 @@ function init() {
   });
   $("#dlLeague").addEventListener("click", () => {
     if (!state.hrf) return;
-    const problems = lineupProblems(state.manual, playersById());
+    const byId = playersById();
+    const lineup = myLineup();
+    const problems = [...lineupProblems(state.manual, byId), ...ordersBlocking(lineup, byId, state.hrf.team.tacticalAssistants)];
     if (problems.length) {
       $("#error").textContent = problems.join(" ");
       return;
     }
-    download(myLineup(), "liga");
+    download(withOrders(lineup, byId), "liga");
   });
   initEditor();
   initEditorHint();
@@ -2954,6 +2962,21 @@ function init() {
   initTrainingWeek();
   initPlayerCard();
   initTrainerPage($("#trainerOut"));
+  initOrdersPage($("#ordersOut"), {
+    lineup: () => myLineup(),
+    byId: playersById,
+    tacticalAssistants: () => state.hrf?.team.tacticalAssistants ?? 0,
+    opponent: () => {
+      const m = state.match;
+      const hrf = state.hrf;
+      if (!m || !hrf || !state.ho) return null;
+      const home = m.homeId === hrf.team.teamId;
+      return { name: home ? m.awayName : m.homeName, players: teamPlayers(state.ho, home ? m.awayId : m.homeId) };
+    },
+    changed: () => {
+      $("#ordersInfo").textContent = ordersSummary();
+    },
+  });
   initHistory(() => state.folder);
   $("#dlFriendly").addEventListener("click", () => {
     const x = secondLineup();
@@ -3013,6 +3036,7 @@ function initSaveBar() {
     if ($("#error").textContent) $("#error").scrollIntoView({ behavior: "smooth", block: "center" });
   };
   $("#saveTop").addEventListener("click", save);
+  $("#saveOrders").addEventListener("click", save);
   $("#saveBarBtn").addEventListener("click", save);
   const bar = $("#saveBar");
   if ("IntersectionObserver" in window) {
