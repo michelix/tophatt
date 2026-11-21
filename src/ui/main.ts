@@ -2886,6 +2886,7 @@ function init() {
     e.preventDefault();
     input.click();
   });
+  initTheme();
   $("#refresh").addEventListener("click", refresh);
   $("#openSettings").addEventListener("click", openSettings);
   $("#closeSettings").addEventListener("click", () => $<HTMLDialogElement>("#settings").close());
@@ -2917,6 +2918,28 @@ function init() {
   // Countdown und Datenstand jede Minute auffrischen
   setInterval(() => state.hrf && (renderHero(), renderDataChip()), 60_000);
   initFolder();
+}
+
+/** Hell/Dunkel: ohne gespeicherte Wahl folgt die App dem System. */
+function initTheme() {
+  const KEY = "tophatt.theme";
+  const root = document.documentElement;
+  const sysDark = () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+  const current = () => (root.dataset.theme === "light" || root.dataset.theme === "dark" ? root.dataset.theme : sysDark() ? "dark" : "light");
+  const btn = $<HTMLButtonElement>("#themeBtn");
+  const label = () => {
+    const next = current() === "dark" ? "hellen" : "dunklen";
+    btn.title = `Zum ${next} Modus wechseln`;
+    btn.setAttribute("aria-label", btn.title);
+  };
+  btn.addEventListener("click", () => {
+    const next = current() === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem(KEY, next); } catch { /* ohne Speicher nur für diese Sitzung */ }
+    label();
+  });
+  window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", label);
+  label();
 }
 
 /** Bedienhinweis nur zeigen, bis das Feld einmal bearbeitet wurde. */
