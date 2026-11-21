@@ -20,6 +20,7 @@ import { FORMATIONS, behavioursFor } from "../core/optimizer";
 import { ATTITUDE_NAME, TACTIC_NAME, centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
 import { Behaviour, type BenchSlot, type FieldPosition } from "../core/model";
 import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
+import { initTrainerPage, renderTrainerPage } from "./trainer";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -449,6 +450,7 @@ function render() {
   renderAdvice();
   renderSquad();
   renderGroups();
+  renderTrainerPage($("#trainerOut"), hrf.raw);
   renderHistory();
   route();
 }
@@ -2653,7 +2655,7 @@ function renderSquad() {
 
 // --- Navigation ------------------------------------------------------------------------
 
-const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "spielplan", "verlauf"];
+const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "trainer", "spielplan", "verlauf"];
 const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training", historie: "verlauf" };
 let currentView = "";
 
@@ -2924,6 +2926,7 @@ function init() {
   initNav();
   initTrainingWeek();
   initPlayerCard();
+  initTrainerPage($("#trainerOut"));
   initHistory(() => state.folder);
   $("#dlFriendly").addEventListener("click", () => {
     const x = secondLineup();
