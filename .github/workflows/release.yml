@@ -26,7 +26,7 @@ jobs:
         run: |
           name="TopHatt-${{ github.event.release.tag_name }}"
           mkdir -p "pkg/$name/dist" "pkg/$name/sync"
-          cp TopHatt.bat README.md COPYING COPYING.LESSER "pkg/$name/"
+          cp TopHatt.bat README.md README.de.md COPYING COPYING.LESSER "pkg/$name/"
           cp dist/tophatt.html "pkg/$name/dist/"
           cp sync/TopHattSync.jar "pkg/$name/sync/"
           (cd pkg && zip -r "../$name.zip" "$name")
