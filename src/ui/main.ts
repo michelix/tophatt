@@ -1097,8 +1097,9 @@ function drawFlow() {
   const ed = document.querySelector<HTMLElement>("#aufstellung .editor");
   if (!ed) return;
   ed.querySelector("svg.flow")?.remove();
-  ed.querySelectorAll(".flow-target,.flow-hint").forEach((x) => {
-    x.classList.remove("flow-target", "flow-hint");
+  ed.classList.remove("flow-focus");
+  ed.querySelectorAll(".flow-target,.flow-hint,.flow-src").forEach((x) => {
+    x.classList.remove("flow-target", "flow-hint", "flow-src");
     delete (x as HTMLElement).dataset.fq;
   });
   const pick = state.pick;
@@ -1169,6 +1170,9 @@ function drawFlow() {
     );
   }
   ed.insertAdjacentHTML("beforeend", `<svg class="flow" aria-hidden="true">${parts.join("")}</svg>`);
+  // Hervorheben: in Frage kommende Positionen und der Spieler selbst bleiben, alles andere tritt zurück
+  srcEl.closest(".slot, .bslot")?.classList.add("flow-src");
+  ed.classList.add("flow-focus");
 }
 
 function poolHtml(): string {
