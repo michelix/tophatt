@@ -141,6 +141,20 @@ select,input[type=number]{font:inherit;font-size:14px;padding:6px 8px;border:1px
 .bk-grid select{min-width:0;width:100%}
 @media (max-width:600px){.ord-row .controls label{flex:1 1 40%;min-width:0}.ord-row .controls select,.ord-row .controls input[type=number]{width:100%}.ord-row .ord-wide select{min-width:0;width:100%}.ord-row .ord-wide{flex:1 1 100%}.pen-list .sub{display:block}}
 
+.step{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--brand);color:var(--brand-ink);font-size:12px;font-weight:700;margin-right:8px;flex:none}
+.sect-title{display:flex;align-items:baseline;gap:6px;margin:10px 0 6px}
+.sect-title .step,.mplan h3 .step{align-self:center}
+.mplan h3 .step{margin-right:-4px}
+.sect-title .step{margin-right:2px}
+@media (max-width:600px){.sect-nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-right:-16px;padding-right:16px}.sect-nav button{flex:none}}
+.mplan.sect{margin-top:14px}
+.sect-sub{margin-top:14px}
+.sect-nav{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+.sect-nav button{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 12px 3px 4px;font-size:13px;cursor:pointer}
+.sect-nav button:hover{border-color:var(--brand)}
+.sect-nav .step{width:18px;height:18px;font-size:11px;margin-right:6px}
+.sug-block{margin:6px 0 4px}
+.sug-sub{text-transform:none;letter-spacing:0;font-weight:400}
 .sug-list{list-style:none;padding:0;margin:8px 0}
 .sug-row{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0;background:var(--surface)}
 .sug-min{font-weight:700;font-variant-numeric:tabular-nums;min-width:34px;font-size:15px}
@@ -804,7 +818,16 @@ select.training{border-color:var(--brand);font-weight:600}
     <section class="card" id="aufstellung" data-view="aufstellung">
       <header><h2>Aufstellung für dieses Spiel</h2><span class="sub" id="lineupSub"></span>
         <label class="inline loc">Spielort<select id="location"><option value="1">Heimspiel</option><option value="0">Auswärtsspiel</option><option value="2">Auswärts-Derby</option></select></label></header>
+      <nav class="sect-nav" aria-label="Bereiche dieser Seite">
+        <button data-goto="secField"><span class="step">1</span>Aufstellung</button>
+        <button data-goto="planCard"><span class="step">2</span>Taktik</button>
+        <button data-goto="secSubs"><span class="step">3</span>Auswechslungen</button>
+        <button data-goto="secPens"><span class="step">4</span>Elfmeter</button>
+        <button data-goto="secBackup"><span class="step">5</span>Reserve</button>
+        <button data-goto="secSave"><span class="step">6</span>Speichern</button>
+      </nav>
       <div id="lineupWarn"></div>
+      <h3 class="sect-title" id="secField"><span class="step">1</span>Aufstellung <span class="sub">Spielfeld und Bank</span></h3>
       <div class="editor-bar">
         <div class="seg mode-seg" id="modeSeg" role="group" aria-label="Ansehen oder ändern"></div>
         <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
@@ -822,7 +845,7 @@ select.training{border-color:var(--brand);font-weight:600}
         </div>
       </div>
       <div class="mplan" id="planCard">
-        <h3>Taktik <span class="sub" id="planOpp"></span></h3>
+        <h3><span class="step">2</span>Taktik <span class="sub" id="planOpp"></span></h3>
         <div id="planWarn"></div>
         <div class="mp-cols">
           <div class="mp-box"><div class="mp-head">Deine Einstellung</div>
@@ -839,14 +862,11 @@ select.training{border-color:var(--brand);font-weight:600}
         <ul class="sub mp-notes" id="planNotes"></ul>
         <div id="planMore"></div>
       </div>
-      <div class="mplan orders-area" id="ordersArea">
-        <h3 style="margin-top:0">Reserve, Elfmeter und Anweisungen <span class="sub">gehören zu dieser Aufstellung und passen sich an, wenn du sie änderst</span></h3>
-        <div id="ordersOut"></div>
-      </div>
+      <div class="orders-area" id="ordersArea"><div id="ordersOut"></div></div>
       <div class="grid2 finish">
         <div id="lineupSide"></div>
         <div>
-          <h3 style="margin-top:0">Für HO speichern</h3>
+          <h3 style="margin-top:0" id="secSave"><span class="step">6</span>Für HO speichern</h3>
           <div class="controls">
             <label>Spiel-ID<input id="matchId" type="number"></label>
             <label>Spielart<select id="matchType"><option value="1">Liga</option><option value="3">Pokal</option></select></label>

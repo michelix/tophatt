@@ -242,26 +242,27 @@ export function renderOrdersPage() {
   };
 
   root.innerHTML = `
-    ${suggestionsBlock(l, byId)}
-    <div class="ord-block">
-      <h3>Reserve der Ersatzbank <span class="sub">zweite Reihe in HO · passt sich der Bank an</span></h3>
-      <p class="sub">Wird für eine Position ein Ersatz gebraucht (Verletzung) und der Bankspieler dieses Platzes ist schon im Spiel, kommt die Reserve. Sie sitzt selbst auf einem anderen Bankplatz, bringt also keinen zusätzlichen Spieler. Automatisch: der stärkste andere Bankspieler für diese Position.</p>
-      <div class="controls bk-grid">${BENCH_NAME.map(backupRow).join("")}</div>
-    </div>
-    <div class="ord-block">
-      <h3>Elfmeterschützen <span class="sub">${pens.length} von 11 · ${fixed ? `${fixed} von dir, Rest automatisch` : "automatisch wie HO"}</span></h3>
-      ${fixed || store.excluded.length ? `<div class="controls"><button class="btn" data-pauto>Wieder alles automatisch</button></div>` : ""}
-      ${pens.length ? `<ol class="pen-list">${pens.map(penRow).join("")}</ol>` : `<p class="sub">Keine Schützen. Dann wählt Hattrick selbst.</p>`}
-      ${cands.length && pens.length < 11 ? `<div class="pen-add"><span class="sub">Hinzufügen:</span> ${cands.map((p) => `<button class="chipbtn" data-padd="${p.id}">${esc(p.name.split(" ").slice(-1)[0])} <span class="sub">${de(penaltyStrength(p))}</span></button>`).join("")}</div>` : ""}
-      <p class="sub">Aus Startelf und Bank, stärkste zuerst wie HO (1,5 × Erfahrung + 0,7 × Standards + 0,3 × Torschuss, mit Form und Treue, Ballzauberer +10 %). Verschieben macht die Reihenfolge zu deiner, neue Spieler der Aufstellung werden hinten automatisch ergänzt. Gilt fürs Elfmeterschießen (Pokal und Entscheidungsspiele).</p>
-    </div>
-    <div class="ord-block">
-      <h3>Auswechslungen &amp; Anweisungen <span class="sub">${counted} von ${limit} (5 + Taktik-Assistent Stufe ${ta})${hasMarking ? " · plus 1 Manndeckung" : ""}</span></h3>
+    <section class="mplan sect" id="secSubs">
+      <h3><span class="step">3</span>Auswechslungen &amp; Anweisungen <span class="sub">${counted} von ${limit} Anweisungen (5 + Taktik-Assistent Stufe ${ta})${hasMarking ? " · plus 1 Manndeckung" : ""} · davon höchstens ${MAX_SUBSTITUTIONS} Wechsel</span></h3>
+      ${suggestionsBlock(l, byId)}
+      <div class="mp-head sect-sub">Deine Anweisungen</div>
       <div class="controls ord-add">${addBtn("sub", "Auswechslung", full)}${addBtn("behaviour", "Verhalten", full)}${addBtn("swap", "Positionstausch", full)}${addBtn("marking", "Manndeckung", hasMarking)}
         ${store.orders.length ? `<button class="btn" data-oclear>Alle löschen</button>` : ""}</div>
       ${store.orders.map((o, i) => renderOrder(o, i, store.orders.length, l, byId, problems[i])).join("") || `<p class="sub">Noch keine Anweisungen. Ohne Anweisungen wechselt Hattrick nur bei Verletzungen aus.</p>`}
       <p class="sub">Bedingungen wie in Hattrick: Die Anweisung gilt ab der Minute, sobald Spielstand und Rote Karten passen. Hattrick führt die Anweisungen in dieser Reihenfolge aus. Spieler, die nicht mehr in der Aufstellung stehen, werden rot markiert.</p>
-    </div>`;
+    </section>
+    <section class="mplan sect" id="secPens">
+      <h3><span class="step">4</span>Elfmeterschützen <span class="sub">${pens.length} von 11 · ${fixed ? `${fixed} von dir, Rest automatisch` : "automatisch wie HO"}</span></h3>
+      ${fixed || store.excluded.length ? `<div class="controls"><button class="btn" data-pauto>Wieder alles automatisch</button></div>` : ""}
+      ${pens.length ? `<ol class="pen-list">${pens.map(penRow).join("")}</ol>` : `<p class="sub">Keine Schützen. Dann wählt Hattrick selbst.</p>`}
+      ${cands.length && pens.length < 11 ? `<div class="pen-add"><span class="sub">Hinzufügen:</span> ${cands.map((p) => `<button class="chipbtn" data-padd="${p.id}">${esc(p.name.split(" ").slice(-1)[0])} <span class="sub">${de(penaltyStrength(p))}</span></button>`).join("")}</div>` : ""}
+      <p class="sub">Aus Startelf und Bank, stärkste zuerst wie HO (1,5 × Erfahrung + 0,7 × Standards + 0,3 × Torschuss, mit Form und Treue, Ballzauberer +10 %). Verschieben macht die Reihenfolge zu deiner, neue Spieler der Aufstellung werden hinten automatisch ergänzt. Gilt fürs Elfmeterschießen (Pokal und Entscheidungsspiele).</p>
+    </section>
+    <section class="mplan sect" id="secBackup">
+      <h3><span class="step">5</span>Reserve der Ersatzbank <span class="sub">zweite Reihe in HO · passt sich der Bank an</span></h3>
+      <p class="sub">Wird für eine Position ein Ersatz gebraucht (Verletzung) und der Bankspieler dieses Platzes ist schon im Spiel, kommt die Reserve. Sie sitzt selbst auf einem anderen Bankplatz, bringt also keinen zusätzlichen Spieler. Automatisch: der stärkste andere Bankspieler für diese Position.</p>
+      <div class="controls bk-grid">${BENCH_NAME.map(backupRow).join("")}</div>
+    </section>`;
 }
 
 // --- Auswechslungs-Vorschläge -------------------------------------------------------------
@@ -295,8 +296,8 @@ function suggestionsBlock(l: Lineup, byId: Map<number, Player>): string {
   const thumbs = ruleOfThumb();
   const fmt = (m: number | null) => (m === null ? "–" : `${m}′`);
   const modeBtn = (m: SubMode) => `<button class="${m === mode ? "on" : ""}" data-smode="${m}">${SUB_MODE_DE[m]}</button>`;
-  return `<div class="ord-block sug-block">
-      <h3>Auswechslungs-Vorschläge <span class="sub">nach Kondition, Training und Einsatzzeit · höchstens ${MAX_SUBSTITUTIONS} Wechsel je Spiel${existing ? `, ${existing} schon geplant` : ""}</span></h3>
+  return `<div class="mp-box sug-block">
+      <div class="mp-head">Vorschläge <span class="sug-sub">nach Kondition, Training und Einsatzzeit${existing ? ` · ${existing} von ${MAX_SUBSTITUTIONS} Wechseln schon geplant` : ""}</span></div>
       <div class="controls"><div class="seg" role="group" aria-label="Ziel">${(["sieg", "ausgewogen", "training"] as SubMode[]).map(modeBtn).join("")}</div>
         ${lastSuggestions.length > 1 ? `<button class="btn" data-saddall ${full ? "disabled" : ""}>Alle übernehmen</button>` : ""}</div>
       <p class="sub">${SUB_MODE_DE[mode]}: ${MODE_HINT[mode]}${store.subMode ? "" : " (passend zur Spielart gewählt)"}</p>
