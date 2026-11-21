@@ -23,7 +23,7 @@ import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 import { type FinanceSnapshot, type PastWeek, parseFinance, pastWeeks } from "../core/finance";
 import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
-import { initOrdersPage, loadOrders, ordersBlocking, ordersSummary, renderOrdersPage, withOrders } from "./orders-view";
+import { type PlannedMove, initOrdersPage, loadOrders, ordersBlocking, ordersSummary, plannedMoves, renderOrdersPage, withOrders } from "./orders-view";
 import { teamPlayers } from "../core/hodata";
 import { avatarHtml, cutoutAvatars } from "./avatar";
 import { LEVEL_DE } from "../core/staff";
@@ -897,8 +897,24 @@ function tokenFace(p: Player): string {
   return `<span class="tk-img" aria-hidden="true">${avatarHtml(p.id, state.ho?.avatars, shirtNo(p), false)}</span><span class="sr-only">${esc(initials(p.name))}</span>`;
 }
 
+/** Wechsel-Markierung unter einem Spieler: ▼ raus, ▲ rein, ⇄ Tausch, mit Minute und Gegenüber */
+function movePills(id: number, moves: Map<number, PlannedMove[]>, byId: Map<number, Player>): string {
+  const list = moves.get(id);
+  if (!list) return "";
+  const last = (pid: number) => (byId.get(pid)?.name ?? "?").split(" ").slice(-1)[0];
+  return list
+    .map((m) => {
+      const icon = m.kind === "out" ? "▼" : m.kind === "in" ? "▲" : "⇄";
+      const verb = m.kind === "out" ? `geht in Minute ${m.minute} raus, für ${byId.get(m.other)?.name ?? "?"}` : m.kind === "in" ? `kommt in Minute ${m.minute} für ${byId.get(m.other)?.name ?? "?"}` : `tauscht in Minute ${m.minute} mit ${byId.get(m.other)?.name ?? "?"}`;
+      const title = `${byId.get(id)?.name ?? ""} ${verb}${m.cond ? ` (nur wenn ${m.cond})` : ""}`;
+      return `<button type="button" class="subpill ${m.kind}" data-goto="secSubs" title="${esc(title)}"><b>${icon}</b>${m.minute}′${m.cond ? "*" : ""}<span class="sp-who"> ${esc(m.kind === "in" ? `für ${last(m.other)}` : last(m.other))}</span></button>`;
+    })
+    .join("");
+}
+
 function editPitch(): string {
   const byId = playersById();
+  const moves = plannedMoves();
   const L = state.league!;
   const C = myLineup();
   const fit = fitTable(state.hrf!.players);
@@ -927,13 +943,14 @@ function editPitch(): string {
       <div class="token av tk-${tierOf(pos.playerId) ?? "R"} ${fc}">${p ? tokenFace(p) : "?"}${p ? `<span class="stat">${de(playerPositionRating(p, role, pos.behaviour), 1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}${trainingBadge(pos.playerId)}${pos.behaviour ? `<span class="bh" title="${BEHAVIOUR_DE[pos.behaviour]}">${BEHAVIOUR_SHORT[pos.behaviour]}</span>` : ""}</div>
       <div class="pname">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
       <div class="meta">Form ${p?.form ?? "-"} · Kond. ${p?.stamina ?? "-"} ${tags}</div>
+      ${movePills(pos.playerId, moves, byId)}
     </div>`;
   });
   const mine = manualEval();
   return `<div class="field">${FIELD_LINES}<div class="pitch edit">${slots.join("")}</div>
     <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats${hsDiff(mine.hatStats - L.hatStats)}</span><span>${state.manual.length}/11</span></div></div>
     ${benchHtml(C)}
-    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span><span class="tk-legend"><i class="tk-A"></i>A-Kader <i class="tk-B"></i>B-Kader <i class="tk-R"></i>Rest · Kreisfarbe = Kader (änderbar unter Trainingswoche)</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
+    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span><span class="tk-legend"><i class="tk-A"></i>A-Kader <i class="tk-B"></i>B-Kader <i class="tk-R"></i>Rest · Kreisfarbe = Kader (änderbar unter Trainingswoche)</span><span><b class="lg-out">▼</b> raus · <b class="lg-in">▲</b> rein · <b class="lg-swap">⇄</b> Tausch, mit Minute (* = nur unter Bedingung) · antippen öffnet die Anweisungen</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
 `;
 }
 
@@ -953,6 +970,7 @@ const BENCH_ROLE: Record<BenchSlot, number> = {
 /** Ersatzbank als zweite Reihe unter dem Feld */
 function benchHtml(C: Lineup): string {
   const byId = playersById();
+  const moves = plannedMoves();
   const pick = state.pick;
   const fixed = state.choices.bench ?? {};
   const cells = BENCH_ORDER.map((slot) => {
@@ -967,7 +985,7 @@ function benchHtml(C: Lineup): string {
       <div class="role">${BENCH_SHORT[slot]}</div>
       <div class="token av tk-${tierOf(p.id) ?? "R"}">${tokenFace(p)}<span class="stat">${de(v, 1)}</span>${trainingBadge(p.id)}</div>
       <div class="pname">${esc(p.name.split(" ").slice(-1)[0])}</div>
-      <div class="meta">${own ? "von dir" : "auto"}</div>
+      ${moves.has(p.id) ? movePills(p.id, moves, byId) : `<div class="meta">${own ? "von dir" : "auto"}</div>`}
     </div>`;
   });
   return `<div class="bench" aria-label="Ersatzbank"><div class="bench-head">Ersatzbank <span>ziehen oder antippen zum Ändern</span></div><div class="bench-row">${cells.join("")}</div></div>`;
@@ -1848,7 +1866,7 @@ function initEditor() {
   // Tippen statt Ziehen (Handy): erst Spieler, dann Ziel
   root.addEventListener("click", (e) => {
     const el = e.target as HTMLElement;
-    if (el.closest("#modeSeg")) return;
+    if (el.closest("#modeSeg") || el.closest(".subpill")) return;
     if (el.closest("#choicesReset")) {
       state.choices = {};
       return editorChanged();
@@ -3260,6 +3278,10 @@ function init() {
       matchType: Number($<HTMLSelectElement>("#matchType").value) || 1,
     }),
     changed: () => {
+      if (state.league) {
+        $("#pitchOut").innerHTML = editPitch();
+        drawFlow();
+      }
       const info = document.querySelector("#ordersInfo");
       if (info && state.hrf) info.textContent = ordersSummary(myLineup(), playersById());
     },

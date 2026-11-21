@@ -119,6 +119,32 @@ export function withOrders(l: Lineup, byId: Map<number, Player>): Lineup {
   return { ...l, backups: autoBackups(l.bench, byId, store.backups), penaltyTakers: penaltiesFor(l, byId).ids, orders: store.orders.map((o) => ({ ...o })) };
 }
 
+/** Geplante Auswechslungen und Positionstausche für die Anzeige auf Feld und Bank */
+export interface PlannedMove {
+  kind: "out" | "in" | "swap";
+  minute: number;
+  /** der andere Spieler */
+  other: number;
+  /** Bedingung als Text, leer = immer */
+  cond: string;
+}
+
+export function plannedMoves(): Map<number, PlannedMove[]> {
+  const map = new Map<number, PlannedMove[]>();
+  const add = (id: number, m: PlannedMove) => id && map.set(id, [...(map.get(id) ?? []), m]);
+  for (const o of store.orders) {
+    const cond = [o.standing >= 0 ? STANDING_DE.find(([v]) => v === o.standing)?.[1] : "", o.card >= 0 ? CARD_DE.find(([v]) => v === o.card)?.[1] : ""].filter(Boolean).join(", ");
+    if (o.kind === "sub" && o.playerOut && o.playerIn) {
+      add(o.playerOut, { kind: "out", minute: o.minute, other: o.playerIn, cond });
+      add(o.playerIn, { kind: "in", minute: o.minute, other: o.playerOut, cond });
+    } else if (o.kind === "swap" && o.playerOut && o.playerIn) {
+      add(o.playerOut, { kind: "swap", minute: o.minute, other: o.playerIn, cond });
+      add(o.playerIn, { kind: "swap", minute: o.minute, other: o.playerOut, cond });
+    }
+  }
+  return map;
+}
+
 /** Fehler in den Anweisungen, die das Speichern verhindern */
 export function ordersBlocking(l: Lineup, byId: Map<number, Player>, tacticalAssistants: number): string[] {
   return orderProblems(store.orders, l, byId, tacticalAssistants).flatMap((ps, i) => ps.map((p) => `Anweisung ${i + 1} (${ORDER_KIND_DE[store.orders[i].kind]}): ${p}`));
