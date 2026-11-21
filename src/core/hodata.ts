@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Daten aus der HO-Datenbank, die TopHatt-Sync als tophatt-data.json exportiert:
 // Spielplan, Tabelle, Spielerhistorie, Training.
 

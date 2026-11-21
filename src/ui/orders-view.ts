@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Seite „Anweisungen & Elfmeter“: Auswechslungen/Anweisungen, Elfmeterschützen und Reserve-Reihe der Bank,
 // wie in HO (Reiter Aufstellung → Auswechslungen / Anweisungen, Elfmeterschützen). Logik in core/orders.ts.
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // HRF-Dateien (Hattrick Organizer Export) lesen und eine Aufstellung hineinschreiben.
 // Format: INI-ähnlich, Abschnitte [basics], [team], [lineup], [playerNNN] ...
 // Die Abschnittsnamen und Schlüssel stammen aus HOs HRFStringBuilder/HRFStringParser.

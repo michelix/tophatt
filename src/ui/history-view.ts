@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Seite „Verlauf“: Wochen-Schnappschüsse speichern, anzeigen, exportieren.
 // Speicherorte: localStorage (immer) und, wenn erlaubt, tophatt-verlauf.json im verbundenen Datenordner.
 

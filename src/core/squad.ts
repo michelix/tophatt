@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Kaderplanung je Position: Wer trägt die Mannschaftsteile heute, in einer und in zwei Saisons?
 // Grundlage sind die projizierten Fertigkeiten (Training und Altersabbau aus development.ts) und die
 // Positionsstärke aus HO (playerPositionRating).

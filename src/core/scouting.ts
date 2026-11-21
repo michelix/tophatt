@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Transfer-Suchprofil: aus Schwachstellen und Kaderplanung konkrete Filterwerte für den Transfermarkt ableiten.
 
 import type { Player } from "./model";

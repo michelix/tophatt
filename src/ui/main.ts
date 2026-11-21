@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // TopHatt-Oberfläche: eine einzige HTML-Seite, läuft offline im Browser. Keine Daten verlassen den Rechner.
 
 import { DATA_FILE, type DirHandle, allExports, askPermission, chooseFolder, fileByName, folderApiAvailable, hasPermission, newestFile, storedFolder } from "./folder";

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Ordner mit HO-Exporten einmal verbinden, danach immer die neueste .hrf-Datei laden.
 // Nutzt die File System Access API (Chrome/Edge). Der Ordner-Zugriff wird in IndexedDB gemerkt.
 

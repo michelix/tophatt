@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Taktikstärke und LoddarStats (aus HO RatingPredictionModel portiert) sowie die Wirkung von
 // Spielort, Taktik, Einstellung und Ausrichtung gegenüber "Normal".
 

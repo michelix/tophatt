@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Auswechslungs-Vorschläge nach Kondition, Training und Einsatzzeit.
 //
 // Regeln (Hattrick-Regeln „Training“ und „Spielereigenschaften“, HO RatingPredictionModel.calcStamina):

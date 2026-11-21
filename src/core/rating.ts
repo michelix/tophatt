@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Bewertungsmodell (Ratings, HatStats) – TypeScript-Portierung von
 // Hattrick Organizer core/rating/RatingPredictionModel.java (LGPL-3.0).
 // Die Formeln stammen von "Schum": Σ [ (S+Eff(L)) * K(F) * C * K(P) + Eff(Exp) ]

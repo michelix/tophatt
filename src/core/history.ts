@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Verlauf: je Trainingswoche ein Schnappschuss aller wichtigen Einstellungen und Ergebnisse,
 // damit sich der Aufstiegsplan über Wochen prüfen lässt (Training, Trainer/Assistenten,
 // Personal, Finanzen, Mannschaft, Kader). Quelle ist die HRF-Datei aus HO; das Archiv

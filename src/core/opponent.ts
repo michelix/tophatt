@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Gegnerstärke: Bewertungen aus den Spielen des Gegners (HO lädt sie mit dem Gegnercheck) mitteln
 // und den erwarteten eigenen Bewertungen gegenüberstellen.
 

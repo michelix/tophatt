@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Seite „Finanzen“: Kontostand, Wochenbilanz, Personal und eine Was-wäre-wenn-Prognose,
 // damit Trainer-/Assistenten-Investitionen den Verein nicht in die Schulden treiben.
 

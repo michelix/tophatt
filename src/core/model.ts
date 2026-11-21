@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Datenmodell des Prototyps. Feldnamen sind deutsch/englisch gemischt wie in Hattrick üblich,
 // die HRF-Schlüssel (schwedisch, aus HO) werden nur im Parser verwendet.
 

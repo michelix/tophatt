@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Spielerentwicklung: Trainingszuwachs und altersbedingter Abbau.
 // Formeln aus HO (core/training/WeeklyTrainingType.calculateSkillIncreaseOfTrainingWeek und SkillDrops.getSkillDrop),
 // beide nach Schum. Ein Hattrick-Jahr hat 112 Tage = 16 Wochen.

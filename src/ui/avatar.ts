@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Spielerbild: das Bild aus HO (img/playersAvatar, über den Sync), sonst ein eigenes TopHatt-Bild.
 // Das eigene Bild ist neu gezeichnet: Gesicht, Haare und Hautton fest aus der Spieler-ID,
 // Trikot in Vereinsfarben (lila/gold) mit Rückennummer.

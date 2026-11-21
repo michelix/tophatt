@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Trainingswoche: A-Kader (Stammelf für die Liga), B-Kader (Trainingsgruppe) und Plan für beide Spiele der Woche.
 // Liga: stärkste Elf, aber unter fast gleich starken Formationen die mit den meisten Trainingsplätzen.
 // Pokal: Sieg und Training abwägen, ohne Chance reine Trainingself. Freundschaftsspiel: nur Training.

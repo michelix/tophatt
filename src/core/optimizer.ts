@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Aufstellungs-Optimierer: sucht für jede erlaubte Formation die Spieler-/Positions-/Verhaltens-
 // Kombination mit der höchsten Zielbewertung (Standard: HatStats, 90-Minuten-Durchschnitt).
 // Vorgehen: gierige Startaufstellung, dann lokale Suche (Tauschen, Einwechseln, Verhalten ändern).
