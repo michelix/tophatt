@@ -6,7 +6,7 @@ das Ergebnis als HRF-Datei zurück, die HO zu Hattrick hochlädt. Alles läuft l
 
 ![Aufstellungsseite mit Spielfeld, Formationsvorschlag, Spielerkarten und Ersatzbank](docs/img/aufstellung.png)
 
-<sub>Alle Screenshots zeigen den anonymisierten Testverein aus `test/fixtures` mit den eigenen TopHatt-Spielerbildern.</sub>
+<sub>Die Screenshots zeigen einen erfundenen Verein mit erfundenen Spielern und Werten; die Spielerbilder sind Hattrick-Avatare aus HO.</sub>
 
 ## Was TopHatt kann
 
@@ -107,7 +107,8 @@ jar cfe sync/TopHattSync.jar TopHattSync -C sync/build .
 ```
 
 Zum Ausprobieren ohne eigene HO-Daten `dist/tophatt.html` öffnen und `test/fixtures/team.hrf` zusammen mit
-`test/fixtures/tophatt-data.json` ins Fenster ziehen. So sind auch die Screenshots in `docs/img` entstanden.
+`test/fixtures/tophatt-data.json` ins Fenster ziehen. Auf diesen Daten beruhen auch die Screenshots in `docs/img`
+(Vereinsname geändert, Spielerbilder ergänzt).
 
 ## Lizenz
 
