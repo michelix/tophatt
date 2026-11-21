@@ -155,6 +155,33 @@ export interface Lineup {
   attitude: AttitudeId;
   /** -10 (defensiv) ... 0 (ausgewogen) ... 10 (offensiv) */
   styleOfPlay: number;
+  /** Reserve je Bankplatz (zweite Reihe in HO): springt ein, wenn der Spieler dieses Platzes schon eingewechselt ist */
+  backups?: Partial<Record<BenchSlot, number>>;
+  /** Elfmeterschützen in Reihenfolge (höchstens 11) */
+  penaltyTakers?: number[];
+  /** Auswechslungen und Anweisungen während des Spiels */
+  orders?: MatchOrder[];
+}
+
+/** Art einer Spielanweisung wie in HO: Auswechslung, Verhalten, Positionstausch, Manndeckung */
+export type OrderKind = "sub" | "behaviour" | "swap" | "marking";
+
+export interface MatchOrder {
+  kind: OrderKind;
+  /** eigener Spieler, der raus geht, sein Verhalten ändert, tauscht oder manndeckt */
+  playerOut: number;
+  /** Einwechselspieler, Tauschpartner oder (Manndeckung) Spieler des Gegners; bei Verhalten = playerOut */
+  playerIn: number;
+  /** Spielminute 0 … 119 (ab dieser Minute), -1 = ohne */
+  minute: number;
+  /** neue Position (100 … 113), -1 = bleibt */
+  role: number;
+  /** neues Verhalten 0 … 4, -1 = bleibt */
+  behaviour: number;
+  /** Bedingung Rote Karten (HO RedCardCriteria), -1 = egal */
+  card: number;
+  /** Bedingung Spielstand (HO GoalDiffCriteria), -1 = egal */
+  standing: number;
 }
 
 export interface MatchSettings {

@@ -111,6 +111,39 @@ select,input[type=number]{font:inherit;font-size:14px;padding:6px 8px;border:1px
 .slot.weak{box-shadow:inset 3px 0 0 var(--critical)}
 .slot.soft{box-shadow:inset 3px 0 0 var(--warning)}
 
+/* Anweisungen & Elfmeter */
+.ord-block{border-top:1px solid var(--line);padding-top:6px;margin-top:14px}
+.ord-block:first-child{border-top:0;margin-top:0}
+.ord-block h3 .sub{font-weight:400;margin-left:6px}
+.ord-add{margin-bottom:10px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sm{padding:3px 8px;font-size:13px;min-width:30px;justify-content:center}
+.ord-row{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:var(--surface-2)}
+.ord-row.bad{border-color:var(--critical)}
+.ord-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.ord-top .sub{overflow-wrap:anywhere}
+.ord-row select,.ord-row input[type=number]{min-width:0}
+.ord-row input[type=number]{width:110px}
+.ord-row input[data-of=playerIn]{width:200px}
+.ord-row .ord-wide select{min-width:200px;max-width:100%}
+.ord-warn{margin:6px 0 0;padding-left:18px;color:var(--critical);font-size:13px}
+.pen-list{list-style:none;padding:0;margin:8px 0;display:grid;gap:4px}
+.pen-list li{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:4px 8px;background:var(--surface-2)}
+.pen-n{font-weight:700;width:22px;text-align:center;color:var(--brand)}
+.pen-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.pen-v{font-variant-numeric:tabular-nums;font-weight:600}
+.pen-add{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.chipbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:13px}
+.chipbtn:hover{border-color:var(--brand)}
+.bk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.bk-grid label{color:var(--muted)}
+.bk-own{color:var(--ink);font-weight:600}
+.bk-grid select{min-width:0;width:100%}
+@media (max-width:600px){.ord-row .controls label{flex:1 1 40%;min-width:0}.ord-row .controls select,.ord-row .controls input[type=number]{width:100%}.ord-row .ord-wide select{min-width:0;width:100%}.ord-row .ord-wide{flex:1 1 100%}.pen-list .sub{display:block}}
+
+.orders-area .ord-row,.orders-area .pen-list li{background:var(--surface)}
+.linkbtn{border:0;background:none;padding:0;color:var(--brand);text-decoration:underline;font-size:inherit}
+
 /* Finanzen */
 .fin-tiles{margin-top:8px}
 .fin-tile .sub{font-size:12px;color:var(--muted)}
@@ -479,12 +512,7 @@ select.training{border-color:var(--brand);font-weight:600}
 .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:14px;z-index:10}
 
 /* Speichern ohne Scrollen, kompakte Kopfzeile und Spielerliste auf dem Handy */
-.save-top{align-self:flex-end}
-.savebar{display:none}
 @media (max-width:600px){
-  .save-top{display:none}
-  .savebar{display:flex;position:sticky;bottom:0;z-index:4;align-items:center;justify-content:space-between;gap:10px;margin:12px -12px 0;padding:10px 12px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(8px);border-top:1px solid var(--line)}
-  .savebar.off{visibility:hidden}
   .top .wrap{flex-wrap:nowrap;gap:8px;min-height:52px}
   .top .team,.top #dataChip{display:none}
   .top #refresh,.top #openSettings{font-size:0;gap:0;padding:7px}
@@ -676,8 +704,7 @@ select.training{border-color:var(--brand);font-weight:600}
 
     <section class="card" id="aufstellung" data-view="aufstellung">
       <header><h2>Aufstellung für dieses Spiel</h2><span class="sub" id="lineupSub"></span>
-        <label class="inline loc">Spielort<select id="location"><option value="1">Heimspiel</option><option value="0">Auswärtsspiel</option><option value="2">Auswärts-Derby</option></select></label>
-        <button class="btn primary save-top" id="saveTop" title="Aufstellung als HRF für HO speichern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Für HO speichern</button></header>
+        <label class="inline loc">Spielort<select id="location"><option value="1">Heimspiel</option><option value="0">Auswärtsspiel</option><option value="2">Auswärts-Derby</option></select></label></header>
       <div id="lineupWarn"></div>
       <div class="editor-bar">
         <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
@@ -709,6 +736,10 @@ select.training{border-color:var(--brand);font-weight:600}
         <ul class="sub mp-notes" id="planNotes"></ul>
         <div id="planMore"></div>
       </div>
+      <div class="mplan orders-area" id="ordersArea">
+        <h3 style="margin-top:0">Reserve, Elfmeter und Anweisungen <span class="sub">gehören zu dieser Aufstellung und passen sich an, wenn du sie änderst</span></h3>
+        <div id="ordersOut"></div>
+      </div>
       <div class="grid2 finish">
         <div id="lineupSide"></div>
         <div>
@@ -719,10 +750,10 @@ select.training{border-color:var(--brand);font-weight:600}
             <button class="btn primary" id="dlLeague">Für HO speichern</button>
           </div>
           <p class="sub" id="matchIdInfo"></p>
+          <p class="sub">Eine HRF-Datei mit allem: Aufstellung, Taktik, Kapitän, Standards, Bank mit Reserve, Elfmeterschützen und Anweisungen.</p>
           <p class="sub">Danach in HO: Datei → Importieren → HRF, Ersetzen mit Ja bestätigen, Spiel auswählen und „Aufstellung senden“.</p>
         </div>
       </div>
-      <div class="savebar" id="saveBar"><span class="sub" id="saveBarInfo">Aufstellung fertig?</span><button class="btn primary" id="saveBarBtn">Für HO speichern</button></div>
       <details class="more"><summary>Details: Wirkung der Einstellungen und Änderungen gegenüber dem Vorschlag</summary>
         <div id="explainOut"></div>
       </details>

@@ -23,6 +23,8 @@ import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 import { type FinanceSnapshot, type PastWeek, parseFinance, pastWeeks } from "../core/finance";
 import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
+import { initOrdersPage, loadOrders, ordersBlocking, ordersSummary, renderOrdersPage, withOrders } from "./orders-view";
+import { teamPlayers } from "../core/hodata";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -401,6 +403,7 @@ function compute() {
     updateAnalysis();
     const m = state.match;
     state.opponent = m && state.ho ? opponentProfile(state.ho.matchRatings, m.homeId === hrf.team.teamId ? m.awayId : m.homeId) : null;
+    loadOrders(m?.id || hrf.lineupMatchId);
     $("#error").textContent = "";
   } catch (e) {
     $("#error").textContent = (e as Error).message;
@@ -1412,11 +1415,13 @@ function renderLineup() {
       <tr><td class="muted">Kapitän</td><td>${who(C.captainId, C.captainId === ch.captainId)}</td></tr>
       <tr><td class="muted">Standards</td><td>${who(C.setPiecesId, C.setPiecesId === ch.setPiecesId)}</td></tr>
       <tr><td class="muted">Ersatzbank</td><td>${benchCount} von 7 Plätzen besetzt${Object.keys(ch.bench ?? {}).length ? ` <span class="muted">(${Object.keys(ch.bench!).length} von dir)</span>` : ""}</td></tr>
+      <tr><td class="muted">Reserve, Elfmeter, Anweisungen</td><td><span id="ordersInfo">${ordersSummary(C, byId)}</span> · <button class="linkbtn" data-goto="ordersArea">ändern</button></td></tr>
       <tr><td class="muted"><abbr title="LoddarStats (aus HO) gewichten wie HatStats die Mannschaftsteile, berücksichtigen aber auch, wohin die Angriffe laufen und die Konterstärke. Höher ist besser.">LoddarStats</abbr></td><td>${de(loddarStats(mine.ratings, state.settings.tactic, tl), 1)}</td></tr>
     </tbody></table>
-    <p class="sub">Spieler auf dem Feld antippen, um Kapitän und Standards zu setzen. Die Bank stellst du unter dem Feld zusammen. Alles wird so für HO gespeichert.</p>
+    <p class="sub">Spieler auf dem Feld antippen, um Kapitän und Standards zu setzen. Die Bank stellst du unter dem Feld zusammen. Alles hier landet zusammen in einer HRF-Datei für HO.</p>
     ${anyOwn ? `<button class="btn" id="choicesReset">Kapitän, Standards und Bank wieder automatisch</button>` : ""}`;
   const mi = Number($<HTMLInputElement>("#matchId").value);
+  renderOrdersPage();
   $("#matchIdInfo").textContent = m && mi === m.id ? `Spiel-ID gehört zu: ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : mi ? "Spiel-ID von Hand eingetragen." : "";
 }
 
@@ -2683,7 +2688,7 @@ function renderSquad() {
 // --- Navigation ------------------------------------------------------------------------
 
 const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "trainer", "spielplan", "finanzen", "verlauf"];
-const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training", historie: "verlauf" };
+const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training", historie: "verlauf", anweisungen: "aufstellung", elfmeter: "aufstellung", auswechslungen: "aufstellung" };
 let currentView = "";
 
 function route() {
@@ -2721,6 +2726,10 @@ function initNav() {
     $("#scrim").hidden = !open;
   });
   $("#scrim").addEventListener("click", closeMenu);
+  document.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-goto]");
+    if (b) document.getElementById(b.dataset.goto!)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   $("#groupsOut").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-gmode]");
     if (!b) return;
@@ -2939,21 +2948,41 @@ function init() {
   });
   $("#dlLeague").addEventListener("click", () => {
     if (!state.hrf) return;
-    const problems = lineupProblems(state.manual, playersById());
+    const byId = playersById();
+    const lineup = myLineup();
+    const problems = [...lineupProblems(state.manual, byId), ...ordersBlocking(lineup, byId, state.hrf.team.tacticalAssistants)];
+    $("#error").textContent = "";
     if (problems.length) {
       $("#error").textContent = problems.join(" ");
+      $("#error").scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    download(myLineup(), "liga");
+    download(withOrders(lineup, byId), "liga");
+    if ($("#error").textContent) $("#error").scrollIntoView({ behavior: "smooth", block: "center" });
   });
   initEditor();
   initEditorHint();
-  initSaveBar();
   initWeakness();
   initNav();
   initTrainingWeek();
   initPlayerCard();
   initTrainerPage($("#trainerOut"));
+  initOrdersPage($("#ordersOut"), {
+    lineup: () => myLineup(),
+    byId: playersById,
+    tacticalAssistants: () => state.hrf?.team.tacticalAssistants ?? 0,
+    opponent: () => {
+      const m = state.match;
+      const hrf = state.hrf;
+      if (!m || !hrf || !state.ho) return null;
+      const home = m.homeId === hrf.team.teamId;
+      return { name: home ? m.awayName : m.homeName, players: teamPlayers(state.ho, home ? m.awayId : m.homeId) };
+    },
+    changed: () => {
+      const info = document.querySelector("#ordersInfo");
+      if (info && state.hrf) info.textContent = ordersSummary(myLineup(), playersById());
+    },
+  });
   initHistory(() => state.folder);
   $("#dlFriendly").addEventListener("click", () => {
     const x = secondLineup();
@@ -3005,19 +3034,5 @@ function initEditorHint() {
 }
 
 /** Speichern ohne Scrollen: Knopf in der Kopfzeile, auf dem Handy als Leiste unten. */
-function initSaveBar() {
-  const save = () => {
-    $("#error").textContent = "";
-    $("#dlLeague").click();
-    // Fehler (z. B. fehlende Spiel-ID) stehen oben auf der Seite: dorthin springen
-    if ($("#error").textContent) $("#error").scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-  $("#saveTop").addEventListener("click", save);
-  $("#saveBarBtn").addEventListener("click", save);
-  const bar = $("#saveBar");
-  if ("IntersectionObserver" in window) {
-    new IntersectionObserver(([e]) => bar.classList.toggle("off", e.isIntersecting)).observe($("#dlLeague"));
-  }
-}
 
 init();

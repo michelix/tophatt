@@ -86,6 +86,17 @@ export interface HoData {
   futureTraining: TrainingWeek[];
   /** Bewertungen aus HO-Spielberichten, auch die der Gegner (Gegnercheck), neueste zuerst */
   matchRatings: MatchRating[];
+  /** Aufstellungen gespielter Spiele (letzte 120 Tage, auch Gegner), neueste zuerst */
+  lineupPlayers: LineupPlayer[];
+}
+
+export interface LineupPlayer {
+  matchId: number;
+  teamId: number;
+  playerId: number;
+  roleId: number;
+  name: string;
+  date: Date;
 }
 
 type Row = Record<string, unknown>;
@@ -184,6 +195,16 @@ export function parseHoData(json: string): HoData {
     training: training("training"),
     futureTraining: training("futureTraining"),
     matchRatings: parseMatchRatings(rows("matchRatings")),
+    lineupPlayers: rows("lineupPlayers")
+      .map((r) => ({
+        matchId: n(r.matchid),
+        teamId: n(r.teamid),
+        playerId: n(r.spielerid),
+        roleId: n(r.roleid),
+        name: [s(r.vname), s(r.name)].filter(Boolean).join(" "),
+        date: parseHoDate(r.spieldatum),
+      }))
+      .sort((a, z) => z.date.getTime() - a.date.getTime()),
   };
 }
 
@@ -260,3 +281,16 @@ export const MATCH_TYPE_DE: Record<number, string> = {
 };
 
 export const WEATHER_DE: Record<number, string> = { 0: "Regen", 1: "bewölkt", 2: "heiter", 3: "Sonne" };
+
+/** Spieler eines Teams aus seinen letzten Aufstellungen (für die Manndeckung), häufigste zuerst */
+export function teamPlayers(d: HoData, teamId: number): { id: number; name: string; roles: number[]; games: number }[] {
+  const by = new Map<number, { id: number; name: string; roles: number[]; games: number }>();
+  for (const l of d.lineupPlayers) {
+    if (l.teamId !== teamId || !l.playerId) continue;
+    let e = by.get(l.playerId);
+    if (!e) by.set(l.playerId, (e = { id: l.playerId, name: l.name, roles: [], games: 0 }));
+    e.games++;
+    e.roles.push(l.roleId);
+  }
+  return [...by.values()].sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
+}

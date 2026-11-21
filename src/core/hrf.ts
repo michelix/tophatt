@@ -2,7 +2,8 @@
 // Format: INI-ähnlich, Abschnitte [basics], [team], [lineup], [playerNNN] ...
 // Die Abschnittsnamen und Schlüssel stammen aus HOs HRFStringBuilder/HRFStringParser.
 
-import type { Hrf, Lineup, Player, TeamInfo } from "./model";
+import type { BenchSlot, Hrf, Lineup, Player, TeamInfo } from "./model";
+import { BENCH_BACKUP_KEYS, orderKeys, validBackups } from "./orders";
 import { Role } from "./model";
 export const FORM_SUB_DEFAULT = 0.5;
 
@@ -190,9 +191,11 @@ export function buildLineupSection(lineup: Lineup, teamId: number, trainerId: nu
   for (const [slot, key] of Object.entries(BENCH_KEYS)) {
     kv.push([key, lineup.bench[slot as keyof typeof lineup.bench] ?? 0]);
   }
-  for (const key of ["substgk2", "substcd2", "substwb2", "substim2", "substfw2", "substwi2", "substxt2"]) kv.push([key, 0]);
+  const backups = validBackups(lineup.bench, lineup.backups);
+  for (const [slot, key] of Object.entries(BENCH_BACKUP_KEYS)) kv.push([key, backups[slot as BenchSlot] ?? 0]);
   kv.push(["captain", lineup.captainId]);
   kv.push(["kicker1", lineup.setPiecesId]);
+  kv.push(...orderKeys(lineup));
   return "[lineup]\n" + kv.map(([k, v]) => `${k}=${v}`).join("\n") + "\n";
 }
 
