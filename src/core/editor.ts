@@ -170,7 +170,7 @@ export function explain(
     if (best !== g && fit(p, best) - fit(p, g) > 0.25) warnings.push(`${p.name} ist auf ${roleShort(pos.role)} nicht auf seiner besten Position (besser: ${GROUP_DE[best]}).`);
     if (p.injury === 0) warnings.push(`${p.name} ist angeschlagen und spielt etwas schwächer.`);
     if (p.cards === 2) warnings.push(`${p.name} hat 2 Gelbe Karten, bei der nächsten ist er gesperrt.`);
-    if (p.stamina <= 5) warnings.push(`${p.name} hat Kondition ${p.stamina} und lässt in der zweiten Halbzeit deutlich nach.`);
+    if (p.stamina <= 5) warnings.push(`${p.name} hat Kondition ${p.stamina} und lässt in der zweiten Halbzeit deutlich nach. Wechselvorschlag unten bei den Anweisungen.`);
   }
   const fm = formationCode(mine.positions);
   const exp = formationExperience[fm] ?? 0;

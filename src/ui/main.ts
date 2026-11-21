@@ -3254,6 +3254,11 @@ function init() {
       const home = m.homeId === hrf.team.teamId;
       return { name: home ? m.awayName : m.homeName, players: teamPlayers(state.ho, home ? m.awayId : m.homeId) };
     },
+    subContext: () => ({
+      training: state.hrf ? TRAININGS[state.hrf.team.trainingType] : undefined,
+      week: state.week?.played,
+      matchType: Number($<HTMLSelectElement>("#matchType").value) || 1,
+    }),
     changed: () => {
       const info = document.querySelector("#ordersInfo");
       if (info && state.hrf) info.textContent = ordersSummary(myLineup(), playersById());

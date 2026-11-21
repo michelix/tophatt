@@ -3,6 +3,8 @@
 
 import { type BenchSlot, type Lineup, type MatchOrder, type OrderKind, type Player, Role } from "../core/model";
 import { CARD_DE, ORDER_KIND_DE, STANDING_DE, autoBackups, benchSlotValue, maxOrders, newOrder, orderProblems, penaltyStrength } from "../core/orders";
+import { MAX_SUBSTITUTIONS, SUB_MODE_DE, type SubMode, type SubSuggestion, ruleOfThumb, suggestSubstitutions, suggestionToOrder } from "../core/substitutions";
+import type { TrainingDef, WeekMinutes } from "../core/training";
 
 const STORE = "tophatt.orders";
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -59,6 +61,8 @@ export interface OrdersContext {
   opponent: () => { name: string; players: OpponentPlayer[] } | null;
   /** nach jeder Änderung (z. B. Speichern-Leiste aktualisieren) */
   changed: () => void;
+  /** Für Auswechslungs-Vorschläge: Training, schon gespielte Minuten der Woche, Spielart (1 Liga, 3 Pokal, 4/5 Freundschaft) */
+  subContext: () => { training?: TrainingDef; week?: Map<number, WeekMinutes>; matchType: number };
 }
 
 interface Stored {
@@ -70,6 +74,8 @@ interface Stored {
   excluded: number[];
   /** eigene Reserve je Bankplatz (0 = keine), fehlende Plätze automatisch */
   backups: Partial<Record<BenchSlot, number>>;
+  /** gewählter Modus der Auswechslungs-Vorschläge; fehlt = nach Spielart */
+  subMode?: SubMode;
 }
 
 const empty = (matchId: number): Stored => ({ matchId, orders: [], penalties: [], excluded: [], backups: {} });
@@ -236,6 +242,7 @@ export function renderOrdersPage() {
   };
 
   root.innerHTML = `
+    ${suggestionsBlock(l, byId)}
     <div class="ord-block">
       <h3>Reserve der Ersatzbank <span class="sub">zweite Reihe in HO · passt sich der Bank an</span></h3>
       <p class="sub">Wird für eine Position ein Ersatz gebraucht (Verletzung) und der Bankspieler dieses Platzes ist schon im Spiel, kommt die Reserve. Sie sitzt selbst auf einem anderen Bankplatz, bringt also keinen zusätzlichen Spieler. Automatisch: der stärkste andere Bankspieler für diese Position.</p>
@@ -257,6 +264,53 @@ export function renderOrdersPage() {
     </div>`;
 }
 
+// --- Auswechslungs-Vorschläge -------------------------------------------------------------
+
+const defaultMode = (matchType: number): SubMode => (matchType === 3 ? "sieg" : matchType === 1 ? "ausgewogen" : "training");
+const MODE_HINT: Record<SubMode, string> = {
+  sieg: "nur Wechsel, die die Mannschaft stärker machen (müde Spieler raus). Einsätze fürs Mitspielen nur bei mehr als 2 Toren Vorsprung.",
+  ausgewogen: "Konditionswechsel plus Training und Einsatzzeit, solange die Mannschaft übers Spiel höchstens 2 % Stärke verliert.",
+  training: "Trainingsminuten und Einsätze gehen vor, Stärke zählt wenig. Für Freundschaftsspiele.",
+};
+const REASON_TAG: Record<SubSuggestion["reason"], string> = { kondition: "Kondition", training: "Training", einsatz: "Einsatz" };
+
+let lastSuggestions: SubSuggestion[] = [];
+
+function currentMode(): SubMode {
+  return store.subMode ?? defaultMode(ctx?.subContext().matchType ?? 1);
+}
+
+function suggestionsBlock(l: Lineup, byId: Map<number, Player>): string {
+  const sc = ctx!.subContext();
+  const mode = currentMode();
+  const existing = store.orders.filter((o) => o.kind === "sub").length;
+  lastSuggestions = suggestSubstitutions({ lineup: l, byId, mode, training: sc.training, week: sc.week, existing: store.orders });
+  const full = store.orders.filter((o) => o.kind !== "marking").length >= maxOrders(ctx!.tacticalAssistants());
+  const name = (id: number) => esc(byId.get(id)?.name ?? `ID ${id}`);
+  const row = (s: SubSuggestion, i: number) => `<li class="sug-row">
+      <span class="sug-min">${s.minute}′</span>
+      <span class="sug-main"><b>${name(s.playerOut)}</b> <span class="sub">${ROLE_SHORT[s.role] ?? ""}</span> → <b>${name(s.playerIn)}</b> <span class="tag sug-${s.reason}">${REASON_TAG[s.reason]}</span>
+        <span class="sub sug-why">${esc(s.text)}</span></span>
+      <button class="btn sm" data-sadd="${i}" ${full ? "disabled" : ""}>Übernehmen</button></li>`;
+  const thumbs = ruleOfThumb();
+  const fmt = (m: number | null) => (m === null ? "–" : `${m}′`);
+  const modeBtn = (m: SubMode) => `<button class="${m === mode ? "on" : ""}" data-smode="${m}">${SUB_MODE_DE[m]}</button>`;
+  return `<div class="ord-block sug-block">
+      <h3>Auswechslungs-Vorschläge <span class="sub">nach Kondition, Training und Einsatzzeit · höchstens ${MAX_SUBSTITUTIONS} Wechsel je Spiel${existing ? `, ${existing} schon geplant` : ""}</span></h3>
+      <div class="controls"><div class="seg" role="group" aria-label="Ziel">${(["sieg", "ausgewogen", "training"] as SubMode[]).map(modeBtn).join("")}</div>
+        ${lastSuggestions.length > 1 ? `<button class="btn" data-saddall ${full ? "disabled" : ""}>Alle übernehmen</button>` : ""}</div>
+      <p class="sub">${SUB_MODE_DE[mode]}: ${MODE_HINT[mode]}${store.subMode ? "" : " (passend zur Spielart gewählt)"}</p>
+      ${lastSuggestions.length ? `<ol class="sug-list">${lastSuggestions.map(row).join("")}</ol>` : `<p class="sub">${existing >= MAX_SUBSTITUTIONS ? "Alle 3 Wechsel sind schon verplant." : "Kein Wechsel lohnt sich: Die Startelf hält konditionell durch, und auf der Bank wartet niemand mit Trainings- oder Einsatzbedarf."}</p>`}
+      <details class="sug-rules"><summary>Wie gerechnet wird</summary>
+        <p class="sub"><b>Kondition:</b> Jeder Spieler baut ab Anpfiff ab, erholt sich zur Halbzeit teilweise und baut weiter ab, ein Einwechselspieler startet frisch (Modell aus HO). TopHatt sucht je Startspieler und Bankspieler die Minute, ab der die Mannschaft mit dem frischen Ersatz insgesamt stärker ist. Faustregel (Ersatz mit Kondition 6):</p>
+        <table class="sug-table"><thead><tr><th>Kondition</th><th>Ersatz gleich stark</th><th>10 % schwächer</th><th>20 % schwächer</th></tr></thead>
+          <tbody>${thumbs.map((r) => `<tr><td>${r.stamina}</td>${r.minutes.map((m) => `<td>${fmt(m)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+        <p class="sub"><b>Training:</b> Minuten auf Trainingsposition aus allen Spielen der Woche zählen, höchstens 90, schon 1 Minute zählt. Aufteilen bringt insgesamt nicht mehr Training, es lohnt sich nur, wenn der Einwechselspieler mehr davon hat (jünger, Fertigkeit niedriger) oder der Startspieler seine 90 Minuten der Woche schon voll hat.</p>
+        <p class="sub"><b>Einsatz:</b> Für die Form zählt laut Hattrick-Regeln, ob ein Spieler in der Woche überhaupt gespielt hat, nicht wie lange. Wer gar nicht spielt, bekommt außerdem nur 50 % Konditionstraining statt mindestens 75 %. Ein kurzer Einsatz reicht also schon.</p>
+      </details>
+    </div>`;
+}
+
 function changed() {
   save();
   renderOrdersPage();
@@ -272,7 +326,14 @@ export function initOrdersPage(el: HTMLElement, c: OrdersContext) {
     const d = b.dataset;
     const l = ctx.lineup();
     const byId = ctx.byId();
-    if (d.oadd) store.orders.push(newOrder(d.oadd as OrderKind));
+    if (d.smode) store.subMode = d.smode as SubMode;
+    else if (d.sadd !== undefined) {
+      const sg = lastSuggestions[Number(d.sadd)];
+      if (sg) store.orders.push(suggestionToOrder(sg));
+    } else if (d.saddall !== undefined) {
+      const room = maxOrders(ctx.tacticalAssistants()) - store.orders.filter((o) => o.kind !== "marking").length;
+      store.orders.push(...lastSuggestions.slice(0, Math.max(0, room)).map(suggestionToOrder));
+    } else if (d.oadd) store.orders.push(newOrder(d.oadd as OrderKind));
     else if (d.odel !== undefined) store.orders.splice(Number(d.odel), 1);
     else if (d.omove !== undefined) move(store.orders, Number(d.omove), Number(d.dir));
     else if (d.oclear !== undefined) store.orders = [];
