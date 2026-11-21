@@ -76,9 +76,11 @@ interface Stored {
   backups: Partial<Record<BenchSlot, number>>;
   /** gewählter Modus der Auswechslungs-Vorschläge; fehlt = nach Spielart */
   subMode?: SubMode;
+  /** Wechsel automatisch nach Vorschlag (Standard) oder manuell festgehalten */
+  subAuto?: boolean;
 }
 
-const empty = (matchId: number): Stored => ({ matchId, orders: [], penalties: [], excluded: [], backups: {} });
+const empty = (matchId: number): Stored => ({ matchId, orders: [], penalties: [], excluded: [], backups: {}, subAuto: true });
 let store: Stored = empty(0);
 let ctx: OrdersContext | null = null;
 let root: HTMLElement | null = null;
@@ -101,6 +103,33 @@ export function loadOrders(matchId: number) {
     s = null;
   }
   store = s && s.matchId === matchId && Array.isArray(s.orders) ? { ...empty(matchId), ...s, penalties: s.penalties ?? [], excluded: s.excluded ?? [], backups: s.backups ?? {} } : empty(matchId);
+  // ältere Speicherstände ohne Schalter: vorhandene Wechsel gelten als von Hand gesetzt
+  if (store.subAuto === undefined) store.subAuto = !store.orders.some((o) => o.kind === "sub");
+  autoKey = "";
+}
+
+// --- Automatische Wechsel ----------------------------------------------------------------
+
+let autoKey = "";
+
+/** Vorschläge für den aktuellen Modus, ohne die eigenen Wechsel (nur andere Anweisungen zählen mit) */
+function freshSuggestions(l: Lineup, byId: Map<number, Player>): SubSuggestion[] {
+  if (!ctx) return [];
+  const sc = ctx.subContext();
+  const others = store.orders.filter((o) => o.kind !== "sub");
+  const room = maxOrders(ctx.tacticalAssistants()) - others.filter((o) => o.kind !== "marking").length;
+  return suggestSubstitutions({ lineup: l, byId, mode: currentMode(), training: sc.training, week: sc.week, existing: others }).slice(0, Math.max(0, room));
+}
+
+/** Im Automatik-Modus folgen die Wechsel dem Vorschlag und damit jeder Änderung von Aufstellung und Ziel */
+function syncAuto(l: Lineup, byId: Map<number, Player>) {
+  if (!ctx || store.subAuto === false) return;
+  const others = store.orders.filter((o) => o.kind !== "sub");
+  const key = JSON.stringify([l.positions.map((p) => [p.role, p.playerId]), l.bench, l.tactic, currentMode(), others, ctx.subContext().matchType]);
+  if (key === autoKey) return;
+  autoKey = key;
+  store.orders = [...freshSuggestions(l, byId).map(suggestionToOrder), ...others];
+  save();
 }
 
 const inLineup = (l: Pick<Lineup, "positions" | "bench">) => new Set([...l.positions.map((p) => p.playerId), ...(Object.values(l.bench).filter(Boolean) as number[])]);
@@ -116,6 +145,7 @@ function penaltiesFor(l: Lineup, byId: Map<number, Player>): { ids: number[]; fi
 
 /** Aufstellung samt Reserve-Reihe, Elfmeterschützen und Anweisungen für den HRF-Export */
 export function withOrders(l: Lineup, byId: Map<number, Player>): Lineup {
+  syncAuto(l, byId);
   return { ...l, backups: autoBackups(l.bench, byId, store.backups), penaltyTakers: penaltiesFor(l, byId).ids, orders: store.orders.map((o) => ({ ...o })) };
 }
 
@@ -131,7 +161,8 @@ export interface PlannedMove {
   bad: string;
 }
 
-export function plannedMoves(l: Pick<Lineup, "positions" | "bench">, byId: Map<number, Player>): Map<number, PlannedMove[]> {
+export function plannedMoves(l: Lineup, byId: Map<number, Player>): Map<number, PlannedMove[]> {
+  syncAuto(l, byId);
   const map = new Map<number, PlannedMove[]>();
   const problems = orderProblems(store.orders, l, byId, ctx?.tacticalAssistants() ?? 0);
   const add = (id: number, m: PlannedMove) => id && map.set(id, [...(map.get(id) ?? []), m]);
@@ -150,7 +181,8 @@ export function plannedMoves(l: Pick<Lineup, "positions" | "bench">, byId: Map<n
 }
 
 /** Anweisungen, die nicht mehr zur Aufstellung passen (z. B. Einwechselspieler steht inzwischen auf dem Feld) */
-export function staleOrders(l: Pick<Lineup, "positions" | "bench">, byId: Map<number, Player>): { index: number; text: string }[] {
+export function staleOrders(l: Lineup, byId: Map<number, Player>): { index: number; text: string }[] {
+  syncAuto(l, byId);
   return orderProblems(store.orders, l, byId, ctx?.tacticalAssistants() ?? 0)
     .map((p, index) => ({ index, text: p.join(" ") }))
     .filter((x) => x.text);
@@ -163,11 +195,13 @@ export function currentBackups(l: Lineup, byId: Map<number, Player>): Partial<Re
 
 /** Fehler in den Anweisungen, die das Speichern verhindern */
 export function ordersBlocking(l: Lineup, byId: Map<number, Player>, tacticalAssistants: number): string[] {
+  syncAuto(l, byId);
   return orderProblems(store.orders, l, byId, tacticalAssistants).flatMap((ps, i) => ps.map((p) => `Anweisung ${i + 1} (${ORDER_KIND_DE[store.orders[i].kind]}): ${p}`));
 }
 
 /** Kurzfassung für „Für HO speichern“: was außer Feld, Bank, Kapitän und Standards mitgeht */
 export function ordersSummary(l: Lineup, byId: Map<number, Player>): string {
+  syncAuto(l, byId);
   const n = store.orders.length;
   const backups = Object.keys(autoBackups(l.bench, byId, store.backups)).length;
   const pens = penaltiesFor(l, byId).ids.length;
@@ -219,7 +253,7 @@ function renderOrder(o: MatchOrder, i: number, n: number, l: Lineup, byId: Map<n
       break;
     }
   }
-  const head = `${i + 1}. ${ORDER_KIND_DE[o.kind]}`;
+  const head = `${i + 1}. ${ORDER_KIND_DE[o.kind]}${o.kind === "sub" && store.subAuto !== false ? ' <span class="tag sug-on">auto</span>' : ""}`;
   return `<div class="ord-row${problems.length ? " bad" : ""}">
     <div class="ord-top"><b>${head}</b><span class="sub">${esc(describe(o, byId))}</span><span class="spacer"></span>
       <button class="btn icon sm" data-omove="${i}" data-dir="-1" ${i === 0 ? "disabled" : ""} aria-label="Nach oben">↑</button>
@@ -248,6 +282,7 @@ export function renderOrdersPage() {
   if (!root || !ctx) return;
   const l = ctx.lineup();
   const byId = ctx.byId();
+  syncAuto(l, byId);
   const ta = ctx.tacticalAssistants();
   const limit = maxOrders(ta);
   const counted = store.orders.filter((o) => o.kind !== "marking").length;
@@ -325,26 +360,33 @@ function currentMode(): SubMode {
 }
 
 function suggestionsBlock(l: Lineup, byId: Map<number, Player>): string {
-  const sc = ctx!.subContext();
   const mode = currentMode();
-  const existing = store.orders.filter((o) => o.kind === "sub").length;
-  lastSuggestions = suggestSubstitutions({ lineup: l, byId, mode, training: sc.training, week: sc.week, existing: store.orders });
-  const full = store.orders.filter((o) => o.kind !== "marking").length >= maxOrders(ctx!.tacticalAssistants());
+  const auto = store.subAuto !== false;
+  const mine = store.orders.filter((o) => o.kind === "sub").length;
+  lastSuggestions = freshSuggestions(l, byId);
+  const used = new Set(store.orders.filter((o) => o.kind === "sub").flatMap((o) => [o.playerOut, o.playerIn]));
+  const full = store.orders.filter((o) => o.kind !== "marking").length >= maxOrders(ctx!.tacticalAssistants()) || mine >= MAX_SUBSTITUTIONS;
   const name = (id: number) => esc(byId.get(id)?.name ?? `ID ${id}`);
   const row = (s: SubSuggestion, i: number) => `<li class="sug-row">
       <span class="sug-min">${s.minute}′</span>
       <span class="sug-main"><b>${name(s.playerOut)}</b> <span class="sub">${ROLE_SHORT[s.role] ?? ""}</span> → <b>${name(s.playerIn)}</b> <span class="tag sug-${s.reason}">${REASON_TAG[s.reason]}</span>
         <span class="sub sug-why">${esc(s.text)}</span></span>
-      <button class="btn sm" data-sadd="${i}" ${full ? "disabled" : ""}>Übernehmen</button></li>`;
+      ${auto ? `<span class="tag sug-on">eingeplant</span>` : `<button class="btn sm" data-sadd="${i}" ${full || used.has(s.playerOut) || used.has(s.playerIn) ? "disabled" : ""}>Übernehmen</button>`}</li>`;
   const thumbs = ruleOfThumb();
   const fmt = (m: number | null) => (m === null ? "–" : `${m}′`);
   const modeBtn = (m: SubMode) => `<button class="${m === mode ? "on" : ""}" data-smode="${m}">${SUB_MODE_DE[m]}</button>`;
+  const autoHint = auto
+    ? "Automatisch: Die Wechsel folgen dem gewählten Ziel und passen sich jeder Änderung der Aufstellung an. Änderst du einen Wechsel selbst, schaltet TopHatt auf Manuell."
+    : "Manuell: Deine Wechsel bleiben, wie sie sind. Passen sie nach einer Änderung der Aufstellung nicht mehr, werden sie rot markiert. Die Vorschläge unten sind nur zum Ansehen oder Übernehmen.";
   return `<div class="mp-box sug-block">
-      <div class="mp-head">Vorschläge <span class="sug-sub">nach Kondition, Training und Einsatzzeit${existing ? ` · ${existing} von ${MAX_SUBSTITUTIONS} Wechseln schon geplant` : ""}</span></div>
-      <div class="controls"><div class="seg" role="group" aria-label="Ziel">${(["sieg", "ausgewogen", "training"] as SubMode[]).map(modeBtn).join("")}</div>
-        ${lastSuggestions.length > 1 ? `<button class="btn" data-saddall ${full ? "disabled" : ""}>Alle übernehmen</button>` : ""}</div>
-      <p class="sub">${SUB_MODE_DE[mode]}: ${MODE_HINT[mode]}${store.subMode ? "" : " (passend zur Spielart gewählt)"}</p>
-      ${lastSuggestions.length ? `<ol class="sug-list">${lastSuggestions.map(row).join("")}</ol>` : `<p class="sub">${existing >= MAX_SUBSTITUTIONS ? "Alle 3 Wechsel sind schon verplant." : "Kein Wechsel lohnt sich: Die Startelf hält konditionell durch, und auf der Bank wartet niemand mit Trainings- oder Einsatzbedarf."}</p>`}
+      <div class="mp-head">Vorschläge <span class="sug-sub">nach Kondition, Training und Einsatzzeit</span></div>
+      <div class="controls sug-controls">
+        <div class="seg" role="group" aria-label="Wechsel automatisch oder manuell"><button class="${auto ? "on" : ""}" data-sauto="1">Automatisch</button><button class="${auto ? "" : "on"}" data-sauto="0">Manuell</button></div>
+        <div class="seg" role="group" aria-label="Ziel">${(["sieg", "ausgewogen", "training"] as SubMode[]).map(modeBtn).join("")}</div>
+        ${!auto && lastSuggestions.length ? `<button class="btn" data-sauto="1">Diese übernehmen (ersetzt deine Wechsel)</button>` : ""}</div>
+      <p class="sub">${autoHint}</p>
+      <p class="sub">Ziel ${SUB_MODE_DE[mode]}: ${MODE_HINT[mode]}${store.subMode ? "" : " (passend zur Spielart gewählt)"}</p>
+      ${lastSuggestions.length ? `<ol class="sug-list">${lastSuggestions.map(row).join("")}</ol>` : `<p class="sub">Kein Wechsel lohnt sich: Die Startelf hält konditionell durch, und auf der Bank wartet niemand mit Trainings- oder Einsatzbedarf.</p>`}
       <details class="sug-rules"><summary>Wie gerechnet wird</summary>
         <p class="sub"><b>Kondition:</b> Jeder Spieler baut ab Anpfiff ab, erholt sich zur Halbzeit teilweise und baut weiter ab, ein Einwechselspieler startet frisch (Modell aus HO). TopHatt sucht je Startspieler und Bankspieler die Minute, ab der die Mannschaft mit dem frischen Ersatz insgesamt stärker ist. Faustregel (Ersatz mit Kondition 6):</p>
         <table class="sug-table"><thead><tr><th>Kondition</th><th>Ersatz gleich stark</th><th>10 % schwächer</th><th>20 % schwächer</th></tr></thead>
@@ -370,17 +412,28 @@ export function initOrdersPage(el: HTMLElement, c: OrdersContext) {
     const d = b.dataset;
     const l = ctx.lineup();
     const byId = ctx.byId();
+    const isSub = (i: number) => store.orders[i]?.kind === "sub";
     if (d.smode) store.subMode = d.smode as SubMode;
-    else if (d.sadd !== undefined) {
+    else if (d.sauto !== undefined) {
+      store.subAuto = d.sauto === "1";
+      autoKey = "";
+    } else if (d.sadd !== undefined) {
       const sg = lastSuggestions[Number(d.sadd)];
       if (sg) store.orders.push(suggestionToOrder(sg));
-    } else if (d.saddall !== undefined) {
-      const room = maxOrders(ctx.tacticalAssistants()) - store.orders.filter((o) => o.kind !== "marking").length;
-      store.orders.push(...lastSuggestions.slice(0, Math.max(0, room)).map(suggestionToOrder));
-    } else if (d.oadd) store.orders.push(newOrder(d.oadd as OrderKind));
-    else if (d.odel !== undefined) store.orders.splice(Number(d.odel), 1);
-    else if (d.omove !== undefined) move(store.orders, Number(d.omove), Number(d.dir));
-    else if (d.oclear !== undefined) store.orders = [];
+      store.subAuto = false;
+    } else if (d.oadd) {
+      store.orders.push(newOrder(d.oadd as OrderKind));
+      if (d.oadd === "sub") store.subAuto = false;
+    } else if (d.odel !== undefined) {
+      if (isSub(Number(d.odel))) store.subAuto = false;
+      store.orders.splice(Number(d.odel), 1);
+    } else if (d.omove !== undefined) {
+      if (isSub(Number(d.omove)) || isSub(Number(d.omove) + Number(d.dir))) store.subAuto = false;
+      move(store.orders, Number(d.omove), Number(d.dir));
+    } else if (d.oclear !== undefined) {
+      store.orders = [];
+      store.subAuto = false;
+    }
     else if (d.oclean !== undefined) {
       const bad = new Set(orderProblems(store.orders, l, byId, ctx.tacticalAssistants()).flatMap((p, i) => (p.length ? [i] : [])));
       store.orders = store.orders.filter((_, i) => !bad.has(i));
@@ -419,6 +472,7 @@ export function initOrdersPage(el: HTMLElement, c: OrdersContext) {
     let v = t.value === "" ? (f === "minute" ? 0 : 0) : Number(t.value);
     if (f === "minute") v = Math.max(0, Math.min(119, Math.round(v)));
     (o as unknown as Record<string, number>)[f] = v;
+    if (o.kind === "sub") store.subAuto = false;
     if (o.kind === "behaviour" && f === "playerOut") o.playerIn = v;
     changed();
   });
