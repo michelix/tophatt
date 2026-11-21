@@ -246,8 +246,14 @@ Zum Ausprobieren ohne eigene HO-Daten `dist/tophatt.html` öffnen und `test/fixt
 
 ## Lizenz
 
+Copyright © 2026 [michelix](https://github.com/michelix).
+
+TopHatt steht unter der GNU Lesser General Public License, Version 3 oder später (LGPL-3.0-or-later);
+siehe [`COPYING`](COPYING) und [`COPYING.LESSER`](COPYING.LESSER).
+
 Bewertungsmodell, Spielvorhersage, Trainingspositionen, Trainings- und Abbauformeln, Konditionsverlauf sowie
 Kapitäns-, Standard- und Elfmeterschützenwahl sind aus Hattrick Organizer
-(https://github.com/ho-dev/HattrickOrganizer, LGPL-3.0) portiert. Formeln: Schum.
-TopHatt steht daher ebenfalls unter LGPL-3.0. TopHatt ist ein privates Hilfsprogramm
-und steht in keiner Verbindung zu Hattrick.
+(https://github.com/ho-dev/HattrickOrganizer, LGPL-3.0, © die HO-Entwickler) portiert. Formeln: Schum.
+Deshalb steht auch TopHatt unter der LGPL.
+
+TopHatt ist ein privates Hilfsprogramm und steht in keiner Verbindung zu Hattrick.

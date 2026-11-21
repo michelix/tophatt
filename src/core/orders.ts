@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Elfmeterschützen, Auswechslungen/Anweisungen und Reserve-Reihe der Ersatzbank,
 // so wie HO sie im [lineup]-Abschnitt einer HRF-Datei liest (Lineup(Properties), HRFStringBuilder).
 

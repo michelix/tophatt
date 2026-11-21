@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Spielvorhersage und Empfehlung für Taktik, Einstellung und Ausrichtung.
 // Das Spielmodell ist aus HO portiert (core/prediction/engine: ActionGenerator.simulate, BaseActionGenerator,
 // CounterAttackGenerator): 10 Angriffe pro Spiel, Ballbesitz aus dem Mittelfeld, Torchance aus Angriff gegen Abwehr.

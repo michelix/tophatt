@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Manuelle Aufstellung: bewerten, vervollständigen (Kapitän, Standards, Bank) und mit dem automatischen
 // Vorschlag vergleichen, damit klar wird, was eine Änderung bewirkt.
 

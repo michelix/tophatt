@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // TopHatt-Sync: liest die Datenbank von Hattrick Organizer (nur lesend, über eine Kopie)
 // und schreibt die Daten, die TopHatt braucht, als JSON-Datei.
 // Aufruf: java -cp hsqldb.jar;TopHattSync.jar TopHattSync <HO-db-Ordner> <Ausgabedatei>

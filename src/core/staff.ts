@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Trainer, Assistenztrainer und Spezialisten: Kosten und Trainingseffizienz.
 //
 // Effizienz wie die Hattrick-Sandbox „Trainingseffizienz“ (am 21.11.2026 mit zehn Einstellungen

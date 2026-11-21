@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Trainingsplanung: welche Positionen werden beim eingestellten Training voll/teilweise trainiert,
 // und eine Freundschaftsspiel-Aufstellung, damit alle 22 Spieler Training bekommen.
 // Positionsgruppen je Trainingsart aus HO core/training/type/*WeeklyTraining.java.

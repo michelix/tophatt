@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Vereinsfinanzen aus HRF-Dateien: Kontostand, Wochenbilanz, Personal und eine Prognose,
 // ob geplante Ausgaben (Trainer, Assistenten, Spezialisten) den Verein in die Schulden treiben.
 // Geld steht in der HRF in der Hattrick-Basiseinheit; [xtra] CurrencyRate rechnet in Euro um (EUR: 10).

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Seite „Trainer & Effizienz“: Ist-Stand wie die Hattrick-Trainingseffizienz, Sandbox mit Kosten,
 // günstigste Wege zu mehr Effizienz und Trainerpreise. Rechenlogik in core/staff.ts.
 import {

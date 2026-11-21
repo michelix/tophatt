@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright © 2026 michelix
 // Kader- und Transferberater (erste Heuristiken, kein HO-Algorithmus).
 // 1) Wo bringt eine Verstärkung am meisten?  -> Simulation "+1 / +2 Stufen" auf jeder Startposition
 // 2) Wer ist entbehrlich?                   -> nicht in Startelf/Bank, alt, Gehalt
