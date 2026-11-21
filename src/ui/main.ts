@@ -23,7 +23,7 @@ import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 import { type FinanceSnapshot, type PastWeek, parseFinance, pastWeeks } from "../core/finance";
 import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
-import { type PlannedMove, initOrdersPage, loadOrders, ordersBlocking, ordersSummary, plannedMoves, renderOrdersPage, withOrders } from "./orders-view";
+import { type PlannedMove, currentBackups, initOrdersPage, loadOrders, ordersBlocking, ordersSummary, plannedMoves, renderOrdersPage, staleOrders, withOrders } from "./orders-view";
 import { teamPlayers } from "../core/hodata";
 import { avatarHtml, cutoutAvatars } from "./avatar";
 import { LEVEL_DE } from "../core/staff";
@@ -906,17 +906,17 @@ function movePills(id: number, moves: Map<number, PlannedMove[]>, byId: Map<numb
     .map((m) => {
       const icon = m.kind === "out" ? "▼" : m.kind === "in" ? "▲" : "⇄";
       const verb = m.kind === "out" ? `geht in Minute ${m.minute} raus, für ${byId.get(m.other)?.name ?? "?"}` : m.kind === "in" ? `kommt in Minute ${m.minute} für ${byId.get(m.other)?.name ?? "?"}` : `tauscht in Minute ${m.minute} mit ${byId.get(m.other)?.name ?? "?"}`;
-      const title = `${byId.get(id)?.name ?? ""} ${verb}${m.cond ? ` (nur wenn ${m.cond})` : ""}`;
-      return `<button type="button" class="subpill ${m.kind}" data-goto="secSubs" title="${esc(title)}"><b>${icon}</b>${m.minute}′${m.cond ? "*" : ""}<span class="sp-who"> ${esc(m.kind === "in" ? `für ${last(m.other)}` : last(m.other))}</span></button>`;
+      const title = m.bad ? `Passt nicht mehr zur Aufstellung: ${m.bad} Antippen zum Korrigieren.` : `${byId.get(id)?.name ?? ""} ${verb}${m.cond ? ` (nur wenn ${m.cond})` : ""}`;
+      return `<button type="button" class="subpill ${m.kind}${m.bad ? " bad" : ""}" data-goto="secSubs" title="${esc(title)}"><b>${m.bad ? "!" : icon}</b>${m.minute}′${m.cond ? "*" : ""}<span class="sp-who"> ${esc(m.kind === "in" ? `für ${last(m.other)}` : last(m.other))}</span></button>`;
     })
     .join("");
 }
 
 function editPitch(): string {
   const byId = playersById();
-  const moves = plannedMoves();
   const L = state.league!;
   const C = myLineup();
+  const moves = plannedMoves(C, byId);
   const fit = fitTable(state.hrf!.players);
   const pick = state.pick;
   const slots = Object.entries(GRID).map(([r, [row, col]]) => {
@@ -950,7 +950,7 @@ function editPitch(): string {
   return `<div class="field">${FIELD_LINES}<div class="pitch edit">${slots.join("")}</div>
     <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats${hsDiff(mine.hatStats - L.hatStats)}</span><span>${state.manual.length}/11</span></div></div>
     ${benchHtml(C)}
-    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span><span class="tk-legend"><i class="tk-A"></i>A-Kader <i class="tk-B"></i>B-Kader <i class="tk-R"></i>Rest · Kreisfarbe = Kader (änderbar unter Trainingswoche)</span><span><b class="lg-out">▼</b> raus · <b class="lg-in">▲</b> rein · <b class="lg-swap">⇄</b> Tausch, mit Minute (* = nur unter Bedingung) · antippen öffnet die Anweisungen</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
+    <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span><span class="tk-legend"><i class="tk-A"></i>A-Kader <i class="tk-B"></i>B-Kader <i class="tk-R"></i>Rest · Kreisfarbe = Kader (änderbar unter Trainingswoche)</span><span><b class="lg-out">▼</b> raus · <b class="lg-in">▲</b> rein · <b class="lg-swap">⇄</b> Tausch, mit Minute (* = nur unter Bedingung) · <b class="lg-bad">!</b> passt nicht mehr zur Aufstellung · antippen öffnet die Anweisungen · Res. = Reserve (zweite Bankreihe)</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
 `;
 }
 
@@ -970,7 +970,8 @@ const BENCH_ROLE: Record<BenchSlot, number> = {
 /** Ersatzbank als zweite Reihe unter dem Feld */
 function benchHtml(C: Lineup): string {
   const byId = playersById();
-  const moves = plannedMoves();
+  const moves = plannedMoves(C, byId);
+  const backups = currentBackups(C, byId);
   const pick = state.pick;
   const fixed = state.choices.bench ?? {};
   const cells = BENCH_ORDER.map((slot) => {
@@ -986,6 +987,7 @@ function benchHtml(C: Lineup): string {
       <div class="token av tk-${tierOf(p.id) ?? "R"}">${tokenFace(p)}<span class="stat">${de(v, 1)}</span>${trainingBadge(p.id)}</div>
       <div class="pname">${esc(p.name.split(" ").slice(-1)[0])}</div>
       ${moves.has(p.id) ? movePills(p.id, moves, byId) : `<div class="meta">${own ? "von dir" : "auto"}</div>`}
+      ${backups[slot] ? `<div class="bk-res" title="${esc(`Reserve: Ist ${p.name} schon eingewechselt und wird auf dieser Position noch ein Ersatz gebraucht, kommt ${byId.get(backups[slot]!)?.name ?? "?"}.`)}">Res. ${esc((byId.get(backups[slot]!)?.name ?? "?").split(" ").slice(-1)[0])}</div>` : ""}
     </div>`;
   });
   return `<div class="bench" aria-label="Ersatzbank"><div class="bench-head">Ersatzbank <span>ziehen oder antippen zum Ändern</span></div><div class="bench-row">${cells.join("")}</div></div>`;
@@ -1253,9 +1255,9 @@ function renderExplain() {
   const E = explain({ positions: L.lineup.positions, ratings: L.ratings, hatStats: L.hatStats }, { positions: state.manual, ...mine }, state.hrf!.players, state.hrf!.team.formationExperience);
   const d = E.hatStatsMine - E.hatStatsAuto;
   const arrow = (v: number) => (Math.abs(v) < 0.05 ? `<span class="muted">±0</span>` : `<span class="delta ${v > 0 ? "up" : "down"}">${v > 0 ? "▲ +" : "▼ "}${de(v)}</span>`);
-  $("#lineupWarn").innerHTML = E.warnings.length
-    ? `<div class="warnbar">${E.warnings.map((w) => `<div><b>!</b> ${esc(w)}</div>`).join("")}</div>`
-    : "";
+  const stale = staleOrders(myLineup(), playersById());
+  const warns = [...E.warnings.map((w) => esc(w)), ...(stale.length ? [`${stale.length} ${stale.length === 1 ? "Anweisung passt" : "Anweisungen passen"} nicht mehr zur Aufstellung. <button class="linkbtn" data-goto="secSubs">ansehen</button>`] : [])];
+  $("#lineupWarn").innerHTML = warns.length ? `<div class="warnbar">${warns.map((w) => `<div><b>!</b> ${w}</div>`).join("")}</div>` : "";
   const changedRows = E.sectors.filter((x) => Math.abs(x.delta) >= 0.05);
   const changeBlock = E.same
     ? `<div class="focus ok"><b>Entspricht dem automatischen Vorschlag.</b></div>`
@@ -3281,6 +3283,7 @@ function init() {
       if (state.league) {
         $("#pitchOut").innerHTML = editPitch();
         drawFlow();
+        renderExplain();
       }
       const info = document.querySelector("#ordersInfo");
       if (info && state.hrf) info.textContent = ordersSummary(myLineup(), playersById());

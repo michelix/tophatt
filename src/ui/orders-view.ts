@@ -127,22 +127,38 @@ export interface PlannedMove {
   other: number;
   /** Bedingung als Text, leer = immer */
   cond: string;
+  /** warum die Anweisung nicht mehr passt, leer = in Ordnung */
+  bad: string;
 }
 
-export function plannedMoves(): Map<number, PlannedMove[]> {
+export function plannedMoves(l: Pick<Lineup, "positions" | "bench">, byId: Map<number, Player>): Map<number, PlannedMove[]> {
   const map = new Map<number, PlannedMove[]>();
+  const problems = orderProblems(store.orders, l, byId, ctx?.tacticalAssistants() ?? 0);
   const add = (id: number, m: PlannedMove) => id && map.set(id, [...(map.get(id) ?? []), m]);
-  for (const o of store.orders) {
+  store.orders.forEach((o, i) => {
     const cond = [o.standing >= 0 ? STANDING_DE.find(([v]) => v === o.standing)?.[1] : "", o.card >= 0 ? CARD_DE.find(([v]) => v === o.card)?.[1] : ""].filter(Boolean).join(", ");
+    const bad = problems[i].join(" ");
     if (o.kind === "sub" && o.playerOut && o.playerIn) {
-      add(o.playerOut, { kind: "out", minute: o.minute, other: o.playerIn, cond });
-      add(o.playerIn, { kind: "in", minute: o.minute, other: o.playerOut, cond });
+      add(o.playerOut, { kind: "out", minute: o.minute, other: o.playerIn, cond, bad });
+      add(o.playerIn, { kind: "in", minute: o.minute, other: o.playerOut, cond, bad });
     } else if (o.kind === "swap" && o.playerOut && o.playerIn) {
-      add(o.playerOut, { kind: "swap", minute: o.minute, other: o.playerIn, cond });
-      add(o.playerIn, { kind: "swap", minute: o.minute, other: o.playerOut, cond });
+      add(o.playerOut, { kind: "swap", minute: o.minute, other: o.playerIn, cond, bad });
+      add(o.playerIn, { kind: "swap", minute: o.minute, other: o.playerOut, cond, bad });
     }
-  }
+  });
   return map;
+}
+
+/** Anweisungen, die nicht mehr zur Aufstellung passen (z. B. Einwechselspieler steht inzwischen auf dem Feld) */
+export function staleOrders(l: Pick<Lineup, "positions" | "bench">, byId: Map<number, Player>): { index: number; text: string }[] {
+  return orderProblems(store.orders, l, byId, ctx?.tacticalAssistants() ?? 0)
+    .map((p, index) => ({ index, text: p.join(" ") }))
+    .filter((x) => x.text);
+}
+
+/** Reserve je Bankplatz für die Anzeige auf der Bank */
+export function currentBackups(l: Lineup, byId: Map<number, Player>): Partial<Record<BenchSlot, number>> {
+  return autoBackups(l.bench, byId, store.backups);
 }
 
 /** Fehler in den Anweisungen, die das Speichern verhindern */
@@ -173,7 +189,7 @@ function renderOrder(o: MatchOrder, i: number, n: number, l: Lineup, byId: Map<n
   const field = l.positions.map((p) => ({ id: p.playerId, label: `${name(p.playerId)} (${ROLE_SHORT[p.role]})` })).filter((x) => x.label);
   const bench = BENCH_NAME.map(([s, d]) => ({ id: l.bench[s] ?? 0, label: `${name(l.bench[s] ?? 0)} (Bank ${d})` })).filter((x) => x.id);
   const choose = (list: { id: number; label: string }[], cur: number, none = "– wählen –") =>
-    opt(0, none, cur) + list.map((x) => opt(x.id, x.label, cur)).join("") + (cur && !list.some((x) => x.id === cur) ? opt(cur, `${name(cur) || `ID ${cur}`} (nicht aufgestellt)`, cur) : "");
+    opt(0, none, cur) + list.map((x) => opt(x.id, x.label, cur)).join("") + (cur && !list.some((x) => x.id === cur) ? opt(cur, `${name(cur) || `ID ${cur}`} (${l.positions.some((p) => p.playerId === cur) ? "steht auf dem Feld" : "nicht aufgestellt"})`, cur) : "");
   const group = (title: string, list: { id: number; label: string }[], cur: number) => (list.length ? `<optgroup label="${title}">${list.map((x) => opt(x.id, x.label, cur)).join("")}</optgroup>` : "");
   const both = (cur: number) => opt(0, "– wählen –", cur) + group("Startelf", field, cur) + group("Bank", bench, cur);
   const minute = `<label>Ab Minute<input type="number" min="0" max="119" value="${o.minute < 0 ? "" : o.minute}" data-oi="${i}" data-of="minute"></label>`;
@@ -272,6 +288,7 @@ export function renderOrdersPage() {
       <h3><span class="step">3</span>Auswechslungen &amp; Anweisungen <span class="sub">${counted} von ${limit} Anweisungen (5 + Taktik-Assistent Stufe ${ta})${hasMarking ? " · plus 1 Manndeckung" : ""} · davon höchstens ${MAX_SUBSTITUTIONS} Wechsel</span></h3>
       ${suggestionsBlock(l, byId)}
       <div class="mp-head sect-sub">Deine Anweisungen</div>
+      ${problems.some((p) => p.length) ? `<div class="warnbar ord-stale"><div><b>!</b> ${problems.filter((p) => p.length).length} ${problems.filter((p) => p.length).length === 1 ? "Anweisung passt" : "Anweisungen passen"} nicht mehr zur Aufstellung (rot markiert), meist weil du danach die Aufstellung geändert hast. So kann TopHatt nicht für HO speichern.</div><div class="controls"><button class="btn" data-oclean>Unpassende entfernen</button></div></div>` : ""}
       <div class="controls ord-add">${addBtn("sub", "Auswechslung", full)}${addBtn("behaviour", "Verhalten", full)}${addBtn("swap", "Positionstausch", full)}${addBtn("marking", "Manndeckung", hasMarking)}
         ${store.orders.length ? `<button class="btn" data-oclear>Alle löschen</button>` : ""}</div>
       ${store.orders.map((o, i) => renderOrder(o, i, store.orders.length, l, byId, problems[i])).join("") || `<p class="sub">Noch keine Anweisungen. Ohne Anweisungen wechselt Hattrick nur bei Verletzungen aus.</p>`}
@@ -364,6 +381,10 @@ export function initOrdersPage(el: HTMLElement, c: OrdersContext) {
     else if (d.odel !== undefined) store.orders.splice(Number(d.odel), 1);
     else if (d.omove !== undefined) move(store.orders, Number(d.omove), Number(d.dir));
     else if (d.oclear !== undefined) store.orders = [];
+    else if (d.oclean !== undefined) {
+      const bad = new Set(orderProblems(store.orders, l, byId, ctx.tacticalAssistants()).flatMap((p, i) => (p.length ? [i] : [])));
+      store.orders = store.orders.filter((_, i) => !bad.has(i));
+    }
     else if (d.pauto !== undefined) {
       store.penalties = [];
       store.excluded = [];
