@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.stream.Stream;
 
@@ -50,6 +51,7 @@ public class TopHattSync {
             + "WHERE l.ROLEID BETWEEN 100 AND 113 AND m.SPIELDATUM > CURRENT_TIMESTAMP - INTERVAL '120' DAY ORDER BY m.SPIELDATUM DESC");
         section(w, c, "training", "SELECT * FROM TRAINING ORDER BY TRAINING_DATE");
         section(w, c, "futureTraining", "SELECT * FROM FUTURETRAINING ORDER BY TRAINING_DATE");
+        avatars(w, dbDir.toAbsolutePath().getParent().resolve("img").resolve("playersAvatar"));
         w.write("\n}\n");
       }
       System.out.println("TopHatt-Daten geschrieben: " + out.toAbsolutePath());
@@ -78,6 +80,23 @@ public class TopHattSync {
     } catch (SQLException e) {
       // Tabelle fehlt in älteren HO-Versionen: leer lassen
       System.err.println("Hinweis: " + name + " nicht lesbar: " + e.getMessage());
+    }
+    w.write("]");
+  }
+
+  /** Spielerbilder, die HO unter img/playersAvatar/<SpielerID>.png ablegt (nur lokal, nie ins Repo) */
+  static void avatars(Writer w, Path dir) throws IOException {
+    w.write(",\n" + q("avatars") + ":[");
+    if (Files.isDirectory(dir)) {
+      boolean first = true;
+      try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir, "*.png")) {
+        for (Path f : ds) {
+          String id = f.getFileName().toString().replace(".png", "");
+          if (!id.matches("\\d+") || Files.size(f) > 200_000) continue;
+          w.write((first ? "\n{" : ",\n{") + q("spielerid") + ":" + id + "," + q("png") + ":" + q(Base64.getEncoder().encodeToString(Files.readAllBytes(f))) + "}");
+          first = false;
+        }
+      }
     }
     w.write("]");
   }

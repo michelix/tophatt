@@ -25,6 +25,8 @@ import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
 import { initOrdersPage, loadOrders, ordersBlocking, ordersSummary, renderOrdersPage, withOrders } from "./orders-view";
 import { teamPlayers } from "../core/hodata";
+import { avatarHtml } from "./avatar";
+import { LEVEL_DE } from "../core/staff";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -136,6 +138,11 @@ interface State {
   weakBasis: string;
   /** Spieler, für den die Linien zu passenden Positionen gezeigt werden */
   flowPid: number | null;
+  /** Spielerkarte: Vorschau beim Darüberfahren (Maus), Reiter rechts (Karte/Liste), beim Ziehen ausgeblendet */
+  inspectPreview: number | null;
+  inspectTab: "card" | "list";
+  inspectSmall: boolean;
+  dragging: boolean;
   plans: GroupPlan[];
   /** Grundlage der Kaderplanung (wie Schwachstellen), z. B. „deiner Aufstellung“ */
   planBasis: string;
@@ -180,6 +187,10 @@ const state: State = {
   formations: [],
   weakBasis: "mine",
   flowPid: null,
+  inspectPreview: null,
+  inspectTab: "card",
+  inspectSmall: false,
+  dragging: false,
   plans: [],
   planBasis: "",
   projection: null,
@@ -912,7 +923,6 @@ function editPitch(): string {
   return `<div class="field">${FIELD_LINES}<div class="pitch edit">${slots.join("")}</div>
     <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats${hsDiff(mine.hatStats - L.hatStats)}</span><span>${state.manual.length}/11</span></div></div>
     ${benchHtml(C)}
-    ${menuHtml(C)}
     <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span><span class="tk-legend"><i class="tk-A"></i>A-Kader <i class="tk-B"></i>B-Kader <i class="tk-R"></i>Rest · Kreisfarbe = Kader (änderbar unter Trainingswoche)</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
 `;
 }
@@ -951,60 +961,6 @@ function benchHtml(C: Lineup): string {
     </div>`;
   });
   return `<div class="bench" aria-label="Ersatzbank"><div class="bench-head">Ersatzbank <span>ziehen oder antippen zum Ändern</span></div><div class="bench-row">${cells.join("")}</div></div>`;
-}
-
-/** Menü zum angetippten Spieler (Feld oder Bank) */
-function menuHtml(C: Lineup): string {
-  const pick = state.pick;
-  const byId = playersById();
-  if (pick?.kind === "slot") {
-    const pos = state.manual.find((x) => x.role === pick.role);
-    const p = pos && byId.get(pos.playerId);
-    if (!pos || !p) return "";
-    const opts = behavioursFor(pick.role);
-    const cap = C.captainId === p.id;
-    const sp = C.setPiecesId === p.id;
-    return `<div class="pmenu" data-for="slot" data-role="${pick.role}" role="dialog" aria-label="${esc(p.name)}">
-      <div class="pm-head"><b>${esc(p.name)}</b><span>${ROLE_DE[pick.role]}</span><button class="pm-close" aria-label="Schließen">×</button></div>
-      ${opts.length > 1 ? `<div class="pm-label">Verhalten</div><div class="pm-opts">${opts.map((b) => `<button data-bh="${b}" aria-pressed="${b === pos.behaviour}">${BEHAVIOUR_DE[b] || "normal"}</button>`).join("")}</div>` : ""}
-      <div class="pm-opts">
-        <button data-cap="${p.id}" aria-pressed="${cap}">${cap ? "✓ Kapitän" : "Zum Kapitän"}</button>
-        <button data-sp="${p.id}" aria-pressed="${sp}">${sp ? "✓ Standards" : "Standards schießen"}</button>
-      </div>
-      <div class="pm-opts"><button data-detail="${p.id}">ⓘ Details</button><button class="pm-out" data-remove="${pick.role}">Vom Feld nehmen</button></div>
-      <div class="pm-tip">Jetzt eine andere Position, einen Bankplatz oder einen Spieler aus der Liste antippen, um ihn dorthin zu setzen oder zu tauschen.</div>
-    </div>`;
-  }
-  if (pick?.kind === "bench") {
-    const id = C.bench[pick.slot];
-    const p = id ? byId.get(id) : undefined;
-    const own = pick.slot in (state.choices.bench ?? {});
-    return `<div class="pmenu" data-for="bench" data-bench="${pick.slot}" role="dialog" aria-label="Bankplatz ${BENCH_DE[pick.slot]}">
-      <div class="pm-head"><b>${p ? esc(p.name) : "Platz frei"}</b><span>Bank: ${BENCH_DE[pick.slot]}</span><button class="pm-close" aria-label="Schließen">×</button></div>
-      <div class="pm-opts">
-        ${own ? `<button data-bench-auto="${pick.slot}">Automatisch wählen</button>` : ""}
-        ${p ? `<button data-bench-empty="${pick.slot}">Platz leer lassen</button><button data-detail="${p.id}">ⓘ Details</button>` : ""}
-      </div>
-      <div class="pm-tip">Spieler aus der Liste antippen: kommt auf diesen Platz. Position auf dem Feld antippen: ${p ? "er spielt dort von Anfang an." : "nichts."}</div>
-    </div>`;
-  }
-  return "";
-}
-
-/** Menü unter dem angetippten Spieler ausrichten */
-function placeMenu() {
-  const out = $("#pitchOut");
-  const menu = out.querySelector<HTMLElement>(".pmenu");
-  if (!menu) return;
-  const sel = menu.dataset.for === "bench" ? `.bslot[data-bench="${menu.dataset.bench}"] .token` : `.slot[data-role="${menu.dataset.role}"] .token`;
-  const t = out.querySelector<HTMLElement>(sel);
-  if (!t) return;
-  const o = out.getBoundingClientRect();
-  const r = t.getBoundingClientRect();
-  const w = menu.offsetWidth;
-  const left = Math.min(Math.max(4, r.left - o.left + r.width / 2 - w / 2), o.width - w - 4);
-  menu.style.left = `${left}px`;
-  menu.style.top = `${r.bottom - o.top + 10}px`;
 }
 
 /** Spieler auf einen Bankplatz setzen; steht er schon auf einem anderen, tauschen beide */
@@ -1101,10 +1057,30 @@ function flowClass(share: number): string {
 /** Linien ausblenden und Auswahl aufheben */
 function clearFlow() {
   state.flowPid = null;
+  state.inspectPreview = null;
   if (state.pick) {
     state.pick = null;
     renderLineup();
-  } else drawFlow();
+  } else {
+    renderInspect();
+    drawFlow();
+  }
+}
+
+/** passende Positionen eines Spielers (wie die Linien): bis 70 % der besten Eignung, beste zuerst */
+function flowCands(p: Player, exceptRole?: number) {
+  const fit = fitTable(state.hrf!.players);
+  const groups = [...new Set(Object.keys(GRID).map((r) => lineupSector(Number(r))))];
+  const best = Math.max(...groups.map((g) => fit.rel(p, g)));
+  const cut = best * FLOW_CUT;
+  const cands = Object.keys(GRID)
+    .map(Number)
+    .filter((role) => role !== exceptRole)
+    .map((role) => ({ role, rel: fit.rel(p, lineupSector(role)), val: playerPositionRating(p, role) }))
+    .filter((c) => c.rel >= cut)
+    .sort((a, b) => b.rel - a.rel || b.val - a.val)
+    .slice(0, 9);
+  return { cands, best, cut };
 }
 
 function drawFlow() {
@@ -1123,21 +1099,15 @@ function drawFlow() {
   const p = playersById().get(pid);
   if (!p) return;
   const fromSlot = state.manual.find((x) => x.playerId === pid);
+  const visible = (el: HTMLElement | null) => (el && el.offsetParent !== null ? el : null);
+  // Liste von der Spielerkarte verdeckt: Linien starten am Bild in der Karte
   const srcEl = fromSlot
     ? ed.querySelector<HTMLElement>(`#pitchOut .slot[data-pid="${pid}"] .token`)
-    : (ed.querySelector<HTMLElement>(`#pitchOut .bslot[data-pid="${pid}"] .token`) ?? ed.querySelector<HTMLElement>(`#poolOut .pchip[data-pid="${pid}"]`));
+    : (ed.querySelector<HTMLElement>(`#pitchOut .bslot[data-pid="${pid}"] .token`) ??
+      visible(ed.querySelector<HTMLElement>(`#poolOut .pchip[data-pid="${pid}"]`)) ??
+      visible(ed.querySelector<HTMLElement>(`#inspectOut .ic-av`)));
   if (!srcEl) return;
-  const fit = fitTable(state.hrf.players);
-  const groups = [...new Set(Object.keys(GRID).map((r) => lineupSector(Number(r))))];
-  const best = Math.max(...groups.map((g) => fit.rel(p, g)));
-  const cut = best * FLOW_CUT;
-  const cands = Object.keys(GRID)
-    .map(Number)
-    .filter((role) => role !== fromSlot?.role)
-    .map((role) => ({ role, rel: fit.rel(p, lineupSector(role)), val: playerPositionRating(p, role) }))
-    .filter((c) => c.rel >= cut)
-    .sort((a, b) => b.rel - a.rel || b.val - a.val)
-    .slice(0, 9);
+  const { cands, best, cut } = flowCands(p, fromSlot?.role);
   if (!cands.length) return;
   const box = ed.getBoundingClientRect();
   const sr = srcEl.getBoundingClientRect();
@@ -1396,11 +1366,11 @@ function renderLineup() {
   const t = TRAININGS[state.hrf!.team.trainingType];
   renderMatchPlan();
   $("#pitchOut").innerHTML = editPitch();
-  placeMenu();
+  $("#poolOut").innerHTML = poolHtml();
+  renderInspect();
   animateTokens(prev);
   drawFlow();
   setTimeout(drawFlow, 450);
-  $("#poolOut").innerHTML = poolHtml();
   renderExplain();
   const C = myLineup();
   const mine = manualEval();
@@ -1487,7 +1457,216 @@ function setBenchEmpty(slot: BenchSlot) {
   editorChanged();
 }
 
-/** Knöpfe im Spieler-Menü */
+/** Knöpfe in der Spielerkarte */
+// --- Spielerkarte neben dem Feld --------------------------------------------------------
+// Maus darüber: Vorschau mit Linien · Klick: festgehalten mit Aktionen · Ziehen: nur Linien · Handy: Blatt von unten
+
+const STAR = "★";
+/** Rückennummer; Hattrick nutzt 100 für „keine“ */
+const shirtNo = (p: Player) => (p.number && p.number > 0 && p.number < 100 ? p.number : 0);
+let inspectKey = "";
+
+/** Was die Karte gerade zeigt: festgehaltener Spieler (Auswahl) oder Vorschau */
+function inspectTarget(): { pid: number; pinned: boolean; pick: Pick } | null {
+  if (state.dragging || !state.hrf) return null;
+  const pick = state.pick;
+  if (pick?.kind === "slot") {
+    const pid = state.manual.find((x) => x.role === pick.role)?.playerId;
+    return pid ? { pid, pinned: true, pick } : null;
+  }
+  if (pick?.kind === "bench") return { pid: myLineup().bench[pick.slot] ?? 0, pinned: true, pick };
+  if (pick?.kind === "pool") return { pid: pick.id, pinned: true, pick };
+  if (state.inspectPreview) return { pid: state.inspectPreview, pinned: false, pick: null };
+  return null;
+}
+type Pick = (typeof state)["pick"];
+
+function renderInspect() {
+  const box = document.querySelector<HTMLElement>("#inspectOut");
+  const ed = document.querySelector<HTMLElement>("#aufstellung .editor");
+  if (!box || !ed) return;
+  const t = inspectTarget();
+  const key = t ? `${t.pinned ? "p" : "v"}:${JSON.stringify(t.pick)}:${t.pid}` : "";
+  if (t?.pinned && key !== inspectKey) {
+    state.inspectTab = "card";
+    // Handy: erst klein (Feld bleibt sichtbar), Griff oben vergrößert
+    state.inspectSmall = window.matchMedia("(max-width:860px)").matches;
+  }
+  inspectKey = key;
+  if (!t) {
+    box.hidden = true;
+    box.innerHTML = "";
+    ed.classList.remove("inspecting");
+    document.body.classList.remove("inspect-open");
+    return;
+  }
+  const list = t.pinned && state.inspectTab === "list";
+  const tabs = t.pinned
+    ? `<div class="ic-tabs" role="tablist"><button type="button" data-itab="card" aria-pressed="${!list}">Spielerkarte</button><button type="button" data-itab="list" aria-pressed="${list}">Liste der Spieler</button></div>`
+    : "";
+  box.hidden = false;
+  box.classList.toggle("listmode", list);
+  box.classList.toggle("small", state.inspectSmall);
+  box.innerHTML = tabs + (list ? "" : inspectCardHtml(t.pid, t.pinned, t.pick));
+  ed.classList.toggle("inspecting", !list);
+  document.body.classList.toggle("inspect-open", t.pinned && !list && window.matchMedia("(max-width:860px)").matches);
+}
+
+function inspectCardHtml(pid: number, pinned: boolean, pick: Pick): string {
+  const hrf = state.hrf!;
+  const p = playersById().get(pid);
+  const handle = `<button type="button" class="ic-handle" data-ismall aria-label="${state.inspectSmall ? "Karte vergrößern" : "Karte verkleinern"}"><i></i></button>`;
+  if (!p) {
+    // leerer Bankplatz
+    if (pick?.kind !== "bench") return "";
+    const own = pick.slot in (state.choices.bench ?? {});
+    return `${handle}<div class="ic-top"><div class="ic-id"><h4>Platz frei</h4><div class="ic-sub">Bank: ${BENCH_DE[pick.slot]}</div></div><button type="button" class="ic-pin on pm-close" aria-label="Schließen">× schließen</button></div>
+      ${own ? `<div class="ic-act"><button data-bench-auto="${pick.slot}">Automatisch wählen</button></div>` : ""}
+      <div class="ic-tip" style="padding-top:8px">Spieler aus der Liste antippen: kommt auf diesen Platz.</div>`;
+  }
+  const t = TRAININGS[hrf.team.trainingType];
+  const tier = tierOf(p.id) ?? "R";
+  const onField = state.manual.find((x) => x.playerId === p.id);
+  const C = myLineup();
+  const bench = (Object.keys(C.bench) as BenchSlot[]).find((k) => C.bench[k] === p.id);
+  const where = onField ? ROLE_DE[onField.role] : bench ? `Bank: ${BENCH_DE[bench]}` : "nicht aufgestellt";
+  const pin = pinned
+    ? `<button type="button" class="ic-pin on pm-close" title="Karte schließen (Esc)">📌 festgehalten ×</button>`
+    : `<span class="ic-pin" title="Spieler anklicken, um die Karte festzuhalten">Vorschau</span>`;
+  const lvl = (v: number) => (v >= 7 ? "" : v >= 5 ? "y" : "r");
+  const bar = (v: number, max: number, cls = "") => `<span class="ic-bar"><i class="${cls}" style="width:${Math.min(100, (v / max) * 100).toFixed(1)}%"></i></span>`;
+
+  const chips: string[] = [];
+  const wk = state.week?.played.get(p.id);
+  const wf = weekFactor(wk);
+  if (t && wf >= 1) chips.push(`<span>✓ diese Woche ${esc(t.name)} trainiert</span>`);
+  else if (t && wf > 0) chips.push(`<span class="w">½ diese Woche ${esc(t.name)}</span>`);
+  if (p.injury > 0) chips.push(`<span class="b">verletzt, ${p.injury} ${p.injury === 1 ? "Woche" : "Wochen"}</span>`);
+  else if (p.injury === 0) chips.push(`<span class="w">angeschlagen</span>`);
+  if (p.cards >= 3) chips.push(`<span class="b">gesperrt</span>`);
+  else if (p.cards > 0) chips.push(`<span class="w">${p.cards} ${p.cards === 1 ? "Gelbe Karte" : "Gelbe Karten"}</span>`);
+  if (C.captainId === p.id) chips.push(`<span>Kapitän</span>`);
+  if (C.setPiecesId === p.id) chips.push(`<span>Standards</span>`);
+
+  const start = startSkills(p);
+  const skills: DevSkill[] = ["keeper", "defending", "playmaking", "winger", "passing", "scoring", "setPieces"];
+  const trained = t?.skill;
+  const skillRows = [...skills]
+    .sort((a, b) => (a === trained ? -1 : b === trained ? 1 : start[b] - start[a]))
+    .map((k) => {
+      const v = start[k];
+      return `<div class="ic-sk${k === trained ? " tr" : ""}"><span>${DEV_SKILL_DE[k]}</span>${bar(v, 20)}<span class="n">${deNum(v, Number.isInteger(v) ? 0 : 1)}</span><span class="w">${skillName(v)}</span></div>`;
+    })
+    .join("");
+
+  const { cands, best } = flowCands(p, onField?.role);
+  const posChips = [
+    onField ? `<b class="here" title="spielt hier">${ROLE_DE[onField.role]} ${deNum(playerPositionRating(p, onField.role, onField.behaviour))} · spielt hier</b>` : "",
+    ...cands.slice(0, onField ? 4 : 5).map((c) => `<b class="${flowClass(c.rel / best)}">${ROLE_DE[c.role]} ${deNum(c.val)}</b>`),
+  ].join("");
+
+  const last =
+    p.lastMatchDate && (p.lastMatchMinutes ?? 0) > 0
+      ? `${p.lastMatchRating ? `<span class="stars" aria-label="${deNum(p.lastMatchRating)} Sterne">${STAR.repeat(Math.max(1, Math.floor(p.lastMatchRating)))}${p.lastMatchRating % 1 ? "½" : ""}</span><b>${deNum(p.lastMatchRating)}</b>` : ""}<span>${new Date(p.lastMatchDate.replace(" ", "T")).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} · ${esc(positionShort(p.lastMatchPosition) || "–")} · ${p.lastMatchMinutes} Min.</span>`
+      : `<span class="muted">kein Spiel bekannt</span>`;
+
+  let actions = "";
+  if (pinned && pick?.kind === "slot" && onField) {
+    const opts = behavioursFor(pick.role);
+    actions = `<div class="ic-act">
+      ${opts.length > 1 ? `<span class="lbl">Verhalten</span>${opts.map((b) => `<button data-bh="${b}" aria-pressed="${b === onField.behaviour}">${BEHAVIOUR_DE[b] || "normal"}</button>`).join("")}<span class="lbl">Aktionen</span>` : ""}
+      <button data-cap="${p.id}" aria-pressed="${C.captainId === p.id}">${C.captainId === p.id ? "✓ Kapitän" : "Zum Kapitän"}</button>
+      <button data-sp="${p.id}" aria-pressed="${C.setPiecesId === p.id}">${C.setPiecesId === p.id ? "✓ Standards" : "Standards schießen"}</button>
+      <button class="pm-out" data-remove="${pick.role}">Vom Feld nehmen</button>
+      <button data-detail="${p.id}">Ganze Entwicklung →</button></div>
+      <div class="ic-tip ic-more">Zum Tauschen eine andere Position oder einen Bankplatz antippen, oder einen Spieler aus der Liste wählen.</div>`;
+  } else if (pinned && pick?.kind === "bench") {
+    const own = pick.slot in (state.choices.bench ?? {});
+    actions = `<div class="ic-act">${own ? `<button data-bench-auto="${pick.slot}">Automatisch wählen</button>` : ""}<button data-bench-empty="${pick.slot}">Platz leer lassen</button><button data-detail="${p.id}">Ganze Entwicklung →</button></div>
+      <div class="ic-tip ic-more">Position auf dem Feld antippen: er spielt dort von Anfang an. Einen Spieler aus der Liste wählen: er kommt auf diesen Platz.</div>`;
+  } else if (pinned) {
+    actions = `<div class="ic-act"><button data-detail="${p.id}">Ganze Entwicklung →</button></div>
+      <div class="ic-tip ic-more">Position oder Bankplatz antippen, um ihn dorthin zu setzen. Die Linien zeigen, wo er am besten passt.</div>`;
+  }
+
+  return `${handle}<div class="ic-top"><div class="ic-av tk-${tier}">${avatarHtml(p.id, state.ho?.avatars, shirtNo(p))}</div>
+      <div class="ic-id"><h4>${shirtNo(p) ? `<small>${shirtNo(p)}</small>` : ""}${esc(p.name)}</h4>
+        <div class="ic-sub">${p.age} Jahre, ${p.ageDays} Tage · ${esc(where)} · ${TIER_NAME[tier]}</div>
+        <div class="ic-kv"><span>TSI <b>${p.tsi.toLocaleString("de-DE")}</b></span><span>Gehalt <b>${p.salary.toLocaleString("de-DE")} €</b></span><span>Erfahrung <b>${p.experience}</b> · Führung <b>${p.leadership}</b></span>${p.specialtyLabel ? `<span>✦ <b>${esc(p.specialtyLabel)}</b></span>` : ""}</div>
+      </div>${pin}</div>
+    <div class="ic-fk"><span>Form</span>${bar(p.form, 8, lvl(p.form))}<b>${p.form} ${skillName(p.form)}</b><span>Kondition</span>${bar(p.stamina, 9, lvl(p.stamina))}<b>${p.stamina} ${skillName(p.stamina)}</b></div>
+    ${chips.length ? `<div class="ic-chips">${chips.join("")}</div>` : ""}
+    <div class="ic-more">
+    <div class="ic-sec"><h5>Fähigkeiten</h5>${skillRows}</div>
+    ${posChips ? `<div class="ic-sec"><h5>Passt am besten · gleiche Farben wie die Linien</h5><div class="ic-pos">${posChips}</div></div>` : ""}
+    <div class="ic-sec ic-last"><span class="muted">Letzte Bewertung</span>${last}</div>
+    </div>
+    ${actions}`;
+}
+
+function inspectClick(el: HTMLElement) {
+  const tab = el.closest<HTMLElement>("[data-itab]");
+  if (tab) {
+    state.inspectTab = tab.dataset.itab === "list" ? "list" : "card";
+    renderInspect();
+    drawFlow();
+    return;
+  }
+  if (el.closest("[data-ismall]")) {
+    state.inspectSmall = !state.inspectSmall;
+    renderInspect();
+    return;
+  }
+  // Klick auf die Vorschau hält den Spieler fest
+  if (!state.pick && state.inspectPreview) {
+    const pid = state.inspectPreview;
+    const pos = state.manual.find((x) => x.playerId === pid);
+    const b = (Object.keys(myLineup().bench) as BenchSlot[]).find((k) => myLineup().bench[k] === pid);
+    state.inspectPreview = null;
+    state.pick = pos ? { kind: "slot", role: pos.role } : b ? { kind: "bench", slot: b } : { kind: "pool", id: pid };
+    return renderLineup();
+  }
+  menuClick(el);
+}
+
+/** Maus über einem Spieler auf Feld oder Bank: nach kurzem Verweilen Vorschau und Linien */
+function initInspectHover() {
+  const out = $("#pitchOut");
+  const canHover = () => window.matchMedia("(hover:hover) and (min-width:861px)").matches;
+  let showT = 0,
+    hideT = 0;
+  const hide = () => {
+    clearTimeout(showT);
+    clearTimeout(hideT);
+    hideT = window.setTimeout(() => {
+      if (!state.inspectPreview || state.pick || document.querySelector("#inspectOut:hover")) return;
+      state.inspectPreview = null;
+      state.flowPid = null;
+      renderInspect();
+      drawFlow();
+    }, 350);
+  };
+  out.addEventListener("mouseover", (e) => {
+    if (!canHover() || state.pick || state.dragging) return;
+    const el = (e.target as HTMLElement).closest<HTMLElement>(".pitch.edit .slot[data-pid] .token, .bench .bslot[data-pid] .token");
+    if (!el) return hide();
+    const pid = Number(el.closest<HTMLElement>("[data-pid]")!.dataset.pid);
+    clearTimeout(hideT);
+    if (state.inspectPreview === pid) return;
+    clearTimeout(showT);
+    showT = window.setTimeout(() => {
+      if (state.pick || state.dragging) return;
+      state.inspectPreview = pid;
+      state.flowPid = pid;
+      renderInspect();
+      drawFlow();
+    }, state.inspectPreview ? 60 : 320);
+  });
+  out.addEventListener("mouseleave", hide);
+  $("#inspectOut").addEventListener("mouseleave", () => state.inspectPreview && hide());
+  // Fokus mit der Tastatur zeigt dieselbe Vorschau nicht; Klick/Enter wählt den Spieler wie bisher
+}
+
 function menuClick(el: HTMLElement) {
   const b = el.closest<HTMLElement>("button");
   if (!b) return;
@@ -1525,6 +1704,7 @@ function menuClick(el: HTMLElement) {
 }
 
 function initEditor() {
+  initInspectHover();
   const root = $("#aufstellung");
   const target = (e: Event) => (e.target as HTMLElement).closest<HTMLElement>(".pitch.edit .slot, .bench .bslot, .pool");
   root.addEventListener("dragstart", (e) => {
@@ -1532,9 +1712,12 @@ function initEditor() {
     if (!el || !e.dataTransfer) return;
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", el.classList.contains("slot") ? `r:${el.dataset.role}` : el.classList.contains("bslot") ? `b:${el.dataset.bench}` : `p:${el.dataset.pid}`);
-    root.querySelector(".pmenu")?.remove();
     requestAnimationFrame(() => el.classList.add("dragging"));
     state.flowPid = Number(el.dataset.pid) || null;
+    // Beim Ziehen nur die Linien: Karte weg, Liste wieder sichtbar (Ablegen dort = vom Feld nehmen)
+    state.dragging = true;
+    state.inspectPreview = null;
+    renderInspect();
     drawFlow();
   });
   root.addEventListener("dragover", (e) => {
@@ -1548,6 +1731,10 @@ function initEditor() {
   root.addEventListener("dragend", () => {
     root.querySelectorAll(".dragging, .over").forEach((x) => x.classList.remove("dragging", "over"));
     state.flowPid = null;
+    if (state.dragging) {
+      state.dragging = false;
+      renderInspect();
+    }
     drawFlow();
   });
   $("#poolOut").addEventListener("scroll", () => drawFlow(), { passive: true });
@@ -1555,6 +1742,8 @@ function initEditor() {
   root.addEventListener("drop", (e) => {
     // dragend kommt nicht mehr an, wenn das gezogene Element beim Neuzeichnen ersetzt wird
     state.flowPid = null;
+    state.dragging = false;
+    renderInspect();
     root.querySelectorAll(".dragging, .over").forEach((x) => x.classList.remove("dragging", "over"));
     const t = target(e);
     if (!t) {
@@ -1597,14 +1786,14 @@ function initEditor() {
       state.choices = {};
       return editorChanged();
     }
-    const menu = el.closest<HTMLElement>(".pmenu");
-    if (menu) return menuClick(el);
+    if (el.closest("#inspectOut")) return inspectClick(el);
     if (el.closest("select")) return;
     const chip = el.closest<HTMLElement>(".pchip");
     const slot = el.closest<HTMLElement>(".pitch.edit .slot");
     const bslot = el.closest<HTMLElement>(".bench .bslot");
     const pick = state.pick;
     state.flowPid = null;
+    state.inspectPreview = null;
     if (bslot) {
       const b = bslot.dataset.bench as BenchSlot;
       if (pick?.kind === "pool") return setBench(b, pick.id);
@@ -2431,7 +2620,8 @@ function initTrainingWeek() {
 // --- Spielerkarte (Details zu einem Spieler, Seitenleiste) -------------------------------------------
 
 let cardPlayer = 0;
-const skillName = (v: number) => ratingLabel(Math.max(1, Math.floor(v))).replace(/ \(.*\)$/, "");
+/** Fähigkeitsname wie auf Hattrick (5 durchschnittlich, 6 passabel …) */
+const skillName = (v: number) => LEVEL_DE[Math.max(0, Math.min(LEVEL_DE.length - 1, Math.floor(v)))];
 const deNum = (x: number, d = 1) => x.toFixed(d).replace(".", ",");
 
 function openPlayerCard(id: number) {

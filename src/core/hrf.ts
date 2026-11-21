@@ -71,6 +71,7 @@ function parsePlayer(p: Map<string, string>, id: number, currencyRate: number): 
     lastMatchDate: str(p, "lastmatch_date"),
     lastMatchMinutes: num(p, "lastmatch_playedminutes"),
     lastMatchId: num(p, "lastmatch_id"),
+    number: num(p, "playernumber"),
   };
   // HO schätzt die Form-Unterstufe aus der TSI. Mit aktuellen TSI-Werten liefert die Formel
   // durchweg den Maximalwert, deshalb nehmen wir die neutrale Mitte (0,5).
