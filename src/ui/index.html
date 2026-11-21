@@ -602,6 +602,27 @@ select.training{border-color:var(--brand);font-weight:600}
 .tw-games{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
 .tw-squads{display:block}
 .pchip.tier-A{background:color-mix(in srgb,var(--kd-a) 9%,var(--surface))}.pchip.tier-B{background:color-mix(in srgb,var(--kd-b) 10%,var(--surface))}
+
+/* Ansehen/Ändern */
+.mode-seg button{padding:7px 14px;font-weight:600}
+.mode-seg button[data-setmode=edit].on{background:#b8860b;color:#fff}
+.editor.editing .field{box-shadow:0 0 0 3px #e0b03a,0 0 18px rgba(224,176,58,.45)}
+.editor.editing .field::after{content:"Ändern aktiv";position:absolute;right:10px;top:8px;z-index:3;background:#e0b03a;color:#1b1b1b;font:700 11px/1 system-ui,sans-serif;padding:4px 8px;border-radius:999px;letter-spacing:.02em}
+.editor:not(.editing) .pitch.edit .slot,.editor:not(.editing) .bslot{cursor:pointer}
+/* Spielerliste wie auf Hattrick: Bild auf Fläche in Kaderfarbe, daneben Fähigkeitsbalken */
+.pchip.ht{display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 10px;align-items:start;padding:6px 8px 6px 6px}
+.pchip.ht .pc-tile.token.av{width:46px;height:58px;font-size:0;box-shadow:0 0 0 2px var(--surface),0 1px 4px rgba(0,0,0,.25);cursor:inherit}
+.pchip.ht .pc-tile .no{position:absolute;left:3px;bottom:2px;font:700 11px/1 "Bahnschrift","Segoe UI",sans-serif;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.8)}
+.pchip.ht .pc-main{min-width:0;display:flex;flex-direction:column;gap:2px}
+.pchip.ht .pc-line{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.pchip.ht .m{grid-column:auto;margin-top:1px}
+.pc-bars{display:grid;grid-template-columns:1fr 1fr;gap:3px 6px}
+.pb{display:grid;grid-template-columns:minmax(0,1fr) 18px;gap:3px;align-items:center}
+.pb-bar{position:relative;height:15px;border-radius:3px;background:color-mix(in srgb,var(--muted) 16%,var(--surface));overflow:hidden}
+.pb-bar i{position:absolute;inset:0 auto 0 0;background:color-mix(in srgb,#3f9a3c 55%,var(--surface));border-radius:3px}
+.pb.tr .pb-bar i{background:color-mix(in srgb,#2f6fd6 50%,var(--surface))}
+.pb-bar b{position:relative;display:block;padding:0 4px;font-size:10.5px;line-height:15px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-v{font-size:11.5px;font-weight:700;text-align:right}
 .tw-card{margin:0 0 14px;padding:14px 16px}
 .tw-card h3{margin:0;font-size:16px}
 .tw-goal{font-size:11px;font-weight:700;color:#fff;background:var(--brand);border-radius:6px;padding:2px 8px}.tw-goal.b{background:#5a6a9c}
@@ -765,6 +786,7 @@ select.training{border-color:var(--brand);font-weight:600}
         <label class="inline loc">Spielort<select id="location"><option value="1">Heimspiel</option><option value="0">Auswärtsspiel</option><option value="2">Auswärts-Derby</option></select></label></header>
       <div id="lineupWarn"></div>
       <div class="editor-bar">
+        <div class="seg mode-seg" id="modeSeg" role="group" aria-label="Ansehen oder ändern"></div>
         <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
         <button class="btn primary" id="autoFill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Automatisch aufstellen</button>
         <button class="btn" id="trainingFill" title="Stellt nur Spieler auf die Trainingspositionen, die diese Trainingswoche noch nicht trainiert haben, die Jüngsten mit passender Hauptfertigkeit zuerst. Gut für Spiele, in denen es um nichts geht.">Trainingself</button>

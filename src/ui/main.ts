@@ -143,6 +143,8 @@ interface State {
   inspectTab: "card" | "list";
   inspectSmall: boolean;
   dragging: boolean;
+  /** Aufstellung: false = nur ansehen (Klick wechselt die Karte), true = ändern (Klick setzt/tauscht) */
+  editMode: boolean;
   plans: GroupPlan[];
   /** Grundlage der Kaderplanung (wie Schwachstellen), z. B. „deiner Aufstellung“ */
   planBasis: string;
@@ -191,6 +193,7 @@ const state: State = {
   inspectTab: "card",
   inspectSmall: false,
   dragging: false,
+  editMode: false,
   plans: [],
   planBasis: "",
   projection: null,
@@ -919,7 +922,7 @@ function editPitch(): string {
       fc = home === g || gap < 0.1 ? "fit-good" : gap < 0.25 ? "fit-mid" : "fit-bad";
     }
     const ratingTitle = p ? `${p.name}: Positionsstärke ${playerPositionRating(p, role, pos.behaviour).toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${fc === "fit-good" ? "" : fc === "fit-mid" ? " · nicht ganz seine Position" : " · falsche Position"}` : "";
-    return `<div class="slot${picked}" draggable="true" data-role="${role}" data-pid="${pos.playerId}" style="${style}" title="${esc(ratingTitle)}">
+    return `<div class="slot${picked}" draggable="${state.editMode}" data-role="${role}" data-pid="${pos.playerId}" style="${style}" title="${esc(ratingTitle)}">
       <div class="role">${ROLE_DE[role]}</div>
       <div class="token av tk-${tierOf(pos.playerId) ?? "R"} ${fc}">${p ? tokenFace(p) : "?"}${p ? `<span class="stat">${de(playerPositionRating(p, role, pos.behaviour), 1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}${trainingBadge(pos.playerId)}${pos.behaviour ? `<span class="bh" title="${BEHAVIOUR_DE[pos.behaviour]}">${BEHAVIOUR_SHORT[pos.behaviour]}</span>` : ""}</div>
       <div class="pname">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
@@ -960,7 +963,7 @@ function benchHtml(C: Lineup): string {
     if (!p)
       return `<div class="bslot empty${picked}" data-bench="${slot}"><div class="role">${BENCH_SHORT[slot]}</div><div class="token av">+</div><div class="pname">${own ? "leer" : "frei"}</div></div>`;
     const v = slot === "extra" ? Math.max(...[Role.leftCentralDefender, Role.leftBack, Role.leftInnerMidfield, Role.leftWinger, Role.centralForward].map((r) => playerPositionRating(p, r))) : playerPositionRating(p, BENCH_ROLE[slot]);
-    return `<div class="bslot${picked}" draggable="true" data-bench="${slot}" data-pid="${p.id}" title="${esc(`${BENCH_DE[slot]}: ${p.name}, Stärke ${v.toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${own ? "" : " · automatisch gewählt"}`)}">
+    return `<div class="bslot${picked}" draggable="${state.editMode}" data-bench="${slot}" data-pid="${p.id}" title="${esc(`${BENCH_DE[slot]}: ${p.name}, Stärke ${v.toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${own ? "" : " · automatisch gewählt"}`)}">
       <div class="role">${BENCH_SHORT[slot]}</div>
       <div class="token av tk-${tierOf(p.id) ?? "R"}">${tokenFace(p)}<span class="stat">${de(v, 1)}</span>${trainingBadge(p.id)}</div>
       <div class="pname">${esc(p.name.split(" ").slice(-1)[0])}</div>
@@ -1175,16 +1178,25 @@ function poolHtml(): string {
   const pick = state.pick;
   const played = state.week?.played;
   const trained = (id: number) => weekFactor(played?.get(id));
-  const chip = (m: ReturnType<typeof squadGroups>[number]["members"][number], g: string) => {
+  const chip = (m: ReturnType<typeof squadGroups>[number]["members"][number], g: string, sector: LineupSector) => {
     const p = m.player;
     const off = unavailable(p);
     const tf = trained(p.id);
     const src = played?.get(p.id)?.sources.join(", ") ?? "";
     const tr = tf >= 1 ? ` · <span class="status good" title="Diese Trainingswoche schon ${esc(src)}"><i>✓</i>trainiert</span>` : tf > 0 ? ` · <span class="status warning" title="Diese Trainingswoche schon ${esc(src)}"><i>½</i>halb trainiert</span>` : "";
     const st = (m.availability.status !== "fit" ? ` · <span class="status ${off ? "critical" : "warning"}"><i>${off ? "+" : "!"}</i>${esc(m.availability.label)}</span>` : "") + tr;
-    return `<div class="pchip tier-${tierOf(p.id) ?? "R"}${off ? " off" : ""}${tf >= 1 ? " tr-done" : tf > 0 ? " tr-half" : state.week ? " tr-open" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off ? "" : `draggable="true"`} data-pid="${p.id}">
-      <span class="n">${tierBadge(p.id)}${esc(p.name)}</span><span class="muted">${p.age} J. <button type="button" class="pinfo" data-detail="${p.id}" title="Details zu ${esc(p.name)}" aria-label="Details zu ${esc(p.name)}">i</button></span>
-      <span class="m">${g} ${m.value.toFixed(1)} · Form ${p.form} · Kond. ${p.stamina}${st}</span></div>`;
+    // wie die Spielerliste auf Hattrick: Bild auf Fläche in Kaderfarbe, daneben die wichtigsten Fähigkeiten als Balken
+    const sk = startSkills(p);
+    const keys = [...GROUP_SKILLS[sector], ...(["setPieces", "passing", "playmaking", "defending"] as DevSkill[]).filter((k) => !GROUP_SKILLS[sector].includes(k))].slice(0, 4);
+    const bars = keys
+      .map((k) => `<span class="pb${k === TRAININGS[state.hrf!.team.trainingType]?.skill ? " tr" : ""}"><span class="pb-bar"><i style="width:${Math.min(100, (sk[k] / 20) * 100).toFixed(1)}%"></i><b>${DEV_SKILL_DE[k]}</b></span><span class="pb-v">${Math.floor(sk[k])}</span></span>`)
+      .join("");
+    const tier = tierOf(p.id) ?? "R";
+    return `<div class="pchip ht tier-${tier}${off ? " off" : ""}${tf >= 1 ? " tr-done" : tf > 0 ? " tr-half" : state.week ? " tr-open" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off || !state.editMode ? "" : `draggable="true"`} data-pid="${p.id}">
+      <span class="pc-tile token av tk-${tier}">${tokenFace(p)}${shirtNo(p) ? `<span class="no">${shirtNo(p)}</span>` : ""}</span>
+      <span class="pc-main"><span class="pc-line"><span class="n">${esc(p.name)}</span><span class="muted">${p.age} J. <button type="button" class="pinfo" data-detail="${p.id}" title="Details zu ${esc(p.name)}" aria-label="Details zu ${esc(p.name)}">i</button></span></span>
+      <span class="pc-bars">${bars}</span>
+      <span class="m">${g} ${m.value.toFixed(1)} · Form ${p.form} · Kond. ${p.stamina}${st}</span></span></div>`;
   };
   const out: string[] = [];
   const shown = new Set<number>();
@@ -1192,10 +1204,10 @@ function poolHtml(): string {
     // Bankspieler stehen schon unter dem Feld, deshalb hier nicht noch einmal
     const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !benchIds.has(m.player.id) && !unavailable(m.player) && !(state.hideTrained && trained(m.player.id) >= 1));
     if (!ms.length) continue;
-    out.push(`<h4>${esc(g.name)}</h4>${ms.map((m) => chip(m, GROUP_SHORT[g.group])).join("")}`);
+    out.push(`<h4>${esc(g.name)}</h4>${ms.map((m) => chip(m, GROUP_SHORT[g.group], g.group)).join("")}`);
     ms.forEach((m) => shown.add(m.player.id));
   }
-  const off = groups.flatMap((g) => g.members.filter((m) => m.home && unavailable(m.player)).map((m) => chip(m, GROUP_SHORT[g.group])));
+  const off = groups.flatMap((g) => g.members.filter((m) => m.home && unavailable(m.player)).map((m) => chip(m, GROUP_SHORT[g.group], g.group)));
   if (off.length) out.push(`<h4>Nicht einsetzbar</h4>${off.join("")}`);
   const benchCount = [...benchIds].filter((id) => id && !onField.has(id)).length;
   const rest = state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id)).length;
@@ -1210,7 +1222,7 @@ function poolHtml(): string {
   const filter = state.week
     ? `<label class="trfilter" title="${esc(why)}"><input type="checkbox" id="hideTrained"${state.hideTrained ? " checked" : ""}> Schon trainierte ausblenden <span class="muted">(${count})</span></label>`
     : "";
-  return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${rest}) · ${benchCount} auf der Bank. Hierher ziehen = vom Feld oder von der Bank nehmen.</div>${filter}${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
+  return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${rest}) · ${benchCount} auf der Bank. ${state.editMode ? "Hierher ziehen = vom Feld oder von der Bank nehmen." : "Antippen zeigt die Karte. Zum Aufstellen oben auf „Ändern“ schalten."}</div>${filter}${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
 }
 
 function renderExplain() {
@@ -1578,7 +1590,10 @@ function inspectCardHtml(pid: number, pinned: boolean, pick: Pick): string {
       : `<span class="muted">kein Spiel bekannt</span>`;
 
   let actions = "";
-  if (pinned && pick?.kind === "slot" && onField) {
+  if (pinned && !state.editMode) {
+    actions = `<div class="ic-act"><button data-detail="${p.id}">Ganze Entwicklung →</button><button data-setmode="edit">✎ Ändern einschalten</button></div>
+      <div class="ic-tip ic-more">Ansehen: einen anderen Spieler antippen zeigt seine Karte. Zum Setzen, Tauschen, Verhalten oder Kapitän auf „Ändern“ schalten.</div>`;
+  } else if (pinned && pick?.kind === "slot" && onField) {
     const opts = behavioursFor(pick.role);
     actions = `<div class="ic-act">
       ${opts.length > 1 ? `<span class="lbl">Verhalten</span>${opts.map((b) => `<button data-bh="${b}" aria-pressed="${b === onField.behaviour}">${BEHAVIOUR_DE[b] || "normal"}</button>`).join("")}<span class="lbl">Aktionen</span>` : ""}
@@ -1612,6 +1627,8 @@ function inspectCardHtml(pid: number, pinned: boolean, pick: Pick): string {
 }
 
 function inspectClick(el: HTMLElement) {
+  const sm = el.closest<HTMLElement>("[data-setmode]");
+  if (sm) return setEditMode(sm.dataset.setmode === "edit");
   const tab = el.closest<HTMLElement>("[data-itab]");
   if (tab) {
     state.inspectTab = tab.dataset.itab === "list" ? "list" : "card";
@@ -1634,6 +1651,30 @@ function inspectClick(el: HTMLElement) {
     return renderLineup();
   }
   menuClick(el);
+}
+
+/** Umschalter Ansehen/Ändern: im Ansehen-Modus kann ein Klick nichts verändern */
+function setEditMode(on: boolean) {
+  state.editMode = on;
+  try {
+    localStorage.setItem("tophatt.editMode", on ? "1" : "");
+  } catch {
+    /* ohne Speicher geht es auch */
+  }
+  renderModeBar();
+  renderLineup();
+}
+
+function renderModeBar() {
+  const box = document.querySelector<HTMLElement>("#modeSeg");
+  if (!box) return;
+  box.innerHTML = `<button type="button" data-setmode="view" class="${state.editMode ? "" : "on"}" aria-pressed="${!state.editMode}" title="Klick zeigt nur die Spielerkarte, nichts wird verändert">👁 Ansehen</button><button type="button" data-setmode="edit" class="${state.editMode ? "on" : ""}" aria-pressed="${state.editMode}" title="Klick setzt und tauscht Spieler, Ziehen ist erlaubt">✎ Ändern</button>`;
+  document.querySelector("#aufstellung .editor")?.classList.toggle("editing", state.editMode);
+  const hint = document.querySelector<HTMLElement>("#editorHint");
+  if (hint)
+    hint.textContent = state.editMode
+      ? "Ändern: Spieler antippen, dann Ziel antippen, oder ziehen. Setzen und Tauschen ist aktiv."
+      : "Ansehen: Maus auf einem Spieler zeigt seine Karte, Antippen hält sie fest. Nichts wird verändert.";
 }
 
 /** Maus über einem Spieler auf Feld oder Bank: nach kurzem Verweilen Vorschau und Linien */
@@ -1712,11 +1753,25 @@ function menuClick(el: HTMLElement) {
 
 function initEditor() {
   initInspectHover();
+  try {
+    state.editMode = localStorage.getItem("tophatt.editMode") === "1";
+  } catch {
+    /* ohne Speicher: Ansehen */
+  }
+  renderModeBar();
+  $("#modeSeg").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-setmode]");
+    if (b) setEditMode(b.dataset.setmode === "edit");
+  });
   const root = $("#aufstellung");
   const target = (e: Event) => (e.target as HTMLElement).closest<HTMLElement>(".pitch.edit .slot, .bench .bslot, .pool");
   root.addEventListener("dragstart", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[draggable=true]");
     if (!el || !e.dataTransfer) return;
+    if (!state.editMode) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", el.classList.contains("slot") ? `r:${el.dataset.role}` : el.classList.contains("bslot") ? `b:${el.dataset.bench}` : `p:${el.dataset.pid}`);
     requestAnimationFrame(() => el.classList.add("dragging"));
@@ -1789,6 +1844,7 @@ function initEditor() {
   // Tippen statt Ziehen (Handy): erst Spieler, dann Ziel
   root.addEventListener("click", (e) => {
     const el = e.target as HTMLElement;
+    if (el.closest("#modeSeg")) return;
     if (el.closest("#choicesReset")) {
       state.choices = {};
       return editorChanged();
@@ -1801,6 +1857,24 @@ function initEditor() {
     const pick = state.pick;
     state.flowPid = null;
     state.inspectPreview = null;
+    if (!state.editMode && (bslot || chip || slot)) {
+      // Ansehen: Klick wechselt nur die Karte, nichts wird gesetzt oder getauscht
+      const next: typeof state.pick = bslot
+        ? myLineup().bench[bslot.dataset.bench as BenchSlot]
+          ? { kind: "bench", slot: bslot.dataset.bench as BenchSlot }
+          : null
+        : chip
+          ? { kind: "pool", id: Number(chip.dataset.pid) }
+          : slot!.dataset.pid
+            ? { kind: "slot", role: Number(slot!.dataset.role) }
+            : null;
+      if (!next) {
+        toast("Zum Aufstellen oben auf „Ändern“ umschalten.");
+        return;
+      }
+      state.pick = JSON.stringify(next) === JSON.stringify(pick) ? null : next;
+      return renderLineup();
+    }
     if (bslot) {
       const b = bslot.dataset.bench as BenchSlot;
       if (pick?.kind === "pool") return setBench(b, pick.id);
@@ -1844,6 +1918,7 @@ function initEditor() {
       }
       return;
     }
+    if (!state.editMode && el.closest(".pool")) return;
     if (el.closest(".pool") && pick?.kind === "slot") return removeRole(pick.role);
     if (el.closest(".pool") && pick?.kind === "bench") return setBenchEmpty(pick.slot);
     // Klick daneben: Auswahl und Linien zurücksetzen
