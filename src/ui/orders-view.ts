@@ -3,6 +3,8 @@
 
 import { type BenchSlot, type Lineup, type MatchOrder, type OrderKind, type Player, Role } from "../core/model";
 import { CARD_DE, ORDER_KIND_DE, STANDING_DE, autoBackups, benchSlotValue, maxOrders, newOrder, orderProblems, penaltyStrength } from "../core/orders";
+import { MAX_SUBSTITUTIONS, SUB_MODE_DE, type SubMode, type SubSuggestion, ruleOfThumb, suggestSubstitutions, suggestionToOrder } from "../core/substitutions";
+import type { TrainingDef, WeekMinutes } from "../core/training";
 
 const STORE = "tophatt.orders";
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -59,6 +61,8 @@ export interface OrdersContext {
   opponent: () => { name: string; players: OpponentPlayer[] } | null;
   /** nach jeder Änderung (z. B. Speichern-Leiste aktualisieren) */
   changed: () => void;
+  /** Für Auswechslungs-Vorschläge: Training, schon gespielte Minuten der Woche, Spielart (1 Liga, 3 Pokal, 4/5 Freundschaft) */
+  subContext: () => { training?: TrainingDef; week?: Map<number, WeekMinutes>; matchType: number };
 }
 
 interface Stored {
@@ -70,6 +74,8 @@ interface Stored {
   excluded: number[];
   /** eigene Reserve je Bankplatz (0 = keine), fehlende Plätze automatisch */
   backups: Partial<Record<BenchSlot, number>>;
+  /** gewählter Modus der Auswechslungs-Vorschläge; fehlt = nach Spielart */
+  subMode?: SubMode;
 }
 
 const empty = (matchId: number): Stored => ({ matchId, orders: [], penalties: [], excluded: [], backups: {} });
@@ -111,6 +117,32 @@ function penaltiesFor(l: Lineup, byId: Map<number, Player>): { ids: number[]; fi
 /** Aufstellung samt Reserve-Reihe, Elfmeterschützen und Anweisungen für den HRF-Export */
 export function withOrders(l: Lineup, byId: Map<number, Player>): Lineup {
   return { ...l, backups: autoBackups(l.bench, byId, store.backups), penaltyTakers: penaltiesFor(l, byId).ids, orders: store.orders.map((o) => ({ ...o })) };
+}
+
+/** Geplante Auswechslungen und Positionstausche für die Anzeige auf Feld und Bank */
+export interface PlannedMove {
+  kind: "out" | "in" | "swap";
+  minute: number;
+  /** der andere Spieler */
+  other: number;
+  /** Bedingung als Text, leer = immer */
+  cond: string;
+}
+
+export function plannedMoves(): Map<number, PlannedMove[]> {
+  const map = new Map<number, PlannedMove[]>();
+  const add = (id: number, m: PlannedMove) => id && map.set(id, [...(map.get(id) ?? []), m]);
+  for (const o of store.orders) {
+    const cond = [o.standing >= 0 ? STANDING_DE.find(([v]) => v === o.standing)?.[1] : "", o.card >= 0 ? CARD_DE.find(([v]) => v === o.card)?.[1] : ""].filter(Boolean).join(", ");
+    if (o.kind === "sub" && o.playerOut && o.playerIn) {
+      add(o.playerOut, { kind: "out", minute: o.minute, other: o.playerIn, cond });
+      add(o.playerIn, { kind: "in", minute: o.minute, other: o.playerOut, cond });
+    } else if (o.kind === "swap" && o.playerOut && o.playerIn) {
+      add(o.playerOut, { kind: "swap", minute: o.minute, other: o.playerIn, cond });
+      add(o.playerIn, { kind: "swap", minute: o.minute, other: o.playerOut, cond });
+    }
+  }
+  return map;
 }
 
 /** Fehler in den Anweisungen, die das Speichern verhindern */
@@ -236,24 +268,73 @@ export function renderOrdersPage() {
   };
 
   root.innerHTML = `
-    <div class="ord-block">
-      <h3>Reserve der Ersatzbank <span class="sub">zweite Reihe in HO · passt sich der Bank an</span></h3>
-      <p class="sub">Wird für eine Position ein Ersatz gebraucht (Verletzung) und der Bankspieler dieses Platzes ist schon im Spiel, kommt die Reserve. Sie sitzt selbst auf einem anderen Bankplatz, bringt also keinen zusätzlichen Spieler. Automatisch: der stärkste andere Bankspieler für diese Position.</p>
-      <div class="controls bk-grid">${BENCH_NAME.map(backupRow).join("")}</div>
-    </div>
-    <div class="ord-block">
-      <h3>Elfmeterschützen <span class="sub">${pens.length} von 11 · ${fixed ? `${fixed} von dir, Rest automatisch` : "automatisch wie HO"}</span></h3>
-      ${fixed || store.excluded.length ? `<div class="controls"><button class="btn" data-pauto>Wieder alles automatisch</button></div>` : ""}
-      ${pens.length ? `<ol class="pen-list">${pens.map(penRow).join("")}</ol>` : `<p class="sub">Keine Schützen. Dann wählt Hattrick selbst.</p>`}
-      ${cands.length && pens.length < 11 ? `<div class="pen-add"><span class="sub">Hinzufügen:</span> ${cands.map((p) => `<button class="chipbtn" data-padd="${p.id}">${esc(p.name.split(" ").slice(-1)[0])} <span class="sub">${de(penaltyStrength(p))}</span></button>`).join("")}</div>` : ""}
-      <p class="sub">Aus Startelf und Bank, stärkste zuerst wie HO (1,5 × Erfahrung + 0,7 × Standards + 0,3 × Torschuss, mit Form und Treue, Ballzauberer +10 %). Verschieben macht die Reihenfolge zu deiner, neue Spieler der Aufstellung werden hinten automatisch ergänzt. Gilt fürs Elfmeterschießen (Pokal und Entscheidungsspiele).</p>
-    </div>
-    <div class="ord-block">
-      <h3>Auswechslungen &amp; Anweisungen <span class="sub">${counted} von ${limit} (5 + Taktik-Assistent Stufe ${ta})${hasMarking ? " · plus 1 Manndeckung" : ""}</span></h3>
+    <section class="mplan sect" id="secSubs">
+      <h3><span class="step">3</span>Auswechslungen &amp; Anweisungen <span class="sub">${counted} von ${limit} Anweisungen (5 + Taktik-Assistent Stufe ${ta})${hasMarking ? " · plus 1 Manndeckung" : ""} · davon höchstens ${MAX_SUBSTITUTIONS} Wechsel</span></h3>
+      ${suggestionsBlock(l, byId)}
+      <div class="mp-head sect-sub">Deine Anweisungen</div>
       <div class="controls ord-add">${addBtn("sub", "Auswechslung", full)}${addBtn("behaviour", "Verhalten", full)}${addBtn("swap", "Positionstausch", full)}${addBtn("marking", "Manndeckung", hasMarking)}
         ${store.orders.length ? `<button class="btn" data-oclear>Alle löschen</button>` : ""}</div>
       ${store.orders.map((o, i) => renderOrder(o, i, store.orders.length, l, byId, problems[i])).join("") || `<p class="sub">Noch keine Anweisungen. Ohne Anweisungen wechselt Hattrick nur bei Verletzungen aus.</p>`}
       <p class="sub">Bedingungen wie in Hattrick: Die Anweisung gilt ab der Minute, sobald Spielstand und Rote Karten passen. Hattrick führt die Anweisungen in dieser Reihenfolge aus. Spieler, die nicht mehr in der Aufstellung stehen, werden rot markiert.</p>
+    </section>
+    <section class="mplan sect" id="secPens">
+      <h3><span class="step">4</span>Elfmeterschützen <span class="sub">${pens.length} von 11 · ${fixed ? `${fixed} von dir, Rest automatisch` : "automatisch wie HO"}</span></h3>
+      ${fixed || store.excluded.length ? `<div class="controls"><button class="btn" data-pauto>Wieder alles automatisch</button></div>` : ""}
+      ${pens.length ? `<ol class="pen-list">${pens.map(penRow).join("")}</ol>` : `<p class="sub">Keine Schützen. Dann wählt Hattrick selbst.</p>`}
+      ${cands.length && pens.length < 11 ? `<div class="pen-add"><span class="sub">Hinzufügen:</span> ${cands.map((p) => `<button class="chipbtn" data-padd="${p.id}">${esc(p.name.split(" ").slice(-1)[0])} <span class="sub">${de(penaltyStrength(p))}</span></button>`).join("")}</div>` : ""}
+      <p class="sub">Aus Startelf und Bank, stärkste zuerst wie HO (1,5 × Erfahrung + 0,7 × Standards + 0,3 × Torschuss, mit Form und Treue, Ballzauberer +10 %). Verschieben macht die Reihenfolge zu deiner, neue Spieler der Aufstellung werden hinten automatisch ergänzt. Gilt fürs Elfmeterschießen (Pokal und Entscheidungsspiele).</p>
+    </section>
+    <section class="mplan sect" id="secBackup">
+      <h3><span class="step">5</span>Reserve der Ersatzbank <span class="sub">zweite Reihe in HO · passt sich der Bank an</span></h3>
+      <p class="sub">Wird für eine Position ein Ersatz gebraucht (Verletzung) und der Bankspieler dieses Platzes ist schon im Spiel, kommt die Reserve. Sie sitzt selbst auf einem anderen Bankplatz, bringt also keinen zusätzlichen Spieler. Automatisch: der stärkste andere Bankspieler für diese Position.</p>
+      <div class="controls bk-grid">${BENCH_NAME.map(backupRow).join("")}</div>
+    </section>`;
+}
+
+// --- Auswechslungs-Vorschläge -------------------------------------------------------------
+
+const defaultMode = (matchType: number): SubMode => (matchType === 3 ? "sieg" : matchType === 1 ? "ausgewogen" : "training");
+const MODE_HINT: Record<SubMode, string> = {
+  sieg: "nur Wechsel, die die Mannschaft stärker machen (müde Spieler raus). Einsätze fürs Mitspielen nur bei mehr als 2 Toren Vorsprung.",
+  ausgewogen: "Konditionswechsel plus Training und Einsatzzeit, solange die Mannschaft übers Spiel höchstens 2 % Stärke verliert.",
+  training: "Trainingsminuten und Einsätze gehen vor, Stärke zählt wenig. Für Freundschaftsspiele.",
+};
+const REASON_TAG: Record<SubSuggestion["reason"], string> = { kondition: "Kondition", training: "Training", einsatz: "Einsatz" };
+
+let lastSuggestions: SubSuggestion[] = [];
+
+function currentMode(): SubMode {
+  return store.subMode ?? defaultMode(ctx?.subContext().matchType ?? 1);
+}
+
+function suggestionsBlock(l: Lineup, byId: Map<number, Player>): string {
+  const sc = ctx!.subContext();
+  const mode = currentMode();
+  const existing = store.orders.filter((o) => o.kind === "sub").length;
+  lastSuggestions = suggestSubstitutions({ lineup: l, byId, mode, training: sc.training, week: sc.week, existing: store.orders });
+  const full = store.orders.filter((o) => o.kind !== "marking").length >= maxOrders(ctx!.tacticalAssistants());
+  const name = (id: number) => esc(byId.get(id)?.name ?? `ID ${id}`);
+  const row = (s: SubSuggestion, i: number) => `<li class="sug-row">
+      <span class="sug-min">${s.minute}′</span>
+      <span class="sug-main"><b>${name(s.playerOut)}</b> <span class="sub">${ROLE_SHORT[s.role] ?? ""}</span> → <b>${name(s.playerIn)}</b> <span class="tag sug-${s.reason}">${REASON_TAG[s.reason]}</span>
+        <span class="sub sug-why">${esc(s.text)}</span></span>
+      <button class="btn sm" data-sadd="${i}" ${full ? "disabled" : ""}>Übernehmen</button></li>`;
+  const thumbs = ruleOfThumb();
+  const fmt = (m: number | null) => (m === null ? "–" : `${m}′`);
+  const modeBtn = (m: SubMode) => `<button class="${m === mode ? "on" : ""}" data-smode="${m}">${SUB_MODE_DE[m]}</button>`;
+  return `<div class="mp-box sug-block">
+      <div class="mp-head">Vorschläge <span class="sug-sub">nach Kondition, Training und Einsatzzeit${existing ? ` · ${existing} von ${MAX_SUBSTITUTIONS} Wechseln schon geplant` : ""}</span></div>
+      <div class="controls"><div class="seg" role="group" aria-label="Ziel">${(["sieg", "ausgewogen", "training"] as SubMode[]).map(modeBtn).join("")}</div>
+        ${lastSuggestions.length > 1 ? `<button class="btn" data-saddall ${full ? "disabled" : ""}>Alle übernehmen</button>` : ""}</div>
+      <p class="sub">${SUB_MODE_DE[mode]}: ${MODE_HINT[mode]}${store.subMode ? "" : " (passend zur Spielart gewählt)"}</p>
+      ${lastSuggestions.length ? `<ol class="sug-list">${lastSuggestions.map(row).join("")}</ol>` : `<p class="sub">${existing >= MAX_SUBSTITUTIONS ? "Alle 3 Wechsel sind schon verplant." : "Kein Wechsel lohnt sich: Die Startelf hält konditionell durch, und auf der Bank wartet niemand mit Trainings- oder Einsatzbedarf."}</p>`}
+      <details class="sug-rules"><summary>Wie gerechnet wird</summary>
+        <p class="sub"><b>Kondition:</b> Jeder Spieler baut ab Anpfiff ab, erholt sich zur Halbzeit teilweise und baut weiter ab, ein Einwechselspieler startet frisch (Modell aus HO). TopHatt sucht je Startspieler und Bankspieler die Minute, ab der die Mannschaft mit dem frischen Ersatz insgesamt stärker ist. Faustregel (Ersatz mit Kondition 6):</p>
+        <table class="sug-table"><thead><tr><th>Kondition</th><th>Ersatz gleich stark</th><th>10 % schwächer</th><th>20 % schwächer</th></tr></thead>
+          <tbody>${thumbs.map((r) => `<tr><td>${r.stamina}</td>${r.minutes.map((m) => `<td>${fmt(m)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+        <p class="sub"><b>Training:</b> Minuten auf Trainingsposition aus allen Spielen der Woche zählen, höchstens 90, schon 1 Minute zählt. Aufteilen bringt insgesamt nicht mehr Training, es lohnt sich nur, wenn der Einwechselspieler mehr davon hat (jünger, Fertigkeit niedriger) oder der Startspieler seine 90 Minuten der Woche schon voll hat.</p>
+        <p class="sub"><b>Einsatz:</b> Für die Form zählt laut Hattrick-Regeln, ob ein Spieler in der Woche überhaupt gespielt hat, nicht wie lange. Wer gar nicht spielt, bekommt außerdem nur 50 % Konditionstraining statt mindestens 75 %. Ein kurzer Einsatz reicht also schon.</p>
+      </details>
     </div>`;
 }
 
@@ -272,7 +353,14 @@ export function initOrdersPage(el: HTMLElement, c: OrdersContext) {
     const d = b.dataset;
     const l = ctx.lineup();
     const byId = ctx.byId();
-    if (d.oadd) store.orders.push(newOrder(d.oadd as OrderKind));
+    if (d.smode) store.subMode = d.smode as SubMode;
+    else if (d.sadd !== undefined) {
+      const sg = lastSuggestions[Number(d.sadd)];
+      if (sg) store.orders.push(suggestionToOrder(sg));
+    } else if (d.saddall !== undefined) {
+      const room = maxOrders(ctx.tacticalAssistants()) - store.orders.filter((o) => o.kind !== "marking").length;
+      store.orders.push(...lastSuggestions.slice(0, Math.max(0, room)).map(suggestionToOrder));
+    } else if (d.oadd) store.orders.push(newOrder(d.oadd as OrderKind));
     else if (d.odel !== undefined) store.orders.splice(Number(d.odel), 1);
     else if (d.omove !== undefined) move(store.orders, Number(d.omove), Number(d.dir));
     else if (d.oclear !== undefined) store.orders = [];
