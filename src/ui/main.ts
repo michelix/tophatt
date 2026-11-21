@@ -25,7 +25,7 @@ import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
 import { initOrdersPage, loadOrders, ordersBlocking, ordersSummary, renderOrdersPage, withOrders } from "./orders-view";
 import { teamPlayers } from "../core/hodata";
-import { avatarHtml } from "./avatar";
+import { avatarHtml, cutoutAvatars } from "./avatar";
 import { LEVEL_DE } from "../core/staff";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -249,6 +249,7 @@ async function setFinanceWeeks(files: File[]) {
 
 async function setHoData(file: File) {
   state.ho = parseHoData(await file.text());
+  await cutoutAvatars(state.ho.avatars);
 }
 
 async function loadFiles(files: File[]) {
@@ -278,6 +279,7 @@ async function loadFromFolder(h: DirHandle) {
   await setFinanceWeeks(await allExports(h));
   const data = await fileByName(h, DATA_FILE);
   state.ho = data ? parseHoData(await data.text()) : null;
+  if (state.ho) await cutoutAvatars(state.ho.avatars);
   $("#folderStatus").textContent = `Verbunden mit „${h.name}“. Geladen: ${hrf.name}${data ? ` und ${DATA_FILE}` : ""}.`;
   afterLoad(true);
   void syncHistoryFolder(h);
@@ -887,6 +889,11 @@ function warnText(p: Player): string {
   return `${p.name}: ${w.join(", ")}`;
 }
 
+/** Spielerbild auf Feld und Bank: Figur aus HO (freigestellt) auf der Fläche in Kaderfarbe */
+function tokenFace(p: Player): string {
+  return `<span class="tk-img" aria-hidden="true">${avatarHtml(p.id, state.ho?.avatars, shirtNo(p), false)}</span><span class="sr-only">${esc(initials(p.name))}</span>`;
+}
+
 function editPitch(): string {
   const byId = playersById();
   const L = state.league!;
@@ -898,7 +905,7 @@ function editPitch(): string {
     const pos = state.manual.find((x) => x.role === role);
     const style = `grid-row:${row + 1};grid-column:${col + 1}`;
     const picked = pick?.kind === "slot" && pick.role === role ? " picked" : "";
-    if (!pos) return `<div class="slot empty${picked}" data-role="${role}" style="${style}"><div class="role">${ROLE_DE[role]}</div><div class="token">+</div><div class="pname">frei</div></div>`;
+    if (!pos) return `<div class="slot empty${picked}" data-role="${role}" style="${style}"><div class="role">${ROLE_DE[role]}</div><div class="token av">+</div><div class="pname">frei</div></div>`;
     const p = byId.get(pos.playerId);
     const auto = L.lineup.positions.find((x) => x.role === role);
     const changed = !auto || auto.playerId !== pos.playerId || auto.behaviour !== pos.behaviour;
@@ -914,7 +921,7 @@ function editPitch(): string {
     const ratingTitle = p ? `${p.name}: Positionsstärke ${playerPositionRating(p, role, pos.behaviour).toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${fc === "fit-good" ? "" : fc === "fit-mid" ? " · nicht ganz seine Position" : " · falsche Position"}` : "";
     return `<div class="slot${picked}" draggable="true" data-role="${role}" data-pid="${pos.playerId}" style="${style}" title="${esc(ratingTitle)}">
       <div class="role">${ROLE_DE[role]}</div>
-      <div class="token tk-${tierOf(pos.playerId) ?? "R"} ${fc}">${esc(initials(p?.name ?? "?"))}${p ? `<span class="stat">${de(playerPositionRating(p, role, pos.behaviour), 1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}${trainingBadge(pos.playerId)}${pos.behaviour ? `<span class="bh" title="${BEHAVIOUR_DE[pos.behaviour]}">${BEHAVIOUR_SHORT[pos.behaviour]}</span>` : ""}</div>
+      <div class="token av tk-${tierOf(pos.playerId) ?? "R"} ${fc}">${p ? tokenFace(p) : "?"}${p ? `<span class="stat">${de(playerPositionRating(p, role, pos.behaviour), 1)}</span>` : ""}${warn ? `<span class="warn" title="${esc(warnText(p!))}">!</span>` : ""}${trainingBadge(pos.playerId)}${pos.behaviour ? `<span class="bh" title="${BEHAVIOUR_DE[pos.behaviour]}">${BEHAVIOUR_SHORT[pos.behaviour]}</span>` : ""}</div>
       <div class="pname">${esc((p?.name ?? "?").split(" ").slice(-1)[0])}</div>
       <div class="meta">Form ${p?.form ?? "-"} · Kond. ${p?.stamina ?? "-"} ${tags}</div>
     </div>`;
@@ -951,11 +958,11 @@ function benchHtml(C: Lineup): string {
     const own = slot in fixed;
     const picked = pick?.kind === "bench" && pick.slot === slot ? " picked" : "";
     if (!p)
-      return `<div class="bslot empty${picked}" data-bench="${slot}"><div class="role">${BENCH_SHORT[slot]}</div><div class="token">+</div><div class="pname">${own ? "leer" : "frei"}</div></div>`;
+      return `<div class="bslot empty${picked}" data-bench="${slot}"><div class="role">${BENCH_SHORT[slot]}</div><div class="token av">+</div><div class="pname">${own ? "leer" : "frei"}</div></div>`;
     const v = slot === "extra" ? Math.max(...[Role.leftCentralDefender, Role.leftBack, Role.leftInnerMidfield, Role.leftWinger, Role.centralForward].map((r) => playerPositionRating(p, r))) : playerPositionRating(p, BENCH_ROLE[slot]);
     return `<div class="bslot${picked}" draggable="true" data-bench="${slot}" data-pid="${p.id}" title="${esc(`${BENCH_DE[slot]}: ${p.name}, Stärke ${v.toFixed(2)}, Form ${p.form}, Kondition ${p.stamina}${own ? "" : " · automatisch gewählt"}`)}">
       <div class="role">${BENCH_SHORT[slot]}</div>
-      <div class="token tk-${tierOf(p.id) ?? "R"}">${esc(initials(p.name))}<span class="stat">${de(v, 1)}</span>${trainingBadge(p.id)}</div>
+      <div class="token av tk-${tierOf(p.id) ?? "R"}">${tokenFace(p)}<span class="stat">${de(v, 1)}</span>${trainingBadge(p.id)}</div>
       <div class="pname">${esc(p.name.split(" ").slice(-1)[0])}</div>
       <div class="meta">${own ? "von dir" : "auto"}</div>
     </div>`;

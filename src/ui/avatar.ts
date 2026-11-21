@@ -21,7 +21,7 @@ function rng(id: number): () => number {
 let clipSeq = 0;
 
 /** Eigenes Spielerbild als SVG (Seitenverhältnis 3:4 wie HO) */
-export function ownAvatarSvg(id: number, number = 0): string {
+export function ownAvatarSvg(id: number, number = 0, bg = true): string {
   const r = rng(id);
   r();
   const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length)];
@@ -55,7 +55,7 @@ export function ownAvatarSvg(id: number, number = 0): string {
   const beardP = beard ? `<path d="M29 58C30 80 40 86 46 86C52 86 62 80 63 58C60 70 54 74 46 74C38 74 32 70 29 58Z" fill="${hairC}"/>` : "";
   const cid = `avc${++clipSeq}`;
   return `<svg class="avatar-own" viewBox="0 0 92 123" aria-hidden="true"><defs><clipPath id="${cid}"><rect width="92" height="123" rx="10"/></clipPath></defs><g clip-path="url(#${cid})">
-<rect width="92" height="123" fill="#e3e9ef"/>
+${bg ? `<rect width="92" height="123" fill="#e3e9ef"/>` : ""}
 <path d="M6 123C8 100 20 92 46 92C72 92 84 100 86 123Z" fill="${jersey}"/>
 <path d="M36 92L46 104L56 92" fill="none" stroke="${trim}" stroke-width="4" stroke-linejoin="round"/>
 <path d="M10 112L20 104M82 112L72 104" stroke="${trim}" stroke-width="3"/>
@@ -72,7 +72,59 @@ ${hair}${beardP}
 }
 
 /** Bild für einen Spieler: HO-Bild, wenn vorhanden, sonst das eigene */
-export function avatarHtml(id: number, avatars: Map<number, string> | undefined, number = 0): string {
+export function avatarHtml(id: number, avatars: Map<number, string> | undefined, number = 0, bg = true): string {
   const src = avatars?.get(id);
-  return src && src.startsWith("data:image/png;base64,") ? `<img class="avatar-ho" src="${src}" alt="">` : ownAvatarSvg(id, number);
+  return src && src.startsWith("data:image/png;base64,") ? `<img class="avatar-ho" src="${src}" alt="" draggable="false">` : ownAvatarSvg(id, number, bg);
+}
+
+/** Himmelblau des HO-Hintergrunds (Verlauf etwa 66ccff bis b7e7ff) */
+export const isSky = (r: number, g: number, b: number, a = 255) => a < 20 || (b >= 235 && g >= 185 && r <= 205 && g - r >= 20);
+
+/**
+ * HO-Bilder freistellen: den blauen Hintergrund vom Rand her (Flutfüllung) durchsichtig machen,
+ * damit die Figur wie auf Hattrick auf der Fläche steht – hier in der Kaderfarbe.
+ * Blaue Stellen im Trikot bleiben, weil sie nicht mit dem Rand verbunden sind.
+ */
+export async function cutoutAvatars(avatars: Map<number, string>): Promise<void> {
+  if (typeof document === "undefined" || !avatars.size) return;
+  await Promise.all(
+    [...avatars].map(async ([id, src]) => {
+      try {
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        const w = img.naturalWidth,
+          h = img.naturalHeight;
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0);
+        const data = ctx.getImageData(0, 0, w, h);
+        const d = data.data;
+        const seen = new Uint8Array(w * h);
+        const stack: number[] = [];
+        for (let x = 0; x < w; x++) stack.push(x, (h - 1) * w + x);
+        for (let y = 0; y < h; y++) stack.push(y * w, y * w + w - 1);
+        while (stack.length) {
+          const i = stack.pop()!;
+          if (seen[i]) continue;
+          seen[i] = 1;
+          const k = i * 4;
+          if (!isSky(d[k], d[k + 1], d[k + 2], d[k + 3])) continue;
+          d[k + 3] = 0;
+          const x = i % w;
+          if (x > 0) stack.push(i - 1);
+          if (x < w - 1) stack.push(i + 1);
+          if (i >= w) stack.push(i - w);
+          if (i < w * (h - 1)) stack.push(i + w);
+        }
+        ctx.putImageData(data, 0, 0);
+        avatars.set(id, c.toDataURL("image/png"));
+      } catch {
+        /* Bild bleibt wie aus HO */
+      }
+    }),
+  );
 }

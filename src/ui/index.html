@@ -455,6 +455,19 @@ svg.flow text{font:700 11px "Segoe UI",system-ui,sans-serif;fill:#14261a;paint-o
   .field .slot .pname{font-size:10px;padding:1px 5px}
   .field .slot .meta{display:none}
 }
+
+/* Spielerbild statt Kreis: Figur steht auf einer Fläche in Kaderfarbe (wie Hattrick, nur mit unserer Farblogik); Rahmen = Positionseignung */
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.token.av{width:56px;height:70px;border-radius:10px;place-items:end center}
+.token.av::before{inset:3px;border-radius:7px;border-color:rgba(255,255,255,.22)}
+.token.av .tk-img{position:absolute;inset:0;border-radius:10px;overflow:hidden;display:block}
+.token.av .tk-img img,.token.av .tk-img svg{position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);height:108%;width:auto;display:block}
+.field .slot.empty .token.av,.bslot.empty .token.av{border-radius:10px}
+.bslot .token.av{width:40px;height:50px;border-radius:8px}
+.bslot .token.av .tk-img{border-radius:8px}
+@keyframes pulseav{50%{box-shadow:0 0 0 2px rgba(10,20,14,.7),0 0 0 5px var(--ring,#fff),0 0 0 10px rgba(255,210,90,.45)}}
+.field .pitch.edit .slot.picked .token.av{animation:pulseav 1s ease-in-out infinite}
+@media (max-width:600px){.token.av{width:40px;height:50px;border-radius:8px}.token.av .tk-img{border-radius:8px}.bslot .token.av{width:32px;height:40px}}
 @media (prefers-reduced-motion:reduce){.token,.token.pop,.field .pitch.edit .slot.picked .token{animation:none;transition:none}}
 .pitch-wrap{position:relative}
 @media (max-width:600px){.pitch.edit .slot.empty .pname{font-size:10px;word-break:normal;hyphens:none}.slot .role{letter-spacing:0;white-space:nowrap}}
