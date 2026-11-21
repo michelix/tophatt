@@ -2,7 +2,7 @@
 // wie in HO (Reiter Aufstellung → Auswechslungen / Anweisungen, Elfmeterschützen). Logik in core/orders.ts.
 
 import { type BenchSlot, type Lineup, type MatchOrder, type OrderKind, type Player, Role } from "../core/model";
-import { CARD_DE, ORDER_KIND_DE, STANDING_DE, autoPenaltyTakers, maxOrders, newOrder, orderProblems, penaltyStrength, validBackups } from "../core/orders";
+import { CARD_DE, ORDER_KIND_DE, STANDING_DE, autoBackups, benchSlotValue, maxOrders, newOrder, orderProblems, penaltyStrength } from "../core/orders";
 
 const STORE = "tophatt.orders";
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -64,12 +64,16 @@ export interface OrdersContext {
 interface Stored {
   matchId: number;
   orders: MatchOrder[];
-  /** null = automatisch wie HO */
-  penalties: number[] | null;
+  /** selbst gesetzte Elfmeterschützen in Reihenfolge; der Rest wird automatisch wie HO aufgefüllt */
+  penalties: number[];
+  /** Spieler, die nie automatisch als Schütze kommen sollen */
+  excluded: number[];
+  /** eigene Reserve je Bankplatz (0 = keine), fehlende Plätze automatisch */
   backups: Partial<Record<BenchSlot, number>>;
 }
 
-let store: Stored = { matchId: 0, orders: [], penalties: null, backups: {} };
+const empty = (matchId: number): Stored => ({ matchId, orders: [], penalties: [], excluded: [], backups: {} });
+let store: Stored = empty(0);
 let ctx: OrdersContext | null = null;
 let root: HTMLElement | null = null;
 
@@ -90,20 +94,23 @@ export function loadOrders(matchId: number) {
   } catch {
     s = null;
   }
-  store = s && s.matchId === matchId && Array.isArray(s.orders) ? { ...s, backups: s.backups ?? {} } : { matchId, orders: [], penalties: null, backups: {} };
+  store = s && s.matchId === matchId && Array.isArray(s.orders) ? { ...empty(matchId), ...s, penalties: s.penalties ?? [], excluded: s.excluded ?? [], backups: s.backups ?? {} } : empty(matchId);
 }
 
 const inLineup = (l: Pick<Lineup, "positions" | "bench">) => new Set([...l.positions.map((p) => p.playerId), ...(Object.values(l.bench).filter(Boolean) as number[])]);
 
-function penaltiesFor(l: Lineup, byId: Map<number, Player>): number[] {
-  if (!store.penalties) return autoPenaltyTakers(l, byId);
-  const ids = inLineup(l);
-  return store.penalties.filter((id) => ids.has(id)).slice(0, 11);
+/** Elfmeterschützen: eigene zuerst, Rest automatisch aus Startelf und Bank; passt sich jeder Aufstellung an */
+function penaltiesFor(l: Lineup, byId: Map<number, Player>): { ids: number[]; fixed: number } {
+  const inL = inLineup(l);
+  const fixed = store.penalties.filter((id) => inL.has(id)).slice(0, 11);
+  const skip = new Set([...fixed, ...store.excluded]);
+  const rest = [...inL].map((id) => byId.get(id)).filter((p): p is Player => !!p && !skip.has(p.id)).sort((a, b) => penaltyStrength(b) - penaltyStrength(a)).map((p) => p.id);
+  return { ids: [...fixed, ...rest].slice(0, 11), fixed: fixed.length };
 }
 
 /** Aufstellung samt Reserve-Reihe, Elfmeterschützen und Anweisungen für den HRF-Export */
 export function withOrders(l: Lineup, byId: Map<number, Player>): Lineup {
-  return { ...l, backups: validBackups(l.bench, store.backups), penaltyTakers: penaltiesFor(l, byId), orders: store.orders.map((o) => ({ ...o })) };
+  return { ...l, backups: autoBackups(l.bench, byId, store.backups), penaltyTakers: penaltiesFor(l, byId).ids, orders: store.orders.map((o) => ({ ...o })) };
 }
 
 /** Fehler in den Anweisungen, die das Speichern verhindern */
@@ -111,9 +118,12 @@ export function ordersBlocking(l: Lineup, byId: Map<number, Player>, tacticalAss
   return orderProblems(store.orders, l, byId, tacticalAssistants).flatMap((ps, i) => ps.map((p) => `Anweisung ${i + 1} (${ORDER_KIND_DE[store.orders[i].kind]}): ${p}`));
 }
 
-export function ordersSummary(): string {
+/** Kurzfassung für „Für HO speichern“: was außer Feld, Bank, Kapitän und Standards mitgeht */
+export function ordersSummary(l: Lineup, byId: Map<number, Player>): string {
   const n = store.orders.length;
-  return n ? `${n} ${n === 1 ? "Anweisung" : "Anweisungen"}` : "keine Anweisungen";
+  const backups = Object.keys(autoBackups(l.bench, byId, store.backups)).length;
+  const pens = penaltiesFor(l, byId).ids.length;
+  return `${backups} Reserven · ${pens} Elfmeterschützen · ${n ? `${n} ${n === 1 ? "Anweisung" : "Anweisungen"}` : "keine Anweisungen"}`;
 }
 
 // --- Darstellung -----------------------------------------------------------------------
@@ -199,14 +209,14 @@ export function renderOrdersPage() {
   const addBtn = (k: OrderKind, label: string, off: boolean) => `<button class="btn" data-oadd="${k}" ${off ? "disabled" : ""}>+ ${label}</button>`;
 
   // Elfmeter
-  const pens = penaltiesFor(l, byId);
+  const { ids: pens, fixed } = penaltiesFor(l, byId);
   const ids = inLineup(l);
   const field = new Set(l.positions.map((p) => p.playerId));
   const cands = [...ids].map((id) => byId.get(id)).filter((p): p is Player => !!p && !pens.includes(p.id)).sort((a, b) => penaltyStrength(b) - penaltyStrength(a));
   const penRow = (id: number, i: number) => {
     const p = byId.get(id);
     if (!p) return "";
-    return `<li><span class="pen-n">${i + 1}</span><span class="pen-name">${esc(p.name)}<span class="sub"> ${field.has(id) ? "Startelf" : "Bank"} · Erf. ${p.experience}, Std. ${p.setPieces}, Tor ${p.scoring}</span></span><span class="pen-v">${de(penaltyStrength(p))}</span>
+    return `<li><span class="pen-n">${i + 1}</span><span class="pen-name">${esc(p.name)}${i >= fixed ? ' <span class="tag">auto</span>' : ""}<span class="sub"> ${field.has(id) ? "Startelf" : "Bank"} · Erf. ${p.experience}, Std. ${p.setPieces}, Tor ${p.scoring}</span></span><span class="pen-v">${de(penaltyStrength(p))}</span>
       <button class="btn icon sm" data-pmove="${i}" data-dir="-1" ${i === 0 ? "disabled" : ""} aria-label="Nach oben">↑</button>
       <button class="btn icon sm" data-pmove="${i}" data-dir="1" ${i === pens.length - 1 ? "disabled" : ""} aria-label="Nach unten">↓</button>
       <button class="btn icon sm" data-pdel="${id}" aria-label="Entfernen">✕</button></li>`;
@@ -214,34 +224,36 @@ export function renderOrdersPage() {
 
   // Reserve-Reihe
   const benchIds = BENCH_NAME.map(([s]) => l.bench[s] ?? 0).filter(Boolean);
-  const backups = validBackups(l.bench, store.backups);
-  const lostBackups = Object.keys(store.backups).filter((k) => store.backups[k as BenchSlot] && !backups[k as BenchSlot]).length;
+  const backups = autoBackups(l.bench, byId, store.backups);
   const backupRow = ([slot, label]: [BenchSlot, string]) => {
     const own = l.bench[slot];
-    const others = benchIds.filter((id) => id !== own);
-    return `<label>${label}: <b class="bk-own">${own ? esc(byId.get(own)?.name ?? "") : "leer"}</b><select data-backup="${slot}" ${own ? "" : "disabled"}>${opt(0, "keine Reserve", backups[slot] ?? 0)}${others.map((id) => opt(id, byId.get(id)?.name ?? `ID ${id}`, backups[slot] ?? 0)).join("")}</select></label>`;
+    const others = benchIds.filter((id) => id !== own).sort((a, b) => benchSlotValue(byId.get(b)!, slot) - benchSlotValue(byId.get(a)!, slot));
+    const auto = autoBackups(l.bench, byId)[slot];
+    const mine = slot in store.backups && (store.backups[slot] === 0 || backups[slot] === store.backups[slot]);
+    const cur = mine ? store.backups[slot]! : -1;
+    const name = (id?: number) => (id ? (byId.get(id)?.name ?? `ID ${id}`) : "");
+    return `<label>${label}: <b class="bk-own">${own ? esc(name(own)) : "leer"}</b><select data-backup="${slot}" ${own ? "" : "disabled"}>${opt(-1, auto ? `automatisch: ${name(auto)}` : "automatisch", cur)}${opt(0, "keine Reserve", cur)}${others.map((id) => opt(id, name(id), cur)).join("")}</select></label>`;
   };
 
   root.innerHTML = `
+    <div class="ord-block">
+      <h3>Reserve der Ersatzbank <span class="sub">zweite Reihe in HO · passt sich der Bank an</span></h3>
+      <p class="sub">Wird für eine Position ein Ersatz gebraucht (Verletzung) und der Bankspieler dieses Platzes ist schon im Spiel, kommt die Reserve. Sie sitzt selbst auf einem anderen Bankplatz, bringt also keinen zusätzlichen Spieler. Automatisch: der stärkste andere Bankspieler für diese Position.</p>
+      <div class="controls bk-grid">${BENCH_NAME.map(backupRow).join("")}</div>
+    </div>
+    <div class="ord-block">
+      <h3>Elfmeterschützen <span class="sub">${pens.length} von 11 · ${fixed ? `${fixed} von dir, Rest automatisch` : "automatisch wie HO"}</span></h3>
+      ${fixed || store.excluded.length ? `<div class="controls"><button class="btn" data-pauto>Wieder alles automatisch</button></div>` : ""}
+      ${pens.length ? `<ol class="pen-list">${pens.map(penRow).join("")}</ol>` : `<p class="sub">Keine Schützen. Dann wählt Hattrick selbst.</p>`}
+      ${cands.length && pens.length < 11 ? `<div class="pen-add"><span class="sub">Hinzufügen:</span> ${cands.map((p) => `<button class="chipbtn" data-padd="${p.id}">${esc(p.name.split(" ").slice(-1)[0])} <span class="sub">${de(penaltyStrength(p))}</span></button>`).join("")}</div>` : ""}
+      <p class="sub">Aus Startelf und Bank, stärkste zuerst wie HO (1,5 × Erfahrung + 0,7 × Standards + 0,3 × Torschuss, mit Form und Treue, Ballzauberer +10 %). Verschieben macht die Reihenfolge zu deiner, neue Spieler der Aufstellung werden hinten automatisch ergänzt. Gilt fürs Elfmeterschießen (Pokal und Entscheidungsspiele).</p>
+    </div>
     <div class="ord-block">
       <h3>Auswechslungen &amp; Anweisungen <span class="sub">${counted} von ${limit} (5 + Taktik-Assistent Stufe ${ta})${hasMarking ? " · plus 1 Manndeckung" : ""}</span></h3>
       <div class="controls ord-add">${addBtn("sub", "Auswechslung", full)}${addBtn("behaviour", "Verhalten", full)}${addBtn("swap", "Positionstausch", full)}${addBtn("marking", "Manndeckung", hasMarking)}
         ${store.orders.length ? `<button class="btn" data-oclear>Alle löschen</button>` : ""}</div>
       ${store.orders.map((o, i) => renderOrder(o, i, store.orders.length, l, byId, problems[i])).join("") || `<p class="sub">Noch keine Anweisungen. Ohne Anweisungen wechselt Hattrick nur bei Verletzungen aus.</p>`}
-      <p class="sub">Bedingungen wie in Hattrick: Die Anweisung gilt ab der Minute, sobald Spielstand und Rote Karten passen. Hattrick führt die Anweisungen in dieser Reihenfolge aus.</p>
-    </div>
-    <div class="ord-block">
-      <h3>Elfmeterschützen <span class="sub">${store.penalties ? "von dir festgelegt" : "automatisch wie HO"} · ${pens.length} von 11</span></h3>
-      <div class="controls"><button class="btn" data-pauto>Automatisch besetzen</button><button class="btn" data-pclear>Leeren</button></div>
-      ${pens.length ? `<ol class="pen-list">${pens.map(penRow).join("")}</ol>` : `<p class="sub">Keine Schützen festgelegt. Dann wählt Hattrick selbst.</p>`}
-      ${cands.length && pens.length < 11 ? `<div class="pen-add"><span class="sub">Hinzufügen:</span> ${cands.map((p) => `<button class="chipbtn" data-padd="${p.id}">${esc(p.name.split(" ").slice(-1)[0])} <span class="sub">${de(penaltyStrength(p))}</span></button>`).join("")}</div>` : ""}
-      <p class="sub">Stärke wie HO: 1,5 × Erfahrung + 0,7 × Standards + 0,3 × Torschuss (mit Form und Treue), Ballzauberer +10 %. Die Liste gilt fürs Elfmeterschießen (Pokal und Entscheidungsspiele nach Verlängerung).</p>
-    </div>
-    <div class="ord-block">
-      <h3>Reserve der Ersatzbank <span class="sub">die zweite Reihe in HO</span></h3>
-      <p class="sub">Für jeden Bankplatz kannst du eine Reserve bestimmen. Wird für diese Position ein Ersatz gebraucht (Verletzung) und der Spieler des Platzes ist schon im Spiel, kommt die Reserve. Die Reserve muss selbst auf einem anderen Bankplatz sitzen, sie bringt also keinen zusätzlichen Spieler.</p>
-      <div class="controls bk-grid">${BENCH_NAME.map(backupRow).join("")}</div>
-      ${lostBackups ? `<p class="sub">${lostBackups} gespeicherte Reserve${lostBackups === 1 ? " passt" : "n passen"} nicht mehr zur Bank und ${lostBackups === 1 ? "wird" : "werden"} nicht gespeichert.</p>` : ""}
+      <p class="sub">Bedingungen wie in Hattrick: Die Anweisung gilt ab der Minute, sobald Spielstand und Rote Karten passen. Hattrick führt die Anweisungen in dieser Reihenfolge aus. Spieler, die nicht mehr in der Aufstellung stehen, werden rot markiert.</p>
     </div>`;
 }
 
@@ -264,21 +276,31 @@ export function initOrdersPage(el: HTMLElement, c: OrdersContext) {
     else if (d.odel !== undefined) store.orders.splice(Number(d.odel), 1);
     else if (d.omove !== undefined) move(store.orders, Number(d.omove), Number(d.dir));
     else if (d.oclear !== undefined) store.orders = [];
-    else if (d.pauto !== undefined) store.penalties = autoPenaltyTakers(l, byId);
-    else if (d.pclear !== undefined) store.penalties = [];
-    else if (d.padd) store.penalties = [...penaltiesFor(l, byId), Number(d.padd)].slice(0, 11);
-    else if (d.pdel) store.penalties = penaltiesFor(l, byId).filter((id) => id !== Number(d.pdel));
-    else if (d.pmove !== undefined) {
-      const list = penaltiesFor(l, byId);
+    else if (d.pauto !== undefined) {
+      store.penalties = [];
+      store.excluded = [];
+    } else if (d.padd) {
+      const id = Number(d.padd);
+      store.penalties = [...penaltiesFor(l, byId).ids, id].slice(0, 11);
+      store.excluded = store.excluded.filter((x) => x !== id);
+    } else if (d.pdel) {
+      const id = Number(d.pdel);
+      store.penalties = store.penalties.filter((x) => x !== id);
+      store.excluded = [...store.excluded.filter((x) => x !== id), id];
+    } else if (d.pmove !== undefined) {
+      const list = penaltiesFor(l, byId).ids;
       move(list, Number(d.pmove), Number(d.dir));
-      store.penalties = list;
+      store.penalties = list.slice(0, Math.max(Number(d.pmove), Number(d.pmove) + Number(d.dir)) + 1);
     } else return;
     changed();
   });
   el.addEventListener("change", (e) => {
     const t = e.target as HTMLInputElement | HTMLSelectElement;
     if (t.dataset.backup) {
-      store.backups = { ...store.backups, [t.dataset.backup]: Number(t.value) };
+      const b = { ...store.backups };
+      if (Number(t.value) < 0) delete b[t.dataset.backup as BenchSlot];
+      else b[t.dataset.backup as BenchSlot] = Number(t.value);
+      store.backups = b;
       return changed();
     }
     if (t.dataset.oi === undefined) return;

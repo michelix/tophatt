@@ -1,8 +1,8 @@
 // Elfmeterschützen, Auswechslungen/Anweisungen und Reserve-Reihe der Ersatzbank,
 // so wie HO sie im [lineup]-Abschnitt einer HRF-Datei liest (Lineup(Properties), HRFStringBuilder).
 
-import { type BenchSlot, type Lineup, type MatchOrder, type OrderKind, type Player, Specialty } from "./model";
-import { skillRating, strength } from "./rating";
+import { type BenchSlot, type Lineup, type MatchOrder, type OrderKind, type Player, Role, Specialty } from "./model";
+import { playerPositionRating, skillRating, strength } from "./rating";
 
 export const ORDER_KIND_DE: Record<OrderKind, string> = {
   sub: "Auswechslung",
@@ -102,6 +102,49 @@ export function validBackups(bench: Lineup["bench"], backups: Lineup["backups"] 
   const out: Partial<Record<BenchSlot, number>> = {};
   for (const [slot, id] of Object.entries(backups) as [BenchSlot, number][]) {
     if (id && subs.has(id) && bench[slot] !== id) out[slot] = id;
+  }
+  return out;
+}
+
+const BACKUP_ROLES: Record<BenchSlot, number[]> = {
+  keeper: [Role.keeper],
+  centralDefender: [Role.leftCentralDefender],
+  wingBack: [Role.leftBack],
+  innerMidfield: [Role.leftInnerMidfield],
+  forward: [Role.centralForward],
+  winger: [Role.leftWinger],
+  extra: [Role.leftCentralDefender, Role.leftBack, Role.leftInnerMidfield, Role.leftWinger, Role.centralForward],
+};
+
+/** Stärke eines Spielers für einen Bankplatz (Joker: beste Feldposition) */
+export const benchSlotValue = (p: Player, slot: BenchSlot) => Math.max(...BACKUP_ROLES[slot].map((r) => playerPositionRating(p, r)));
+
+/**
+ * Reserve je Bankplatz: eigene Wahl (Spieler-ID, 0 = keine) bleibt, sonst der stärkste andere Bankspieler
+ * für die Position des Platzes. Plätze ohne Bankspieler bekommen keine Reserve.
+ */
+export function autoBackups(bench: Lineup["bench"], byId: Map<number, Player>, own: Partial<Record<BenchSlot, number>> = {}): Partial<Record<BenchSlot, number>> {
+  const out: Partial<Record<BenchSlot, number>> = {};
+  const valid = validBackups(bench, own);
+  for (const slot of Object.keys(BACKUP_ROLES) as BenchSlot[]) {
+    const id = bench[slot];
+    if (!id) continue;
+    if (slot in own) {
+      if (valid[slot]) out[slot] = valid[slot];
+      if (own[slot] === 0 || valid[slot]) continue;
+    }
+    let best = 0;
+    let bestV = -1;
+    for (const other of Object.values(bench)) {
+      const p = other && other !== id ? byId.get(other) : undefined;
+      if (!p) continue;
+      const v = benchSlotValue(p, slot);
+      if (v > bestV) {
+        bestV = v;
+        best = p.id;
+      }
+    }
+    if (best) out[slot] = best;
   }
   return out;
 }

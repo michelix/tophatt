@@ -107,3 +107,18 @@ describe("Reserve-Reihe der Bank", () => {
     expect(p.get("substwb2")).toBe("0");
   });
 });
+
+describe("Reserve automatisch", () => {
+  it("füllt jeden besetzten Bankplatz mit einem anderen Bankspieler, eigene Wahl bleibt", async () => {
+    const { autoBackups } = await import("../src/core/orders");
+    const auto = autoBackups(lineup.bench, byId);
+    for (const [slot, id] of Object.entries(auto)) {
+      expect(benchIds).toContain(id);
+      expect(lineup.bench[slot as keyof typeof lineup.bench]).not.toBe(id);
+    }
+    expect(Object.keys(auto).length).toBe(benchIds.length);
+    const own = autoBackups(lineup.bench, byId, { keeper: 0, centralDefender: lineup.bench.forward });
+    expect(own.keeper).toBeUndefined();
+    expect(own.centralDefender).toBe(lineup.bench.forward);
+  });
+});
