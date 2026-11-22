@@ -5,7 +5,7 @@ import { completeLineup } from "../src/core/editor";
 import { defaultMatchSettings, type Player } from "../src/core/model";
 import { HATSTATS_OBJECTIVE, optimizeLineup } from "../src/core/optimizer";
 import { MAX_SUBSTITUTIONS, SAFE_LEAD, bestStrengthMinute, ruleOfThumb, suggestSubstitutions, suggestionToOrder } from "../src/core/substitutions";
-import { TRAININGS, type WeekMinutes, trainingFor } from "../src/core/training";
+import { TRAININGS, type WeekMinutes } from "../src/core/training";
 import { orderProblems } from "../src/core/orders";
 
 const hrf = parseHrf(readFileSync(new URL("./fixtures/team.hrf", import.meta.url), "utf8"));
@@ -93,36 +93,27 @@ describe("Auswechslungs-Vorschläge", () => {
   });
 });
 
-describe("Max. Training (verteilen)", () => {
+describe("Alle einsetzen (einsatz)", () => {
   const isKeeper = (p: Player) => p.keeper > Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
-  const trainSlots = lineup.positions.filter((p) => p.role !== 100 && trainingFor(p.role, training) !== "keins");
-  const fresh = hrf.players.filter((p) => !fieldIds.has(p.id) && !isKeeper(p) && !(p.injury > 0)).slice(0, 3);
-  const bench = { innerMidfield: fresh[0]?.id, winger: fresh[1]?.id, forward: fresh[2]?.id };
+  const fresh = hrf.players.filter((p) => !fieldIds.has(p.id) && !isKeeper(p) && !(p.injury > 0)).slice(0, 4);
+  const bench = { innerMidfield: fresh[0]?.id, winger: fresh[1]?.id, forward: fresh[2]?.id, centralDefender: fresh[3]?.id };
   const l = { ...lineup, bench };
 
-  it("holt Bankspieler ohne Training auf Trainingspositionen, höchstens 3, Halbzeit oder wenn der Startspieler voll ist", () => {
-    expect(trainSlots.length).toBeGreaterThan(0);
-    const s = suggestSubstitutions({ lineup: l, byId, mode: "verteilen", training, week: new Map() });
-    expect(s.length).toBeGreaterThan(0);
-    expect(s.length).toBeLessThanOrEqual(MAX_SUBSTITUTIONS);
+  it("bringt bis zu 3 Bankspieler ohne Einsatz in dieser Woche", () => {
+    const s = suggestSubstitutions({ lineup: l, byId, mode: "einsatz", training, week: new Map() });
+    expect(s.length).toBe(MAX_SUBSTITUTIONS);
+    expect(new Set(s.map((x) => x.playerOut)).size).toBe(s.length);
     for (const x of s) {
       expect(fresh.map((p) => p.id)).toContain(x.playerIn);
-      expect(x.minute).toBe(46);
-      expect(x.reason).toBe("training");
+      expect(x.reason).toBe("einsatz");
+      expect(x.standing).toBe(-1);
     }
   });
 
-  it("wechselt einen Startspieler, der schon 60 volle Minuten hat, nach 30 Minuten aus", () => {
-    const full = lineup.positions.filter((p) => trainingFor(p.role, training) === "voll");
-    const week = new Map<number, WeekMinutes>(full.map((p) => [p.playerId, { full: 60, partly: 0, sources: ["Liga"] }]));
-    const s = suggestSubstitutions({ lineup: l, byId, mode: "verteilen", training, week });
-    expect(s.length).toBeGreaterThan(0);
-    for (const x of s) if (trainingFor(x.role, training) === "voll") expect(x.minute).toBe(30);
-    expect(s.some((x) => x.minute === 30)).toBe(true);
-  });
-
-  it("lässt Spieler auf der Liste „Nicht trainieren“ draußen", () => {
-    const noTrain = new Set(fresh.map((p) => p.id));
-    expect(suggestSubstitutions({ lineup: l, byId, mode: "verteilen", training, week: new Map(), noTrain })).toEqual([]);
+  it("lässt Bankspieler aus, die schon gespielt haben oder auf „Nicht trainieren“ stehen", () => {
+    const week = new Map<number, WeekMinutes>([[fresh[0].id, { full: 0, partly: 0, sources: ["gespielt IV"] }]]);
+    const noTrain = new Set([fresh[1].id]);
+    const s = suggestSubstitutions({ lineup: l, byId, mode: "einsatz", training, week, noTrain });
+    expect(s.map((x) => x.playerIn).sort()).toEqual([fresh[2].id, fresh[3].id].sort());
   });
 });

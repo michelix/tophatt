@@ -161,8 +161,8 @@ interface State {
   hideTrained: boolean;
   /** Trainingself aktiv: Formationswechsel stellt weiter nur noch nicht trainierte Spieler auf */
   trainingMode: boolean;
-  /** Max. Training: Trainingself plus Bank mit noch nicht trainierten Spielern und Wechseln, die das Training verteilen */
-  maxTrain: boolean;
+  /** Noch nicht gespielt: Elf und Bank aus Spielern ohne Einsatz in dieser Woche, Wechsel bringen die Bank */
+  unplayed: boolean;
   /** Spieler, die nicht mehr trainiert werden sollen (Verkauf, Entlassung), eigene Liste aus der Trainingswoche */
   noTrain: Set<number>;
   /** eigene Kaderzuordnung (A/B/Rest), überschreibt den Vorschlag */
@@ -209,7 +209,7 @@ const state: State = {
   week: null,
   hideTrained: false,
   trainingMode: false,
-  maxTrain: false,
+  unplayed: false,
   noTrain: new Set(),
   squadOwn: {},
   cup: null,
@@ -329,7 +329,7 @@ function afterLoad(resetMatch: boolean) {
   if (resetMatch) {
     state.manualEdited = false;
     state.trainingMode = false;
-    state.maxTrain = false;
+    state.unplayed = false;
     state.choices = {};
     const up = state.ho ? upcomingMatches(state.ho).filter((m) => [1, 2, 3].includes(m.type)) : [];
     state.match = up[0] ?? null;
@@ -740,34 +740,59 @@ function trainingBadge(id: number): string {
     : `<span class="trb half" title="Diese Trainingswoche schon halb trainiert (${esc(src)})">½</span>`;
 }
 
-/** Zurück zur normalen Aufstellung: Trainingself und Max. Training aus, Wechsel wieder nach Spielart */
+/** Zurück zur normalen Aufstellung: B-Kader-Modus und „Noch nicht gespielt“ aus, Wechsel wieder nach Spielart */
 function leaveTrainingMode() {
   state.trainingMode = false;
-  if (state.maxTrain) setSubMode(undefined, "verteilen");
-  state.maxTrain = false;
+  if (state.unplayed) setSubMode(undefined, "einsatz");
+  state.unplayed = false;
 }
 
-/** Bankplätze, auf die Max. Training Einwechselspieler setzt (Torwartplatz bleibt automatisch) */
-const TRAIN_BENCH: BenchSlot[] = ["innerMidfield", "winger", "forward", "centralDefender", "wingBack", "extra"];
+/** Hat diese Trainingswoche schon gespielt (Liga, Pokal oder Freundschaft, laut HO-Download) */
+const playedWeek = (id: number) => (state.week?.played.get(id)?.sources.length ?? 0) > 0;
+
+/** Spieler für den B-Kader-Knopf: der B-Kader, reicht er nicht für 11, kommt der Rest dazu (nie der A-Kader) */
+function bSquadPlayers(): Player[] {
+  const all = state.hrf!.players;
+  const b = all.filter((p) => tierOf(p.id) === "B");
+  return b.filter((p) => !unavailable(p)).length >= 11 ? b : all.filter((p) => tierOf(p.id) !== "A");
+}
 
 /**
- * Max. Training: die Bank mit Spielern füllen, die diese Woche noch Training brauchen (wer noch gar keins hat und
- * am meisten davon hat zuerst), höchstens 3, weil Hattrick nur 3 Wechsel erlaubt. Die übrigen Bankplätze bleiben automatisch.
+ * Noch nicht gespielt: die beste Elf nur aus Spielern, die diese Trainingswoche noch nicht gespielt haben (ohne
+ * „Nicht trainieren“), die übrigen davon auf die Bank. Reicht es nicht für 11, füllen B-Kader und Rest auf.
  */
-function trainingBench(positions: FieldPosition[]): Partial<Record<BenchSlot, number>> {
+function unplayedLineup(formation: string): { positions: FieldPosition[]; bench: Partial<Record<BenchSlot, number>>; fresh: number } {
   const hrf = state.hrf!;
-  const t = TRAININGS[hrf.team.trainingType];
-  const played = state.week?.played;
-  const onField = new Set(positions.map((p) => p.playerId));
-  const keeperType = (p: Player) => p.keeper >= Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
-  const fresh = (p: Player) => (weekFactor(played?.get(p.id)) === 0 ? 1 : 0);
-  const cands = hrf.players
-    .filter((p) => !onField.has(p.id) && !unavailable(p) && !state.noTrain.has(p.id) && keeperType(p) === (t.skill === "keeper") && weekFactor(played?.get(p.id)) < DONE_FACTOR && trainingPriority(p, t) > 0)
-    .sort((a, b) => fresh(b) - fresh(a) || trainingPriority(b, t) * (1 - weekFactor(played?.get(b.id))) - trainingPriority(a, t) * (1 - weekFactor(played?.get(a.id))));
-  const bench: Partial<Record<BenchSlot, number>> = {};
-  const slots = t.skill === "keeper" ? (["keeper", ...TRAIN_BENCH] as BenchSlot[]) : TRAIN_BENCH;
-  cands.slice(0, 3).forEach((p, i) => (bench[slots[i]] = p.id));
-  return bench;
+  const fresh = hrf.players.filter((p) => !playedWeek(p.id) && !state.noTrain.has(p.id) && !unavailable(p));
+  const pool = fresh.length >= 11 ? fresh : [...fresh, ...hrf.players.filter((p) => !fresh.includes(p) && tierOf(p.id) !== "A" && !state.noTrain.has(p.id))];
+  const res = optimizeLineup(pool, state.settings, teamState(), {
+    formationExperience: hrf.team.formationExperience,
+    objective: HATSTATS_OBJECTIVE,
+    allowBruised: bruisedOk(),
+    tryBehaviours: false,
+    minFormationExperience: formation ? 0 : Number($<HTMLSelectElement>("#minExp").value),
+    ...(formation ? { formations: [formation] } : {}),
+  });
+  const ids = new Set(fresh.map((p) => p.id));
+  const bench = Object.fromEntries(Object.entries(res.lineup.bench).filter(([, id]) => id && ids.has(id))) as Partial<Record<BenchSlot, number>>;
+  return { positions: res.lineup.positions.map((p) => ({ ...p })), bench, fresh: fresh.length };
+}
+
+function applyUnplayed(formation: string) {
+  state.formation = formation;
+  let u;
+  try {
+    u = unplayedLineup(formation);
+  } catch {
+    return toast("Zu wenige einsatzfähige Spieler, die noch nicht gespielt haben.");
+  }
+  state.manual = u.positions;
+  state.choices = { bench: u.bench };
+  setSubMode("einsatz");
+  editorChanged();
+  const onField = u.positions.filter((p) => !playedWeek(p.playerId)).length;
+  const bench = Object.keys(u.bench).length;
+  toast(`Noch nicht gespielt ${formationLabel(formationCode(u.positions))}: ${onField} in der Startelf, ${bench} auf der Bank (bis zu 3 werden eingewechselt). ${u.fresh} Spieler haben diese Woche noch nicht gespielt.`);
 }
 
 /**
@@ -779,7 +804,7 @@ function trainingChoices() {
   const t = TRAININGS[hrf.team.trainingType];
   const byId = playersById();
   return FORMATIONS.map((f) => {
-    const plan = planTrainingLineup(hrf.players, hrf.team.trainingType, state.week!.played, bruisedOk(), hrf.team.formationExperience, f, state.noTrain);
+    const plan = planTrainingLineup(bSquadPlayers(), hrf.team.trainingType, state.week!.played, bruisedOk(), hrf.team.formationExperience, f, state.noTrain);
     const x = formationSlots(t, f);
     const hatStats = evaluatePositions(plan.lineup.positions, byId, state.settings, teamState()).hatStats;
     return { f, plan, full: x.full, partly: x.partly, hatStats, exp: hrf.team.formationExperience[f] ?? 0 };
@@ -865,7 +890,7 @@ function trainingPickHtml(): string {
   const gs = [...groups.values()];
   const group = (g: typeof c) => `<div class="tf-group"><div class="tf-head">${head(g[0])}</div><div class="tf-grid">${g.map(card).join("")}</div></div>`;
   return `<div class="trmode">
-    <div class="trmode-top"><b>${state.maxTrain ? "Max. Training aktiv" : "Trainingself aktiv"}</b><span>Auf die Trainingsplätze (${esc(t.name)}) kommen Spieler aus dem ganzen Kader (A, B und Rest), die diese Trainingswoche noch nicht trainiert haben, wer am meisten davon hat zuerst. Nicht dabei: wer schon (fast) voll trainiert hat und die Liste „Nicht trainieren“.${state.maxTrain ? " Dazu kommen bis zu 3 weitere Spieler auf die Bank, die per Einwechslung die Trainingsposition übernehmen (Ziel „Max. Training“ bei den Auswechslungen)." : ""}${state.week!.played.size ? "" : " Seit dem letzten Trainingsupdate wurde noch nicht gespielt, deshalb stehen alle zur Wahl."} Gedacht fürs 2. Spiel der Woche (Pokal oder Freundschaftsspiel). Den B-Kader als feste Gruppe plant die Seite Trainingswoche. Formation antippen, der Modus bleibt.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div>
+    <div class="trmode-top"><b>B-Kader aktiv</b><span>Aufgestellt wird der B-Kader (Trainingsgruppe von der Seite Trainingswoche; reicht er nicht für 11, kommt der Rest dazu, nie der A-Kader). Auf die Trainingsplätze (${esc(t.name)}) kommen die, die diese Woche noch nicht trainiert haben und am meisten davon haben, ohne die Liste „Nicht trainieren“.${state.week!.played.size ? "" : " Seit dem letzten Trainingsupdate wurde noch nicht gespielt, deshalb stehen alle zur Wahl."} Formation antippen, der Modus bleibt.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div>
     <p class="sub tf-why">Empfehlung ${formationLabel(top.f)}: ${ties > 1 ? `die stärkste Elf unter ${ties} Formationen mit gleich vielen Trainingsplätzen` : "die meisten Trainingsplätze"}. Unter Erfahrung 6 droht Desorganisation.</p>
     ${group(gs[0])}
     ${gs.length > 1 ? `<details class="tf-more"${gs.slice(1).some((g) => g.some((x) => x.f === current)) ? " open" : ""}><summary>Weitere Formationen mit weniger Trainingsplätzen</summary>${gs.slice(1).map(group).join("")}</details>` : ""}
@@ -876,19 +901,16 @@ function applyTrainingFormation(f: string) {
   state.formation = f;
   const plan = trainingPlan(f);
   state.manual = plan.lineup.positions.map((p) => ({ ...p }));
-  state.choices = state.maxTrain ? { bench: trainingBench(state.manual) } : {};
-  if (state.maxTrain) setSubMode("verteilen");
+  state.choices = {};
   editorChanged();
   toast(trainingToast(plan));
 }
 
-/** Meldung nach Trainingself / Max. Training: wie viele Spieler dadurch Training bekommen */
+/** Meldung nach dem B-Kader-Knopf: wie viele Spieler dadurch Training bekommen */
 function trainingToast(plan: ReturnType<typeof trainingPlan>): string {
   const t = TRAININGS[state.hrf!.team.trainingType];
   const n = plan.gaining.filter((id) => !state.noTrain.has(id)).length;
-  if (!state.maxTrain) return `Trainingself ${formationLabel(plan.lineup.formation)}: ${n} Spieler bekommen dadurch „${t.name}“-Training. Formation wechseln behält den Modus bei.`;
-  const subs = Object.values(state.choices.bench ?? {}).filter(Boolean).length;
-  return `Max. Training ${formationLabel(plan.lineup.formation)}: ${n} Spieler in der Startelf trainieren, dazu bis zu ${subs} per Einwechslung (Wechsel stehen unter „3 Auswechslungen“).`;
+  return `B-Kader ${formationLabel(plan.lineup.formation)}: ${n} Spieler bekommen dadurch „${t.name}“-Training. Formation wechseln behält den Modus bei.`;
 }
 
 function formationPositions(): FieldPosition[] {
@@ -900,14 +922,17 @@ function renderFormationPick() {
   const sel = $<HTMLSelectElement>("#formationPick");
   const best = state.league?.lineup.formation;
   const t = state.hrf ? TRAININGS[state.hrf.team.trainingType] : undefined;
-  $("#trainingFill").classList.toggle("primary", state.trainingMode && !state.maxTrain);
-  $("#maxTrainFill").classList.toggle("primary", state.maxTrain);
-  $("#autoFill").classList.toggle("primary", !state.trainingMode);
+  $("#trainingFill").classList.toggle("primary", state.trainingMode);
+  $("#unplayedFill").classList.toggle("primary", state.unplayed);
+  $("#autoFill").classList.toggle("primary", !state.trainingMode && !state.unplayed);
   sel.classList.toggle("training", state.trainingMode);
   // Formation wählt man über die Karten darunter; das Auswahlfeld bleibt nur als Rückfall
   const training = !!(state.trainingMode && t && state.week);
   sel.closest("label")!.hidden = training || state.formations.length > 0;
-  $("#trainingModeBar").innerHTML = training ? trainingPickHtml() : formationCardsHtml();
+  const unplayedBar = state.unplayed
+    ? `<div class="trmode"><div class="trmode-top"><b>Noch nicht gespielt aktiv</b><span>Aufgestellt wird die beste Elf aus Spielern, die diese Trainingswoche noch nicht gespielt haben (Liga, Pokal oder Freundschaft, egal welcher Kader, ohne die Liste „Nicht trainieren“). Die übrigen kommen auf die Bank, bis zu 3 davon werden eingewechselt (Ziel „Alle einsetzen“ bei den Auswechslungen). Formation antippen, der Modus bleibt.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div></div>`
+    : "";
+  $("#trainingModeBar").innerHTML = training ? trainingPickHtml() : unplayedBar + formationCardsHtml();
   sel.innerHTML =
     `<option value="">Beste${best ? `: ${formationLabel(best)}` : ""} (automatisch)</option>` +
     [...state.formations]
@@ -2024,7 +2049,7 @@ function initEditor() {
   });
   $("#autoFill").addEventListener("click", () => {
     if (!state.league) return;
-    if (state.trainingMode) {
+    if (state.trainingMode || state.unplayed) {
       leaveTrainingMode();
       state.formation = "";
     }
@@ -2038,23 +2063,27 @@ function initEditor() {
   $("#formationPick").addEventListener("change", () => {
     state.formation = $<HTMLSelectElement>("#formationPick").value;
     if (state.trainingMode && state.week) return applyTrainingFormation(state.formation);
+    if (state.unplayed) return applyUnplayed(state.formation);
     state.manual = formationPositions();
     state.manualEdited = !!state.formation;
     state.pick = null;
     state.choices = {};
     renderLineup();
   });
-  const startTraining = (max: boolean) => {
+  $("#trainingFill").addEventListener("click", () => {
     const hrf = state.hrf;
     const t = hrf && TRAININGS[hrf.team.trainingType];
     if (!hrf || !t || !state.week) return toast("Kein Training eingestellt.");
-    if (state.maxTrain && !max) setSubMode(undefined, "verteilen");
+    leaveTrainingMode();
     state.trainingMode = true;
-    state.maxTrain = max;
     applyTrainingFormation("");
-  };
-  $("#trainingFill").addEventListener("click", () => startTraining(false));
-  $("#maxTrainFill").addEventListener("click", () => startTraining(true));
+  });
+  $("#unplayedFill").addEventListener("click", () => {
+    if (!state.hrf || !state.week) return toast("Keine Trainingswoche bekannt.");
+    leaveTrainingMode();
+    state.unplayed = true;
+    applyUnplayed("");
+  });
   $("#aufstellung").addEventListener("click", (e) => {
     const el = e.target as HTMLElement;
     const card = el.closest<HTMLElement>(".tf-card[data-tf]");
@@ -2764,7 +2793,7 @@ function renderTrainingWeek() {
     .map((p) => `<option value="${p.id}">${esc(p.name)} (${p.age})</option>`)
     .join("");
   const noTrainCard = `<div class="card tw-card" id="noTrainCard"><header><h3>Nicht trainieren <span class="muted">Verkauf oder Entlassung, ${ntPlayers.length}</span></h3></header>
-    <p class="sub">Wer hier steht, bekommt keine Trainingsplätze mehr, weder in Trainingself und Max. Training noch im B-Kader-Vorschlag, in der Pokal- und Freundschaftsspiel-Planung oder unter „Nicht vergessen“. Aufstellen kannst du ihn weiterhin, etwa in der Liga. Die Liste bleibt im Browser gespeichert.</p>
+    <p class="sub">Wer hier steht, bekommt keine Trainingsplätze mehr, weder über den Knopf „B-Kader“ noch im B-Kader-Vorschlag, in der Pokal- und Freundschaftsspiel-Planung oder unter „Nicht vergessen“. Aufstellen kannst du ihn weiterhin, etwa in der Liga; „Noch nicht gespielt“ lässt ihn aber weg. Die Liste bleibt im Browser gespeichert.</p>
     <div class="nt-box">${ntPlayers.map((p) => `<span class="nt-chip">${miniFace(p)}${esc(p.name)}<button type="button" data-ntdel="${p.id}" title="Von der Liste nehmen" aria-label="${esc(p.name)} von der Liste nehmen">✕</button></span>`).join("") || `<span class="muted">Noch niemand.</span>`}
       <label class="nt-add"><select id="ntAdd"><option value="">+ Spieler hinzufügen …</option>${ntOptions}</select></label></div></div>`;
 
@@ -2953,7 +2982,7 @@ function renderPlayerCard() {
   ].join("");
 
   $("#playerCard").innerHTML = `<div class="pc-head">
-      <div class="token tk-${tier} fit-good">${esc(initials(p.name))}</div>
+      <div class="ic-av pc-av tk-${tier}">${avatarHtml(p.id, state.ho?.avatars, shirtNo(p))}</div>
       <div><h2>${esc(p.name)}</h2><div class="sub">${p.age} Jahre, ${p.ageDays} Tage${p.homegrown ? " · Eigengewächs" : ""} · TSI ${p.tsi.toLocaleString(loc())} · Gehalt ${p.salary.toLocaleString(loc())}</div>
       <div class="sub">${onField ? `auf dem Feld: ${ROLE_DE[onField.role]}` : bench ? `auf der Bank: ${BENCH_DE[bench]}` : "nicht aufgestellt"}</div></div>
       <button class="pc-close" aria-label="Schließen">×</button></div>

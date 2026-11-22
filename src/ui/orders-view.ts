@@ -112,7 +112,7 @@ export function loadOrders(matchId: number) {
 }
 
 /**
- * Ziel der Wechsel von außen setzen (Knopf „Max. Training“ auf der Aufstellungsseite): Wechsel werden wieder
+ * Ziel der Wechsel von außen setzen (Knopf „Noch nicht gespielt“ auf der Aufstellungsseite): Wechsel werden wieder
  * automatisch geplant. `undefined` = wieder nach Spielart. `only`: nur ändern, wenn gerade dieses Ziel gilt.
  */
 export function setSubMode(mode: SubMode | undefined, only?: SubMode) {
@@ -365,7 +365,7 @@ const MODE_HINT: Record<SubMode, string> = {
   sieg: "nur Wechsel, die die Mannschaft stärker machen (müde Spieler raus). Einsätze fürs Mitspielen nur bei mehr als 2 Toren Vorsprung.",
   ausgewogen: "Konditionswechsel plus Training und Einsatzzeit, solange die Mannschaft übers Spiel höchstens 2 % Stärke verliert.",
   training: "Trainingsminuten und Einsätze gehen vor, Stärke zählt wenig. Für Freundschaftsspiele.",
-  verteilen: "Die 3 Wechsel holen weitere Spieler von der Bank auf die Trainingspositionen, damit möglichst viele trainieren. Wer seine 90 Minuten schon fast hat, geht zuerst, sonst wird zur Halbzeit geteilt. Stärke zählt nicht.",
+  einsatz: "Bankspieler, die diese Woche noch nicht gespielt haben, kommen rein (höchstens 3), jeweils für den Platz, den sie am wenigsten schwächen. Für die Form zählt nur, ob ein Spieler in der Woche gespielt hat.",
 };
 const REASON_TAG: Record<SubSuggestion["reason"], string> = { kondition: "Kondition", training: "Training", einsatz: "Einsatz" };
 
@@ -398,7 +398,7 @@ function suggestionsBlock(l: Lineup, byId: Map<number, Player>): string {
       <div class="mp-head">Vorschläge <span class="sug-sub">nach Kondition, Training und Einsatzzeit</span></div>
       <div class="controls sug-controls">
         <div class="seg" role="group" aria-label="Wechsel automatisch oder manuell"><button class="${auto ? "on" : ""}" data-sauto="1">Automatisch</button><button class="${auto ? "" : "on"}" data-sauto="0">Manuell</button></div>
-        <div class="seg" role="group" aria-label="Ziel">${(["sieg", "ausgewogen", "training", "verteilen"] as SubMode[]).map(modeBtn).join("")}</div>
+        <div class="seg" role="group" aria-label="Ziel">${(["sieg", "ausgewogen", "training", "einsatz"] as SubMode[]).map(modeBtn).join("")}</div>
         ${!auto && lastSuggestions.length ? `<button class="btn" data-sauto="1">Diese übernehmen (ersetzt deine Wechsel)</button>` : ""}</div>
       <p class="sub">${autoHint}</p>
       <p class="sub">Ziel ${SUB_MODE_DE[mode]}: ${MODE_HINT[mode]}${store.subMode ? "" : " (passend zur Spielart gewählt)"}</p>
