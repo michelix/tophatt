@@ -118,6 +118,8 @@ select,input[type=number]{font:inherit;font-size:14px;padding:6px 8px;border:1px
 .ord-add{margin-bottom:10px}
 .btn:disabled{opacity:.45;cursor:default}
 .btn.sm{padding:3px 8px;font-size:13px;min-width:30px;justify-content:center}
+.btn.btn2{flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1.15;padding:4px 12px}
+.btn.btn2 small{font-size:11px;opacity:.75;font-weight:400}
 .ord-row{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:var(--surface-2)}
 .ord-row.bad{border-color:var(--critical)}
 .ord-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
@@ -694,6 +696,20 @@ select.training{border-color:var(--brand);font-weight:600}
 .tw-sq{width:100%;border-collapse:collapse;font-size:13px}
 .tw-sq th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);font-weight:600;white-space:nowrap}
 .tw-sq td{padding:5px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tw-sq .tw-name{display:inline-flex;align-items:center;gap:8px;vertical-align:middle}
+.tw-sq .tw-av.token.av{width:28px;height:35px;border-radius:6px;font-size:0;box-shadow:0 0 0 1px var(--line);flex:none}
+.tw-sq .tw-av.token.av::before{display:none}
+.tw-sq .tw-av.token.av .tk-img{border-radius:6px}
+.tw-sq tr.nt td{opacity:.6}
+.status.nt,.tw-nt{color:var(--muted);font-style:italic}
+.nt-box{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.nt-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 4px;background:var(--surface)}
+.nt-chip .tw-av.token.av{width:22px;height:28px;border-radius:50%;font-size:0;box-shadow:none}
+.nt-chip .tw-av.token.av::before{display:none}
+.nt-chip .tw-av.token.av .tk-img{border-radius:50%}
+.nt-chip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
+.nt-chip button:hover{color:var(--critical,#e5534b)}
+.nt-add select{max-width:260px}
 .tw-nb{display:inline-block;height:8px;border-radius:4px;background:var(--brand);vertical-align:middle}
 .tw-slot{font-size:11px;font-weight:600;border-radius:5px;padding:1px 6px;background:var(--surface-2);color:var(--muted)}
 .tw-slot.v{background:color-mix(in srgb,#1f9d4c 18%,var(--surface));color:#1c6b1c}.tw-slot.h{background:color-mix(in srgb,#d99a00 18%,var(--surface));color:#7a5600}.tw-slot.played{font-weight:400}
@@ -853,7 +869,8 @@ select.training{border-color:var(--brand);font-weight:600}
         <div class="seg mode-seg" id="modeSeg" role="group" aria-label="Ansehen oder ändern"></div>
         <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
         <button class="btn primary" id="autoFill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Automatisch aufstellen</button>
-        <button class="btn" id="trainingFill" title="Stellt nur Spieler auf die Trainingspositionen, die diese Trainingswoche noch nicht trainiert haben, die Jüngsten mit passender Hauptfertigkeit zuerst. Gut für Spiele, in denen es um nichts geht.">Trainingself</button>
+        <button class="btn btn2" id="trainingFill" title="Für das 2. Spiel der Woche: stellt auf die Trainingspositionen Spieler aus dem ganzen Kader (nicht nur B-Kader), die diese Trainingswoche noch nicht trainiert haben, wer am meisten davon hat zuerst. Ohne die Liste „Nicht trainieren“."><span>Trainingself</span><small>noch nicht Trainierte</small></button>
+        <button class="btn btn2" id="maxTrainFill" title="Wie Trainingself, dazu bis zu 3 noch nicht trainierte Spieler auf die Bank und Wechsel, die die Trainingsposition übernehmen (z. B. zur Halbzeit). So trainieren so viele Spieler wie möglich."><span>Max. Training</span><small>+ Einwechslungen</small></button>
         <button class="btn" id="clearField">Feld leeren</button>
         <span class="sub" id="editorHint">Ziehen oder antippen, um Spieler zu setzen oder zu tauschen. Maus auf einem Spieler zeigt seine Karte, Antippen hält sie fest (Verhalten, Kapitän, Standards).</span>
       </div>

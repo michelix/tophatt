@@ -10,20 +10,23 @@
 // - Form: Für die neue Grundform zählt, OB ein Spieler in der Woche eingesetzt wurde („sehr wichtig“),
 //   nicht wie lange. Konditionstraining: ≥ 90 Min 100 %, weniger 75 % + Anteil je Minute, gar nicht 50 %.
 // - Hattrick erlaubt höchstens 3 Auswechslungen je Spiel.
+// - „Max. Training“ (verteilen): Die 3 Wechsel holen weitere Spieler auf die Trainingspositionen. Die Woche hat nur
+//   so viele Trainingsminuten, wie Trainingsplätze × 90; verteilt auf mehr Köpfe bekommen mehr Spieler etwas ab.
+//   Am günstigsten ist ein Wechsel, wenn der Startspieler seine 90 Minuten schon vorher voll hat.
 
 import { type Lineup, type MatchOrder, type Player, Tactic } from "./model";
 import { playerPositionRating, staminaFactor } from "./rating";
-import { type TrainingDef, type WeekMinutes, trainingFor, trainingPriority } from "./training";
+import { type TrainingDef, type WeekMinutes, DONE_FACTOR, trainingFor, trainingPriority, weekFactor } from "./training";
 import { loc } from "./locale";
 
-export type SubMode = "sieg" | "ausgewogen" | "training";
+export type SubMode = "sieg" | "ausgewogen" | "training" | "verteilen";
 
-export const SUB_MODE_DE: Record<SubMode, string> = { sieg: "Sieg", ausgewogen: "Ausgewogen", training: "Training" };
+export const SUB_MODE_DE: Record<SubMode, string> = { sieg: "Sieg", ausgewogen: "Ausgewogen", training: "Training", verteilen: "Max. Training" };
 
 export const MAX_SUBSTITUTIONS = 3;
 
 /** Wie viel Teamstärke (Anteil über 90 Minuten) ein Modus für Training und Einsatzzeit hergeben darf */
-export const MODE_BUDGET: Record<SubMode, number> = { sieg: 0, ausgewogen: 0.02, training: 1 };
+export const MODE_BUDGET: Record<SubMode, number> = { sieg: 0, ausgewogen: 0.02, training: 1, verteilen: 1 };
 
 /** Wert eines Einsatzes für Form und Konditionstraining, in denselben Einheiten wie der Trainingsnutzen (0 … 10) */
 export const PARTICIPATION_VALUE = 2;
@@ -62,6 +65,8 @@ export interface SubInput {
   week?: Map<number, WeekMinutes>;
   /** Auswechslungen, die schon als Anweisung stehen */
   existing?: MatchOrder[];
+  /** Spieler, die nicht mehr trainiert werden sollen (Verkauf, Entlassung) */
+  noTrain?: ReadonlySet<number>;
 }
 
 const MINUTES = 90;
@@ -122,14 +127,14 @@ function need(id: number, week?: Map<number, WeekMinutes>) {
 const isKeeperType = (p: Player) => p.keeper > Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
 
 /** Gewicht der Teamstärke (je Prozent) gegenüber Trainings-/Einsatznutzen */
-const STRENGTH_WEIGHT: Record<SubMode, number> = { sieg: 1, ausgewogen: 10, training: 1 };
+const STRENGTH_WEIGHT: Record<SubMode, number> = { sieg: 1, ausgewogen: 10, training: 1, verteilen: 1 };
 
 const levelFactor = (role: number, t?: TrainingDef) => (!t ? 0 : trainingFor(role, t) === "voll" ? 1 : trainingFor(role, t) === "teilweise" ? 0.5 : 0);
 
 /** Trainingsnutzen-Änderung: A spielt nur t statt 90 Minuten, B die restlichen 90 − t */
-function trainingDelta(a: Player, b: Player, role: number, t: number, def?: TrainingDef, week?: Map<number, WeekMinutes>): number {
+function trainingDelta(a: Player, b: Player, role: number, t: number, def?: TrainingDef, week?: Map<number, WeekMinutes>, noTrain?: ReadonlySet<number>): number {
   const lv = levelFactor(role, def);
-  if (!lv || !def) return 0;
+  if (!lv || !def || noTrain?.has(b.id)) return 0;
   const na = need(a.id, week);
   const nb = need(b.id, week);
   const lostA = Math.max(0, Math.min(MINUTES, na) - Math.min(t, na));
@@ -163,6 +168,7 @@ export function suggestSubstitutions(input: SubInput): SubSuggestion[] {
   const usedIn = new Set(existing.map((o) => o.playerIn));
   let slots = MAX_SUBSTITUTIONS - existing.length;
   if (slots <= 0) return [];
+  if (mode === "verteilen") return spreadTraining(input, slots, usedOut, usedIn);
 
   const field = lineup.positions
     .map((pos) => ({ pos, p: byId.get(pos.playerId) }))
@@ -195,7 +201,7 @@ export function suggestSubstitutions(input: SubInput): SubSuggestion[] {
       }
       for (const t of minutes) {
         const s = rel(strengthDelta(a, b, pos.role, tactic, t));
-        const tr = mode === "sieg" ? 0 : trainingDelta(a, b, pos.role, t, def, week);
+        const tr = mode === "sieg" ? 0 : trainingDelta(a, b, pos.role, t, def, week, input.noTrain);
         const part = first ? PARTICIPATION_VALUE : 0;
         if (mode === "sieg" ? s <= 0.05 : false) continue;
         const sv = STRENGTH_WEIGHT[mode] * s;
@@ -247,6 +253,71 @@ export function suggestSubstitutions(input: SubInput): SubSuggestion[] {
   }
 
   for (const o of out) o.text = describeSuggestion(o, byId, def, week);
+  return out.sort((x, y) => x.minute - y.minute);
+}
+
+/** Trainingsanteil der Woche, wenn ein Spieler zusätzlich `minutes` auf einer Position der Stufe `lv` spielt */
+function factorWith(id: number, minutes: number, lv: number, week?: Map<number, WeekMinutes>): number {
+  const w = week?.get(id) ?? { full: 0, partly: 0 };
+  return weekFactor(lv === 1 ? { full: w.full + minutes, partly: w.partly } : { full: w.full, partly: w.partly + minutes });
+}
+
+/** Minuten, nach denen ein Spieler auf dieser Stufe nichts mehr dazugewinnt (volle Minuten zählen zuerst) */
+function roomFor(id: number, lv: number, week?: Map<number, WeekMinutes>): number {
+  const w = week?.get(id) ?? { full: 0, partly: 0 };
+  return lv === 1 ? Math.max(0, MINUTES - w.full) : Math.max(0, MINUTES - w.full - w.partly);
+}
+
+/**
+ * Max. Training: Bankspieler, die diese Woche noch Training brauchen, lösen Spieler auf Trainingspositionen ab.
+ * Vorrang hat, wer diese Woche noch gar kein Training hat; Wechselminute ist die Minute, ab der der Startspieler
+ * nichts mehr dazugewinnt, sonst die Halbzeit (beide bekommen etwa die Hälfte).
+ */
+function spreadTraining(input: SubInput, slots: number, usedOut: Set<number>, usedIn: Set<number>): SubSuggestion[] {
+  const { lineup, byId, training: def, week, noTrain } = input;
+  if (!def) return [];
+  const keeperTraining = def.skill === "keeper";
+  const bench = [...new Set(Object.values(lineup.bench).filter((x): x is number => !!x))]
+    .map((id) => byId.get(id))
+    .filter((p): p is Player => !!p && !usedIn.has(p.id) && !(p.injury > 0) && !noTrain?.has(p.id) && isKeeperType(p) === keeperTraining && weekFactor(week?.get(p.id)) < DONE_FACTOR);
+  const options: (SubSuggestion & { fresh: boolean; value: number })[] = [];
+  for (const pos of lineup.positions) {
+    const a = byId.get(pos.playerId);
+    const lv = levelFactor(pos.role, def);
+    if (!a || !lv || usedOut.has(a.id) || (pos.role === 100) !== keeperTraining) continue;
+    const roomA = roomFor(a.id, lv, week);
+    const minute = roomA <= 0 ? 1 : roomA < MINUTES ? roomA : 46;
+    const lossA = factorWith(a.id, MINUTES, lv, week) - factorWith(a.id, minute, lv, week);
+    for (const b of bench) {
+      const gainB = factorWith(b.id, MINUTES - minute, lv, week) - factorWith(b.id, 0, lv, week);
+      if (gainB < 0.1) continue;
+      const fresh = weekFactor(week?.get(b.id)) === 0;
+      const value = gainB * trainingPriority(b, def) - lossA * trainingPriority(a, def);
+      options.push({ playerOut: a.id, playerIn: b.id, role: pos.role, minute, standing: -1, reason: "training", strengthPct: 0, training: value, firstAppearance: !hasPlayed(b.id, week), text: "", fresh, value });
+    }
+  }
+  // erst neue Trainierte, dann der größte Trainingsgewinn (Startspieler, die nichts verlieren, zuerst)
+  options.sort((x, y) => Number(y.fresh) - Number(x.fresh) || y.value - x.value);
+  const out: SubSuggestion[] = [];
+  const outIds = new Set<number>();
+  const inIds = new Set<number>();
+  for (const o of options) {
+    if (out.length >= slots) break;
+    if (outIds.has(o.playerOut) || inIds.has(o.playerIn)) continue;
+    outIds.add(o.playerOut);
+    inIds.add(o.playerIn);
+    const a = byId.get(o.playerOut);
+    const b = byId.get(o.playerIn);
+    const lv = levelFactor(o.role, def);
+    const roomA = roomFor(o.playerOut, lv, week);
+    const parts = [
+      roomA < MINUTES
+        ? `${lastName(a)} braucht diese Woche nur noch ${roomA} Trainingsminuten und verliert durch den Wechsel nichts`
+        : `${lastName(a)} und ${lastName(b)} teilen sich die Trainingsposition, jeder etwa eine Halbzeit`,
+      `${lastName(b)} bekommt ${Math.min(MINUTES - o.minute, roomFor(o.playerIn, lv, week))} Minuten ${def.name}-Training${weekFactor(week?.get(o.playerIn)) === 0 ? ", sein erstes diese Woche" : ""}`,
+    ];
+    out.push({ ...o, text: parts.join(" · ") });
+  }
   return out.sort((x, y) => x.minute - y.minute);
 }
 

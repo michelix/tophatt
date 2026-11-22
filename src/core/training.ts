@@ -67,6 +67,12 @@ export interface WeekMinutes {
   sources: string[];
 }
 
+/**
+ * Ab diesem Anteil gilt ein Spieler als praktisch fertig trainiert: Mehr als 5 % kann er diese Woche nicht mehr
+ * dazugewinnen (z. B. 89 von 90 Minuten = 99 %). Solche Spieler bekommen keine Trainingsplätze mehr.
+ */
+export const DONE_FACTOR = 0.95;
+
 /** Trainingswirkung der Woche, 0 … 1 (1 = 90 Minuten volles Training) */
 export function weekFactor(m: Pick<WeekMinutes, "full" | "partly"> | undefined): number {
   if (!m) return 0;
@@ -192,6 +198,8 @@ export function planTrainingLineup(
   formationExperience: Record<string, number> = {},
   /** feste Formation (Formationsauswahl); sonst die mit den meisten Trainingsplätzen */
   forceFormation?: string,
+  /** Spieler, die nicht mehr trainiert werden sollen (Verkauf, Entlassung): keine Trainingsplätze */
+  exclude: ReadonlySet<number> = new Set(),
 ): TrainingLineupPlan {
   const t = TRAININGS[trainingType];
   if (!t) throw new Error(`Unbekannte Trainingsart ${trainingType}`);
@@ -232,7 +240,7 @@ export function planTrainingLineup(
   };
   const trainees = (lvl: "voll" | "teilweise") =>
     available
-      .filter((p) => !used.has(p.id) && (t.skill === "keeper" || !isKeeperType(p)) && gain(p, lvl) > 0.01)
+      .filter((p) => !used.has(p.id) && !exclude.has(p.id) && weekFactor(before.get(p.id)) < DONE_FACTOR && (t.skill === "keeper" || !isKeeperType(p)) && gain(p, lvl) > 0.01)
       .sort((a, b) => gain(b, lvl) - gain(a, lvl));
 
   // 1) volle Trainingsplätze, dann 2) teilweise: streng nach Trainingsnutzen. Die Spieler mit dem größten Gewinn
@@ -314,11 +322,12 @@ export function planFriendly(
   allowBruised = false,
   played = new Map<number, WeekMinutes>(),
   formationExperience: Record<string, number> = {},
+  exclude: ReadonlySet<number> = new Set(),
 ): FriendlyPlan {
   const t = TRAININGS[trainingType];
   if (!t) throw new Error(`Unbekannte Trainingsart ${trainingType}`);
   const before = addPlanned(played, league.positions, t, "Liga");
-  const plan = planTrainingLineup(players, trainingType, before, allowBruised, formationExperience);
+  const plan = planTrainingLineup(players, trainingType, before, allowBruised, formationExperience, undefined, exclude);
   const available = players.filter((p) => isAvailable(p, allowBruised) || before.has(p.id));
   const trainedInLeague = [...before].filter(([, m]) => weekFactor(m) >= 1).map(([id]) => id);
   const trainedInFriendly = plan.lineup.positions.filter((p) => trainingFor(p.role, t) === "voll").map((p) => p.playerId);

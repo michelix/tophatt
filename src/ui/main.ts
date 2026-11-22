@@ -8,7 +8,7 @@ import { initHistory, importFile as importHistory, recordHrf, renderHistory, syn
 import { Attitude, Location, Role, Tactic, styleRange, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
 import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
 import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
-import { FORMATION_PREFERENCE, TRAININGS, type TrainingWindow, type WeekMinutes, addPlanned, formationSlots, maxTrainingSlots, planFriendly, planTrainingLineup, playedThisWeek, positionShort, trainingFor, trainingPriority, trainingWindow, weekFactor, type FriendlyPlan } from "../core/training";
+import { DONE_FACTOR, FORMATION_PREFERENCE, TRAININGS, type TrainingWindow, type WeekMinutes, addPlanned, formationSlots, maxTrainingSlots, planFriendly, planTrainingLineup, playedThisWeek, positionShort, trainingFor, trainingPriority, trainingWindow, weekFactor, type FriendlyPlan } from "../core/training";
 import { type CupPlan, type CupVariant, type LeagueChoice, type SquadTier, type WeekRow, TIER_NAME, chooseLeagueFormation, forgotten, planCup, slotText, suggestSquads, weekRows } from "../core/trainingweek";
 import { advise, type Advice } from "../core/advisor";
 import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
@@ -25,7 +25,7 @@ import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
 import { type FinanceSnapshot, type PastWeek, parseFinance, pastWeeks } from "../core/finance";
 import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
-import { type PlannedMove, currentBackups, initOrdersPage, loadOrders, ordersBlocking, ordersSummary, plannedMoves, renderOrdersPage, staleOrders, withOrders } from "./orders-view";
+import { type PlannedMove, currentBackups, initOrdersPage, loadOrders, ordersBlocking, ordersSummary, plannedMoves, renderOrdersPage, setSubMode, staleOrders, withOrders } from "./orders-view";
 import { teamPlayers } from "../core/hodata";
 import { avatarHtml, cutoutAvatars } from "./avatar";
 import { LEVEL_DE } from "../core/staff";
@@ -161,6 +161,10 @@ interface State {
   hideTrained: boolean;
   /** Trainingself aktiv: Formationswechsel stellt weiter nur noch nicht trainierte Spieler auf */
   trainingMode: boolean;
+  /** Max. Training: Trainingself plus Bank mit noch nicht trainierten Spielern und Wechseln, die das Training verteilen */
+  maxTrain: boolean;
+  /** Spieler, die nicht mehr trainiert werden sollen (Verkauf, Entlassung), eigene Liste aus der Trainingswoche */
+  noTrain: Set<number>;
   /** eigene Kaderzuordnung (A/B/Rest), überschreibt den Vorschlag */
   squadOwn: Record<number, SquadTier>;
   /** Pokalvarianten der Woche (im Hintergrund gerechnet) */
@@ -205,6 +209,8 @@ const state: State = {
   week: null,
   hideTrained: false,
   trainingMode: false,
+  maxTrain: false,
+  noTrain: new Set(),
   squadOwn: {},
   cup: null,
   cupPick: null,
@@ -323,6 +329,7 @@ function afterLoad(resetMatch: boolean) {
   if (resetMatch) {
     state.manualEdited = false;
     state.trainingMode = false;
+    state.maxTrain = false;
     state.choices = {};
     const up = state.ho ? upcomingMatches(state.ho).filter((m) => [1, 2, 3].includes(m.type)) : [];
     state.match = up[0] ?? null;
@@ -453,7 +460,7 @@ function refreshFriendly() {
   const leagueInWeek = !w || !m || m.date.getTime() < w.window.end.getTime();
   const positions = state.manual.length ? state.manual : state.league.lineup.positions;
   try {
-    state.friendly = planFriendly(hrf.players, { positions: leagueInWeek ? positions : [] }, hrf.team.trainingType, bruisedOk(), w?.played, hrf.team.formationExperience);
+    state.friendly = planFriendly(hrf.players, { positions: leagueInWeek ? positions : [] }, hrf.team.trainingType, bruisedOk(), w?.played, hrf.team.formationExperience, state.noTrain);
   } catch {
     state.friendly = null;
   }
@@ -728,9 +735,39 @@ function trainingBadge(id: number): string {
   const f = weekFactor(m);
   if (f <= 0) return "";
   const src = m!.sources.join(", ");
-  return f >= 1
+  return f >= DONE_FACTOR
     ? `<span class="trb done" title="Diese Trainingswoche schon trainiert (${esc(src)})">✓</span>`
     : `<span class="trb half" title="Diese Trainingswoche schon halb trainiert (${esc(src)})">½</span>`;
+}
+
+/** Zurück zur normalen Aufstellung: Trainingself und Max. Training aus, Wechsel wieder nach Spielart */
+function leaveTrainingMode() {
+  state.trainingMode = false;
+  if (state.maxTrain) setSubMode(undefined, "verteilen");
+  state.maxTrain = false;
+}
+
+/** Bankplätze, auf die Max. Training Einwechselspieler setzt (Torwartplatz bleibt automatisch) */
+const TRAIN_BENCH: BenchSlot[] = ["innerMidfield", "winger", "forward", "centralDefender", "wingBack", "extra"];
+
+/**
+ * Max. Training: die Bank mit Spielern füllen, die diese Woche noch Training brauchen (wer noch gar keins hat und
+ * am meisten davon hat zuerst), höchstens 3, weil Hattrick nur 3 Wechsel erlaubt. Die übrigen Bankplätze bleiben automatisch.
+ */
+function trainingBench(positions: FieldPosition[]): Partial<Record<BenchSlot, number>> {
+  const hrf = state.hrf!;
+  const t = TRAININGS[hrf.team.trainingType];
+  const played = state.week?.played;
+  const onField = new Set(positions.map((p) => p.playerId));
+  const keeperType = (p: Player) => p.keeper >= Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
+  const fresh = (p: Player) => (weekFactor(played?.get(p.id)) === 0 ? 1 : 0);
+  const cands = hrf.players
+    .filter((p) => !onField.has(p.id) && !unavailable(p) && !state.noTrain.has(p.id) && keeperType(p) === (t.skill === "keeper") && weekFactor(played?.get(p.id)) < DONE_FACTOR && trainingPriority(p, t) > 0)
+    .sort((a, b) => fresh(b) - fresh(a) || trainingPriority(b, t) * (1 - weekFactor(played?.get(b.id))) - trainingPriority(a, t) * (1 - weekFactor(played?.get(a.id))));
+  const bench: Partial<Record<BenchSlot, number>> = {};
+  const slots = t.skill === "keeper" ? (["keeper", ...TRAIN_BENCH] as BenchSlot[]) : TRAIN_BENCH;
+  cands.slice(0, 3).forEach((p, i) => (bench[slots[i]] = p.id));
+  return bench;
 }
 
 /**
@@ -742,7 +779,7 @@ function trainingChoices() {
   const t = TRAININGS[hrf.team.trainingType];
   const byId = playersById();
   return FORMATIONS.map((f) => {
-    const plan = planTrainingLineup(hrf.players, hrf.team.trainingType, state.week!.played, bruisedOk(), hrf.team.formationExperience, f);
+    const plan = planTrainingLineup(hrf.players, hrf.team.trainingType, state.week!.played, bruisedOk(), hrf.team.formationExperience, f, state.noTrain);
     const x = formationSlots(t, f);
     const hatStats = evaluatePositions(plan.lineup.positions, byId, state.settings, teamState()).hatStats;
     return { f, plan, full: x.full, partly: x.partly, hatStats, exp: hrf.team.formationExperience[f] ?? 0 };
@@ -828,7 +865,7 @@ function trainingPickHtml(): string {
   const gs = [...groups.values()];
   const group = (g: typeof c) => `<div class="tf-group"><div class="tf-head">${head(g[0])}</div><div class="tf-grid">${g.map(card).join("")}</div></div>`;
   return `<div class="trmode">
-    <div class="trmode-top"><b>Trainingself aktiv</b><span>Auf die Trainingsplätze (${esc(t.name)}) kommen nur Spieler, die diese Trainingswoche noch nicht trainiert haben, die Jüngsten zuerst.${state.week!.played.size ? "" : " Seit dem letzten Trainingsupdate wurde noch nicht gespielt, deshalb stehen alle zur Wahl."} Formation antippen, der Modus bleibt.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div>
+    <div class="trmode-top"><b>${state.maxTrain ? "Max. Training aktiv" : "Trainingself aktiv"}</b><span>Auf die Trainingsplätze (${esc(t.name)}) kommen Spieler aus dem ganzen Kader (A, B und Rest), die diese Trainingswoche noch nicht trainiert haben, wer am meisten davon hat zuerst. Nicht dabei: wer schon (fast) voll trainiert hat und die Liste „Nicht trainieren“.${state.maxTrain ? " Dazu kommen bis zu 3 weitere Spieler auf die Bank, die per Einwechslung die Trainingsposition übernehmen (Ziel „Max. Training“ bei den Auswechslungen)." : ""}${state.week!.played.size ? "" : " Seit dem letzten Trainingsupdate wurde noch nicht gespielt, deshalb stehen alle zur Wahl."} Gedacht fürs 2. Spiel der Woche (Pokal oder Freundschaftsspiel). Den B-Kader als feste Gruppe plant die Seite Trainingswoche. Formation antippen, der Modus bleibt.</span><button class="btn" id="trainingOff">Zurück zur besten Elf</button></div>
     <p class="sub tf-why">Empfehlung ${formationLabel(top.f)}: ${ties > 1 ? `die stärkste Elf unter ${ties} Formationen mit gleich vielen Trainingsplätzen` : "die meisten Trainingsplätze"}. Unter Erfahrung 6 droht Desorganisation.</p>
     ${group(gs[0])}
     ${gs.length > 1 ? `<details class="tf-more"${gs.slice(1).some((g) => g.some((x) => x.f === current)) ? " open" : ""}><summary>Weitere Formationen mit weniger Trainingsplätzen</summary>${gs.slice(1).map(group).join("")}</details>` : ""}
@@ -839,9 +876,19 @@ function applyTrainingFormation(f: string) {
   state.formation = f;
   const plan = trainingPlan(f);
   state.manual = plan.lineup.positions.map((p) => ({ ...p }));
-  state.choices = {};
+  state.choices = state.maxTrain ? { bench: trainingBench(state.manual) } : {};
+  if (state.maxTrain) setSubMode("verteilen");
   editorChanged();
-  toast(`Trainingself ${formationLabel(plan.lineup.formation)}: ${plan.gaining.length} Spieler bekommen dadurch Training.`);
+  toast(trainingToast(plan));
+}
+
+/** Meldung nach Trainingself / Max. Training: wie viele Spieler dadurch Training bekommen */
+function trainingToast(plan: ReturnType<typeof trainingPlan>): string {
+  const t = TRAININGS[state.hrf!.team.trainingType];
+  const n = plan.gaining.filter((id) => !state.noTrain.has(id)).length;
+  if (!state.maxTrain) return `Trainingself ${formationLabel(plan.lineup.formation)}: ${n} Spieler bekommen dadurch „${t.name}“-Training. Formation wechseln behält den Modus bei.`;
+  const subs = Object.values(state.choices.bench ?? {}).filter(Boolean).length;
+  return `Max. Training ${formationLabel(plan.lineup.formation)}: ${n} Spieler in der Startelf trainieren, dazu bis zu ${subs} per Einwechslung (Wechsel stehen unter „3 Auswechslungen“).`;
 }
 
 function formationPositions(): FieldPosition[] {
@@ -853,7 +900,8 @@ function renderFormationPick() {
   const sel = $<HTMLSelectElement>("#formationPick");
   const best = state.league?.lineup.formation;
   const t = state.hrf ? TRAININGS[state.hrf.team.trainingType] : undefined;
-  $("#trainingFill").classList.toggle("primary", state.trainingMode);
+  $("#trainingFill").classList.toggle("primary", state.trainingMode && !state.maxTrain);
+  $("#maxTrainFill").classList.toggle("primary", state.maxTrain);
   $("#autoFill").classList.toggle("primary", !state.trainingMode);
   sel.classList.toggle("training", state.trainingMode);
   // Formation wählt man über die Karten darunter; das Auswahlfeld bleibt nur als Rückfall
@@ -1206,12 +1254,22 @@ function poolHtml(): string {
   const pick = state.pick;
   const played = state.week?.played;
   const trained = (id: number) => weekFactor(played?.get(id));
+  // ausgeblendet werden: praktisch fertig trainiert (ab 95 %, z. B. 89 von 90 Minuten) und die Liste „Nicht trainieren“.
+  // Wer schon gespielt hat, aber nicht (oder nur halb) auf einer Trainingsposition, kann im zweiten Spiel noch trainieren.
+  const skip = (id: number) => trained(id) >= DONE_FACTOR || state.noTrain.has(id);
   const chip = (m: ReturnType<typeof squadGroups>[number]["members"][number], g: string, sector: LineupSector) => {
     const p = m.player;
     const off = unavailable(p);
     const tf = trained(p.id);
     const src = played?.get(p.id)?.sources.join(", ") ?? "";
-    const tr = tf >= 1 ? ` · <span class="status good" title="Diese Trainingswoche schon ${esc(src)}"><i>✓</i>trainiert</span>` : tf > 0 ? ` · <span class="status warning" title="Diese Trainingswoche schon ${esc(src)}"><i>½</i>halb trainiert</span>` : "";
+    const tr =
+      (tf >= DONE_FACTOR
+        ? ` · <span class="status good" title="Diese Trainingswoche schon ${esc(src)}"><i>✓</i>trainiert${tf < 1 ? ` ${Math.round(tf * 100)} %` : ""}</span>`
+        : tf > 0
+          ? ` · <span class="status warning" title="Diese Trainingswoche schon ${esc(src)}"><i>½</i>${Math.round(tf * 100)} % trainiert</span>`
+          : src
+            ? ` · <span class="status" title="Diese Trainingswoche schon ${esc(src)}, aber nicht auf einer Trainingsposition">gespielt, ohne Training</span>`
+            : "") + (state.noTrain.has(p.id) ? ` · <span class="status nt">nicht trainieren</span>` : "");
     const st = (m.availability.status !== "fit" ? ` · <span class="status ${off ? "critical" : "warning"}"><i>${off ? "+" : "!"}</i>${esc(m.availability.label)}</span>` : "") + tr;
     // wie die Spielerliste auf Hattrick: Bild auf Fläche in Kaderfarbe, daneben die wichtigsten Fähigkeiten als Balken
     const sk = startSkills(p);
@@ -1220,7 +1278,7 @@ function poolHtml(): string {
       .map((k) => `<span class="pb${k === TRAININGS[state.hrf!.team.trainingType]?.skill ? " tr" : ""}"><span class="pb-bar"><i style="width:${Math.min(100, (sk[k] / 20) * 100).toFixed(1)}%"></i><b>${DEV_SKILL_DE[k]}</b></span><span class="pb-v">${Math.floor(sk[k])}</span></span>`)
       .join("");
     const tier = tierOf(p.id) ?? "R";
-    return `<div class="pchip ht tier-${tier}${off ? " off" : ""}${tf >= 1 ? " tr-done" : tf > 0 ? " tr-half" : state.week ? " tr-open" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off || !state.editMode ? "" : `draggable="true"`} data-pid="${p.id}">
+    return `<div class="pchip ht tier-${tier}${off ? " off" : ""}${tf >= DONE_FACTOR ? " tr-done" : tf > 0 ? " tr-half" : state.week ? " tr-open" : ""}${pick?.kind === "pool" && pick.id === p.id ? " picked" : ""}" ${off || !state.editMode ? "" : `draggable="true"`} data-pid="${p.id}">
       <span class="pc-tile token av tk-${tier}">${tokenFace(p)}${shirtNo(p) ? `<span class="no">${shirtNo(p)}</span>` : ""}</span>
       <span class="pc-main"><span class="pc-line"><span class="n">${esc(p.name)}</span><span class="muted">${p.age} J. <button type="button" class="pinfo" data-detail="${p.id}" title="Details zu ${esc(p.name)}" aria-label="Details zu ${esc(p.name)}">i</button></span></span>
       <span class="pc-bars">${bars}</span>
@@ -1230,7 +1288,7 @@ function poolHtml(): string {
   const shown = new Set<number>();
   for (const g of groups) {
     // Bankspieler stehen schon unter dem Feld, deshalb hier nicht noch einmal
-    const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !benchIds.has(m.player.id) && !unavailable(m.player) && !(state.hideTrained && trained(m.player.id) >= 1));
+    const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !benchIds.has(m.player.id) && !unavailable(m.player) && !(state.hideTrained && skip(m.player.id)));
     if (!ms.length) continue;
     out.push(`<h4>${esc(g.name)}</h4>${ms.map((m) => chip(m, GROUP_SHORT[g.group], g.group)).join("")}`);
     ms.forEach((m) => shown.add(m.player.id));
@@ -1239,16 +1297,19 @@ function poolHtml(): string {
   if (off.length) out.push(`<h4>Nicht einsetzbar</h4>${off.join("")}`);
   const benchCount = [...benchIds].filter((id) => id && !onField.has(id)).length;
   const rest = state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id)).length;
-  const fullyTrained = state.hrf!.players.filter((p) => trained(p.id) >= 1).length;
-  const hidden = state.hideTrained ? state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id) && !unavailable(p) && trained(p.id) >= 1).length : 0;
+  const fullyTrained = state.hrf!.players.filter((p) => trained(p.id) >= DONE_FACTOR).length;
+  const noTrainCount = state.hrf!.players.filter((p) => state.noTrain.has(p.id) && trained(p.id) < DONE_FACTOR).length;
+  const hidden = state.hideTrained ? state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id) && !unavailable(p) && skip(p.id)).length : 0;
   const w = state.week?.window;
   const since = w ? w.start.toLocaleDateString(loc(), { weekday: "short", day: "2-digit", month: "2-digit" }) : "";
-  const count = fullyTrained
-    ? `${fullyTrained} haben seit ${since} schon voll trainiert${hidden ? `, ${hidden} ausgeblendet` : ""}`
-    : `seit dem Trainingsupdate ${since} noch kein Spiel, daher niemand`;
-  const why = `Zählt nur Spiele, die seit dem letzten Trainingsupdate (${since}) schon gespielt wurden. Die Aufstellung hier und das geplante Freundschaftsspiel zählen erst, wenn sie gespielt sind.`;
+  const count = [
+    fullyTrained ? `${fullyTrained} seit ${since} voll trainiert` : `seit dem Trainingsupdate ${since} noch niemand voll trainiert`,
+    ...(noTrainCount ? [`${noTrainCount} auf „Nicht trainieren“`] : []),
+    ...(hidden ? [`${hidden} ausgeblendet`] : []),
+  ].join(" · ");
+  const why = `Ausgeblendet wird, wer diese Trainingswoche schon (fast) voll trainiert hat (ab 95 %) oder auf der Liste „Nicht trainieren“ (Trainingswoche) steht. Wer schon gespielt hat, aber nicht auf einer Trainingsposition, bleibt sichtbar: Er kann im zweiten Spiel noch trainieren. Zählt nur Spiele, die seit dem letzten Trainingsupdate (${since}) schon gespielt wurden.`;
   const filter = state.week
-    ? `<label class="trfilter" title="${esc(why)}"><input type="checkbox" id="hideTrained"${state.hideTrained ? " checked" : ""}> Schon trainierte ausblenden <span class="muted">(${count})</span></label>`
+    ? `<label class="trfilter" title="${esc(why)}"><input type="checkbox" id="hideTrained"${state.hideTrained ? " checked" : ""}> Schon trainierte ausblenden <span class="muted">(<span>${count}</span>)</span></label>`
     : "";
   return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${rest}) · ${benchCount} auf der Bank. ${state.editMode ? "Hierher ziehen = vom Feld oder von der Bank nehmen." : "Antippen zeigt die Karte. Zum Aufstellen oben auf „Ändern“ schalten."}</div>${filter}${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
 }
@@ -1964,7 +2025,7 @@ function initEditor() {
   $("#autoFill").addEventListener("click", () => {
     if (!state.league) return;
     if (state.trainingMode) {
-      state.trainingMode = false;
+      leaveTrainingMode();
       state.formation = "";
     }
     state.manual = formationPositions();
@@ -1983,18 +2044,17 @@ function initEditor() {
     state.choices = {};
     renderLineup();
   });
-  $("#trainingFill").addEventListener("click", () => {
+  const startTraining = (max: boolean) => {
     const hrf = state.hrf;
     const t = hrf && TRAININGS[hrf.team.trainingType];
     if (!hrf || !t || !state.week) return toast("Kein Training eingestellt.");
+    if (state.maxTrain && !max) setSubMode(undefined, "verteilen");
     state.trainingMode = true;
-    state.formation = "";
-    const plan = trainingPlan("");
-    state.manual = plan.lineup.positions.map((p) => ({ ...p }));
-    state.choices = {};
-    editorChanged();
-    toast(`Trainingself ${formationLabel(plan.lineup.formation)}: ${plan.gaining.length} Spieler bekommen dadurch „${t.name}“-Training. Formation wechseln behält den Modus bei.`);
-  });
+    state.maxTrain = max;
+    applyTrainingFormation("");
+  };
+  $("#trainingFill").addEventListener("click", () => startTraining(false));
+  $("#maxTrainFill").addEventListener("click", () => startTraining(true));
   $("#aufstellung").addEventListener("click", (e) => {
     const el = e.target as HTMLElement;
     const card = el.closest<HTMLElement>(".tf-card[data-tf]");
@@ -2026,7 +2086,7 @@ function initEditor() {
     /* ohne Speicher geht es auch */
   }
   $("#clearField").addEventListener("click", () => {
-    state.trainingMode = false;
+    leaveTrainingMode();
     state.manual = [];
     state.choices = {};
     editorChanged();
@@ -2394,6 +2454,24 @@ function loadOwnSquads(): Record<number, SquadTier> {
     return {};
   }
 }
+const NO_TRAIN_KEY = "tophatt.noTrain";
+/** Liste „Nicht trainieren“ (Spieler-IDs), im Browser gespeichert */
+function loadNoTrain(): Set<number> {
+  try {
+    const a = JSON.parse(localStorage.getItem(NO_TRAIN_KEY) ?? "[]");
+    return new Set(Array.isArray(a) ? a.filter((x) => typeof x === "number") : []);
+  } catch {
+    return new Set();
+  }
+}
+function saveNoTrain() {
+  try {
+    localStorage.setItem(NO_TRAIN_KEY, JSON.stringify([...state.noTrain]));
+  } catch {
+    /* ohne Speicher gilt die Liste nur bis zum Neuladen */
+  }
+}
+
 function saveOwnSquads() {
   try {
     localStorage.setItem(SQUAD_KEY, JSON.stringify(state.squadOwn));
@@ -2417,7 +2495,7 @@ function squadTiers(): Map<number, SquadTier> {
   const t = TRAININGS[hrf.team.trainingType];
   const lc = leagueChoice();
   const ids = (lc ? lc.pick.positions : (state.league?.lineup.positions ?? [])).map((p) => p.playerId);
-  return suggestSquads(hrf.players, ids, t, state.squadOwn);
+  return suggestSquads(hrf.players, ids, t, state.squadOwn, state.noTrain);
 }
 
 /** Kaderzuordnung ohne eigene Änderungen (zum Vergleichen) */
@@ -2460,7 +2538,7 @@ function scheduleCup() {
   }
   const leagueIn = weekMatches().league;
   const before = addPlanned(state.week.played, leagueIn ? state.manual : [], t, "Liga");
-  const key = `${cup.id}|${hrf.team.trainingType}|${state.manual.map((p) => `${p.role}:${p.playerId}`).join(",")}|${bruisedOk()}|${$<HTMLSelectElement>("#minExp").value}`;
+  const key = `${cup.id}|${hrf.team.trainingType}|${state.manual.map((p) => `${p.role}:${p.playerId}`).join(",")}|${bruisedOk()}|${$<HTMLSelectElement>("#minExp").value}|${[...state.noTrain].join(",")}`;
   if (state.cup?.key === key) return;
   clearTimeout(cupTimer);
   cupTimer = window.setTimeout(() => {
@@ -2475,6 +2553,7 @@ function scheduleCup() {
         minExperience: Number($<HTMLSelectElement>("#minExp").value),
         allowBruised: bruisedOk(),
         opponent: prof ? { ratings: prof.average, tactic: prof.tactic, level: null } : null,
+        exclude: state.noTrain,
       });
       state.cup = { key, plan, opponent: cup.homeId === teamId ? cup.awayName : cup.homeName, known: !!prof };
       if (!state.cupPick || !plan.variants.some((v) => v.key === state.cupPick)) state.cupPick = plan.recommended;
@@ -2630,6 +2709,7 @@ function renderTrainingWeek() {
   const status = (r: WeekRow) => {
     const p = r.player;
     if (p.injury > 0) return statusChip("critical", `verletzt ${p.injury} W.`, "+");
+    if (state.noTrain.has(p.id) && r.factor === 0) return `<span class="tw-nt" title="Auf der Liste „Nicht trainieren“">nicht trainieren</span>`;
     if (r.factor >= 1) return statusChip("good", "voll", "✓");
     if (r.factor > 0) return statusChip("warning", `${Math.round(r.factor * 100)} %`, "½");
     if (p.injury === 0 && !bruisedOk()) return statusChip("warning", "angeschlagen", "!");
@@ -2653,14 +2733,14 @@ function renderTrainingWeek() {
         const seg = (["A", "B", "R"] as SquadTier[])
           .map((x) => `<button type="button" class="kd-btn kd-${x}${r.tier === x ? " on" : ""}" data-twtier="${p.id}:${x}" title="${TIER_NAME[x]}${suggested.get(p.id) === x ? " (Vorschlag)" : ""}">${x === "R" ? "–" : x}</button>`)
           .join("");
-        return `<tr><td>${tierBadge(p.id)}<button type="button" class="linkbtn pname-link" data-detail="${p.id}">${esc(p.name)}</button>${own && own !== suggested.get(p.id) ? ` <span class="muted" title="von dir zugeordnet">✎</span>` : ""}</td><td>${p.age}</td><td>${p[t.skill]}</td>
+        return `<tr${state.noTrain.has(p.id) ? ' class="nt"' : ""}><td><span class="tw-name">${miniFace(p)}<button type="button" class="linkbtn pname-link" data-detail="${p.id}">${esc(p.name)}</button>${own && own !== suggested.get(p.id) ? ` <span class="muted" title="von dir zugeordnet">✎</span>` : ""}</span></td><td>${p.age}</td><td>${p[t.skill]}</td>
           <td><span class="tw-nb" style="width:${Math.max(3, Math.round((56 * r.benefit) / maxB))}px" title="Trainingsnutzen ${r.benefit.toFixed(1)}"></span></td>
           <td>${slot(r.leagueRole, r.playedSources)}</td><td>${slot(r.secondRole)}</td><td>${status(r)}</td><td class="kd-seg">${seg}</td></tr>`;
       })
       .join("")}</tbody></table></div>`;
   };
   const count = (x: SquadTier) => rows.filter((r) => r.tier === x).length;
-  const forgot = forgotten(rows, t).filter((r) => r.player.injury < 0);
+  const forgot = forgotten(rows, t, 3, state.noTrain).filter((r) => r.player.injury < 0);
   const ownCount = Object.keys(state.squadOwn).length;
   const squads = `<div class="tw-squads">
     <div class="card tw-card"><header><h3><span class="kd kd-A">A</span> A-Kader <span class="muted">Stammelf, ${count("A")}</span></h3></header>${table("A")}</div>
@@ -2676,17 +2756,54 @@ function renderTrainingWeek() {
     : `<div class="tw-alert ok">Niemand mit spürbarem Trainingsnutzen geht diese Woche leer aus.</div>`;
   const rules = `<details class="more"><summary>So zählt „${esc(t.name)}“</summary><p class="sub">Voll: ${esc(list(t.full))}.${t.partly.length ? ` Halb: ${esc(list(t.partly))}.` : ""} Die Minuten aller Spiele einer Woche werden addiert, höchstens 90 zählen, Minuten auf voller Position zuerst. Wer im Ligaspiel schon 90 Minuten voll trainiert hat, gewinnt im zweiten Spiel nichts mehr dazu. „gespielt“ kommt aus dem HO-Download (letztes Spiel je Spieler).</p></details>`;
 
-  out.innerHTML = `${hero}<div class="tw-games">${leagueCard}${secondCard}</div>${alert}${squads}${rules}`;
+  // Liste „Nicht trainieren“: Spieler, die verkauft oder entlassen werden, bekommen keine Trainingsplätze mehr
+  const ntPlayers = hrf.players.filter((p) => state.noTrain.has(p.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const ntOptions = hrf.players
+    .filter((p) => !state.noTrain.has(p.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => `<option value="${p.id}">${esc(p.name)} (${p.age})</option>`)
+    .join("");
+  const noTrainCard = `<div class="card tw-card" id="noTrainCard"><header><h3>Nicht trainieren <span class="muted">Verkauf oder Entlassung, ${ntPlayers.length}</span></h3></header>
+    <p class="sub">Wer hier steht, bekommt keine Trainingsplätze mehr, weder in Trainingself und Max. Training noch im B-Kader-Vorschlag, in der Pokal- und Freundschaftsspiel-Planung oder unter „Nicht vergessen“. Aufstellen kannst du ihn weiterhin, etwa in der Liga. Die Liste bleibt im Browser gespeichert.</p>
+    <div class="nt-box">${ntPlayers.map((p) => `<span class="nt-chip">${miniFace(p)}${esc(p.name)}<button type="button" data-ntdel="${p.id}" title="Von der Liste nehmen" aria-label="${esc(p.name)} von der Liste nehmen">✕</button></span>`).join("") || `<span class="muted">Noch niemand.</span>`}
+      <label class="nt-add"><select id="ntAdd"><option value="">+ Spieler hinzufügen …</option>${ntOptions}</select></label></div></div>`;
+
+  out.innerHTML = `${hero}<div class="tw-games">${leagueCard}${secondCard}</div>${alert}${noTrainCard}${squads}${rules}`;
   const dl = $<HTMLButtonElement>("#dlFriendly");
   dl.textContent = second?.kind === "pokal" ? "Pokal-Aufstellung für HO speichern" : "Freundschaftsspiel für HO speichern";
   $("#friendlyIdLabel").firstChild!.textContent = second?.kind === "pokal" ? "Spiel-ID Pokalspiel" : "Spiel-ID Freundschaftsspiel";
   if (second?.kind === "pokal" && cup) $<HTMLInputElement>("#friendlyMatchId").value ||= String(cup.id);
 }
 
+/** Spielerbild klein für Tabellen der Trainingswoche (Fläche in Kaderfarbe) */
+function miniFace(p: Player): string {
+  return `<span class="tw-av token av tk-${tierOf(p.id) ?? "R"}">${tokenFace(p)}</span>`;
+}
+
 function initTrainingWeek() {
   state.squadOwn = loadOwnSquads();
+  state.noTrain = loadNoTrain();
+  const noTrainChanged = () => {
+    saveNoTrain();
+    tierCache = null;
+    refreshFriendly();
+    renderTrainingWeek();
+    renderLineup();
+  };
+  $("#training").addEventListener("change", (e) => {
+    const el = e.target as HTMLSelectElement;
+    if (el.id !== "ntAdd" || !el.value) return;
+    state.noTrain.add(Number(el.value));
+    noTrainChanged();
+  });
   $("#training").addEventListener("click", (e) => {
     const el = e.target as HTMLElement;
+    const ntDel = el.closest<HTMLElement>("[data-ntdel]");
+    if (ntDel) {
+      state.noTrain.delete(Number(ntDel.dataset.ntdel));
+      noTrainChanged();
+      return;
+    }
     const tierBtn = el.closest<HTMLElement>("[data-twtier]");
     if (tierBtn) {
       const [id, tier] = tierBtn.dataset.twtier!.split(":");
@@ -2714,7 +2831,7 @@ function initTrainingWeek() {
     const f = el.closest<HTMLElement>("[data-twapply], [data-twform]");
     if (f) {
       const code = f.dataset.twapply ?? f.dataset.twform!;
-      state.trainingMode = false;
+      leaveTrainingMode();
       state.formation = code;
       state.manual = formationPositions();
       state.manualEdited = true;
@@ -3283,6 +3400,7 @@ function init() {
       training: state.hrf ? TRAININGS[state.hrf.team.trainingType] : undefined,
       week: state.week?.played,
       matchType: Number($<HTMLSelectElement>("#matchType").value) || 1,
+      noTrain: state.noTrain,
     }),
     changed: () => {
       if (state.league) {

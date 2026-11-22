@@ -7787,6 +7787,258 @@
    "Cambiar entre modo claro y oscuro",
    "Passa tra modalità chiara e scura",
    "Przełącz między trybem jasnym i ciemnym"
+  ],
+  "noch nicht Trainierte": [
+   "not yet trained",
+   "aún sin entrenar",
+   "non ancora allenati",
+   "jeszcze nietrenowani"
+  ],
+  "Max. Training": [
+   "Max. training",
+   "Entrenamiento máx.",
+   "Allenamento max.",
+   "Maks. trening"
+  ],
+  "+ Einwechslungen": [
+   "+ substitutions",
+   "+ cambios",
+   "+ sostituzioni",
+   "+ zmiany"
+  ],
+  "Max. Training aktiv": [
+   "Max. training active",
+   "Entrenamiento máx. activo",
+   "Allenamento max. attivo",
+   "Maks. trening aktywny"
+  ],
+  "Für das 2. Spiel der Woche: stellt auf die Trainingspositionen Spieler aus dem ganzen Kader (nicht nur B-Kader), die diese Trainingswoche noch nicht trainiert haben, wer am meisten davon hat zuerst. Ohne die Liste „Nicht trainieren“.": [
+   "For the 2nd match of the week: puts players from the whole squad (not just the B squad) who have not trained yet this training week on the training positions, those who benefit most first. Without the “Do not train” list.",
+   "Para el 2.º partido de la semana: coloca en las posiciones de entrenamiento a jugadores de toda la plantilla (no solo el equipo B) que aún no han entrenado esta semana, primero los que más se benefician. Sin la lista «No entrenar».",
+   "Per la 2ª partita della settimana: mette nelle posizioni di allenamento giocatori di tutta la rosa (non solo la squadra B) che non si sono ancora allenati questa settimana, prima chi ne trae più beneficio. Senza la lista «Non allenare».",
+   "Na 2. mecz tygodnia: ustawia na pozycjach treningowych zawodników z całej kadry (nie tylko kadry B), którzy w tym tygodniu jeszcze nie trenowali, najpierw tych, którzy zyskają najwięcej. Bez listy „Nie trenować”."
+  ],
+  "Wie Trainingself, dazu bis zu 3 noch nicht trainierte Spieler auf die Bank und Wechsel, die die Trainingsposition übernehmen (z. B. zur Halbzeit). So trainieren so viele Spieler wie möglich.": [
+   "Like training XI, plus up to 3 untrained players on the bench and substitutions that take over the training position (e.g. at half-time). This way as many players as possible train.",
+   "Como el once de entrenamiento, más hasta 3 jugadores sin entrenar en el banquillo y cambios que ocupan la posición de entrenamiento (p. ej. en el descanso). Así entrenan tantos jugadores como sea posible.",
+   "Come l'undici di allenamento, più fino a 3 giocatori non allenati in panchina e sostituzioni che prendono la posizione di allenamento (ad es. all'intervallo). Così si allenano più giocatori possibile.",
+   "Jak jedenastka treningowa, plus do 3 nietrenowanych zawodników na ławce i zmiany przejmujące pozycję treningową (np. w przerwie). Tak trenuje jak najwięcej zawodników."
+  ],
+  "Die 3 Wechsel holen weitere Spieler von der Bank auf die Trainingspositionen, damit möglichst viele trainieren.": [
+   "The 3 substitutions bring more players from the bench onto the training positions so that as many as possible train.",
+   "Los 3 cambios llevan a más jugadores del banquillo a las posiciones de entrenamiento para que entrenen tantos como sea posible.",
+   "Le 3 sostituzioni portano altri giocatori dalla panchina nelle posizioni di allenamento, così si allenano il più possibile.",
+   "3 zmiany wprowadzają kolejnych zawodników z ławki na pozycje treningowe, aby trenowało jak najwięcej."
+  ],
+  "Wer seine 90 Minuten schon fast hat, geht zuerst, sonst wird zur Halbzeit geteilt.": [
+   "Whoever already almost has his 90 minutes goes off first, otherwise the position is split at half-time.",
+   "Sale primero quien ya casi tiene sus 90 minutos; si no, se reparte en el descanso.",
+   "Esce prima chi ha già quasi i suoi 90 minuti, altrimenti si divide all'intervallo.",
+   "Najpierw schodzi ten, kto ma już prawie 90 minut, inaczej dzielimy w przerwie."
+  ],
+  "Stärke zählt nicht.": [
+   "Strength does not count.",
+   "La fuerza no cuenta.",
+   "La forza non conta.",
+   "Siła się nie liczy."
+  ],
+  "trainiert {0} %": [
+   "trained {0} %",
+   "entrenado {0} %",
+   "allenato {0} %",
+   "trenował {0} %"
+  ],
+  "{0} % trainiert": [
+   "{0} % trained",
+   "{0} % entrenado",
+   "{0} % allenato",
+   "{0} % treningu"
+  ],
+  "gespielt, ohne Training": [
+   "played, no training",
+   "jugó, sin entrenamiento",
+   "ha giocato, senza allenamento",
+   "grał, bez treningu"
+  ],
+  "Diese Trainingswoche schon {0}, aber nicht auf einer Trainingsposition": [
+   "Already this training week: {0}, but not on a training position",
+   "Ya esta semana: {0}, pero no en una posición de entrenamiento",
+   "Già questa settimana: {0}, ma non in una posizione di allenamento",
+   "Już w tym tygodniu: {0}, ale nie na pozycji treningowej"
+  ],
+  "nicht trainieren": [
+   "do not train",
+   "no entrenar",
+   "non allenare",
+   "nie trenować"
+  ],
+  "Nicht trainieren": [
+   "Do not train",
+   "No entrenar",
+   "Non allenare",
+   "Nie trenować"
+  ],
+  "Auf der Liste „Nicht trainieren“": [
+   "On the “Do not train” list",
+   "En la lista «No entrenar»",
+   "Nella lista «Non allenare»",
+   "Na liście „Nie trenować”"
+  ],
+  "Ausgeblendet wird, wer diese Trainingswoche schon (fast) voll trainiert hat (ab 95 %) oder auf der Liste „Nicht trainieren“ (Trainingswoche) steht.": [
+   "Hidden: whoever has (almost) fully trained this training week (from 95 %) or is on the “Do not train” list (Training week).",
+   "Se ocultan los que ya han entrenado (casi) del todo esta semana (desde 95 %) o están en la lista «No entrenar» (Semana de entrenamiento).",
+   "Vengono nascosti quelli che si sono già allenati (quasi) del tutto questa settimana (da 95 %) o sono nella lista «Non allenare» (Settimana di allenamento).",
+   "Ukryci są ci, którzy w tym tygodniu już (prawie) w pełni trenowali (od 95 %) lub są na liście „Nie trenować” (Tydzień treningowy)."
+  ],
+  "Wer schon gespielt hat, aber nicht auf einer Trainingsposition, bleibt sichtbar: Er kann im zweiten Spiel noch trainieren.": [
+   "Whoever has played but not on a training position stays visible: he can still train in the second match.",
+   "Quien ya jugó, pero no en una posición de entrenamiento, sigue visible: aún puede entrenar en el segundo partido.",
+   "Chi ha giocato ma non in una posizione di allenamento resta visibile: può ancora allenarsi nella seconda partita.",
+   "Kto grał, ale nie na pozycji treningowej, pozostaje widoczny: może jeszcze trenować w drugim meczu."
+  ],
+  "Zählt nur Spiele, die seit dem letzten Trainingsupdate ({0}) schon gespielt wurden.": [
+   "Only counts matches already played since the last training update ({0}).",
+   "Solo cuenta partidos ya jugados desde la última actualización ({0}).",
+   "Conta solo le partite già giocate dall'ultimo aggiornamento ({0}).",
+   "Liczą się tylko mecze rozegrane od ostatniej aktualizacji treningu ({0})."
+  ],
+  "Auf die Trainingsplätze ({0}) kommen Spieler aus dem ganzen Kader (A, B und Rest), die diese Trainingswoche noch nicht trainiert haben, wer am meisten davon hat zuerst.": [
+   "The training places ({0}) go to players from the whole squad (A, B and rest) who have not trained yet this training week, those who benefit most first.",
+   "Las plazas de entrenamiento ({0}) son para jugadores de toda la plantilla (A, B y resto) que aún no han entrenado esta semana, primero los que más se benefician.",
+   "I posti di allenamento ({0}) vanno a giocatori di tutta la rosa (A, B e resto) che non si sono ancora allenati questa settimana, prima chi ne trae più beneficio.",
+   "Miejsca treningowe ({0}) dostają zawodnicy z całej kadry (A, B i reszta), którzy w tym tygodniu jeszcze nie trenowali, najpierw ci, którzy zyskają najwięcej."
+  ],
+  "Nicht dabei: wer schon (fast) voll trainiert hat und die Liste „Nicht trainieren“.": [
+   "Not included: whoever has already (almost) fully trained and the “Do not train” list.",
+   "No incluidos: quien ya ha entrenado (casi) del todo y la lista «No entrenar».",
+   "Esclusi: chi si è già allenato (quasi) del tutto e la lista «Non allenare».",
+   "Bez: tych, którzy już (prawie) w pełni trenowali, i listy „Nie trenować”."
+  ],
+  "Dazu kommen bis zu 3 weitere Spieler auf die Bank, die per Einwechslung die Trainingsposition übernehmen (Ziel „Max. Training“ bei den Auswechslungen).": [
+   "In addition, up to 3 more players go on the bench and take over the training position as substitutes (goal “Max. training” under substitutions).",
+   "Además, hasta 3 jugadores más van al banquillo y ocupan la posición de entrenamiento al entrar (objetivo «Entrenamiento máx.» en los cambios).",
+   "Inoltre fino a 3 altri giocatori vanno in panchina e prendono la posizione di allenamento entrando (obiettivo «Allenamento max.» nelle sostituzioni).",
+   "Dodatkowo do 3 kolejnych zawodników siada na ławce i przejmuje pozycję treningową po zmianie (cel „Maks. trening” przy zmianach)."
+  ],
+  "Gedacht fürs 2. Spiel der Woche (Pokal oder Freundschaftsspiel).": [
+   "Meant for the 2nd match of the week (cup or friendly).",
+   "Pensado para el 2.º partido de la semana (copa o amistoso).",
+   "Pensato per la 2ª partita della settimana (coppa o amichevole).",
+   "Przeznaczone na 2. mecz tygodnia (puchar lub towarzyski)."
+  ],
+  "Den B-Kader als feste Gruppe plant die Seite Trainingswoche.": [
+   "The B squad as a fixed group is planned on the Training week page.",
+   "El equipo B como grupo fijo se planifica en la página Semana de entrenamiento.",
+   "La squadra B come gruppo fisso si pianifica nella pagina Settimana di allenamento.",
+   "Kadrę B jako stałą grupę planuje strona Tydzień treningowy."
+  ],
+  "Formation antippen, der Modus bleibt.": [
+   "Tap a formation, the mode stays.",
+   "Toca una formación, el modo se mantiene.",
+   "Tocca una formazione, la modalità resta.",
+   "Dotknij formacji, tryb pozostaje."
+  ],
+  "{0} braucht diese Woche nur noch {1} Trainingsminuten und verliert durch den Wechsel nichts": [
+   "{0} only needs {1} more training minutes this week and loses nothing by the substitution",
+   "{0} solo necesita {1} minutos más de entrenamiento esta semana y no pierde nada con el cambio",
+   "{0} ha bisogno solo di altri {1} minuti di allenamento questa settimana e non perde nulla con il cambio",
+   "{0} potrzebuje w tym tygodniu już tylko {1} minut treningu i nic nie traci na zmianie"
+  ],
+  "{0} und {1} teilen sich die Trainingsposition, jeder etwa eine Halbzeit": [
+   "{0} and {1} share the training position, each about one half",
+   "{0} y {1} se reparten la posición de entrenamiento, cada uno una parte",
+   "{0} e {1} si dividono la posizione di allenamento, ciascuno circa un tempo",
+   "{0} i {1} dzielą pozycję treningową, każdy mniej więcej połowę"
+  ],
+  "{0} bekommt {1} Minuten {2}-Training{3}": [
+   "{0} gets {1} minutes of {2} training{3}",
+   "{0} recibe {1} minutos de entrenamiento de {2}{3}",
+   "{0} riceve {1} minuti di allenamento {2}{3}",
+   "{0} dostaje {1} minut treningu {2}{3}"
+  ],
+  ", sein erstes diese Woche": [
+   ", his first this week",
+   ", su primero esta semana",
+   ", il suo primo questa settimana",
+   ", jego pierwszy w tym tygodniu"
+  ],
+  "Max. Training {0}: {1} Spieler in der Startelf trainieren, dazu bis zu {2} per Einwechslung (Wechsel stehen unter „3 Auswechslungen“).": [
+   "Max. training {0}: {1} players train in the starting XI, plus up to {2} as substitutes (substitutions are under “3 Substitutions”).",
+   "Entrenamiento máx. {0}: {1} jugadores entrenan en el once inicial, más hasta {2} entrando desde el banquillo (los cambios están en «3 Cambios»).",
+   "Allenamento max. {0}: {1} giocatori si allenano nell'undici iniziale, più fino a {2} con le sostituzioni (le sostituzioni sono in «3 Sostituzioni»).",
+   "Maks. trening {0}: {1} zawodników trenuje w podstawowej jedenastce, plus do {2} po zmianach (zmiany są w „3 Zmiany”)."
+  ],
+  "Verkauf oder Entlassung, {0}": [
+   "sale or release, {0}",
+   "venta o despido, {0}",
+   "vendita o licenziamento, {0}",
+   "sprzedaż lub zwolnienie, {0}"
+  ],
+  "Aufstellen kannst du ihn weiterhin, etwa in der Liga.": [
+   "You can still line him up, e.g. in the league.",
+   "Puedes seguir alineándolo, por ejemplo en la liga.",
+   "Puoi ancora schierarlo, ad esempio in campionato.",
+   "Nadal możesz go wystawić, np. w lidze."
+  ],
+  "Die Liste bleibt im Browser gespeichert.": [
+   "The list stays saved in the browser.",
+   "La lista se guarda en el navegador.",
+   "La lista resta salvata nel browser.",
+   "Lista zostaje zapisana w przeglądarce."
+  ],
+  "Noch niemand.": [
+   "Nobody yet.",
+   "Nadie todavía.",
+   "Ancora nessuno.",
+   "Jeszcze nikt."
+  ],
+  "+ Spieler hinzufügen …": [
+   "+ add player …",
+   "+ añadir jugador …",
+   "+ aggiungi giocatore …",
+   "+ dodaj zawodnika …"
+  ],
+  "Von der Liste nehmen": [
+   "Remove from the list",
+   "Quitar de la lista",
+   "Togli dalla lista",
+   "Usuń z listy"
+  ],
+  "{0} von der Liste nehmen": [
+   "Remove {0} from the list",
+   "Quitar a {0} de la lista",
+   "Togli {0} dalla lista",
+   "Usuń {0} z listy"
+  ],
+  "{0} auf „Nicht trainieren“": [
+   "{0} on “Do not train”",
+   "{0} en «No entrenar»",
+   "{0} in «Non allenare»",
+   "{0} na „Nie trenować”"
+  ],
+  "{0} ausgeblendet": [
+   "{0} hidden",
+   "{0} ocultos",
+   "{0} nascosti",
+   "{0} ukrytych"
+  ],
+  "{0} seit {1} voll trainiert": [
+   "{0} fully trained since {1}",
+   "{0} entrenados del todo desde {1}",
+   "{0} allenati del tutto da {1}",
+   "{0} w pełni trenowało od {1}"
+  ],
+  "seit dem Trainingsupdate {0} noch niemand voll trainiert": [
+   "nobody fully trained since the training update {0}",
+   "nadie entrenado del todo desde la actualización {0}",
+   "nessuno allenato del tutto dall'aggiornamento {0}",
+   "nikt w pełni nie trenował od aktualizacji {0}"
+  ],
+  "Wer hier steht, bekommt keine Trainingsplätze mehr, weder in Trainingself und Max. Training noch im B-Kader-Vorschlag, in der Pokal- und Freundschaftsspiel-Planung oder unter „Nicht vergessen“.": [
+   "Players listed here get no more training places, neither in the training XI and max. training nor in the B squad suggestion, the cup and friendly planning or under “Don't forget”.",
+   "Quien esté aquí ya no recibe plazas de entrenamiento, ni en el once de entrenamiento y el entrenamiento máx. ni en la propuesta del equipo B, la planificación de copa y amistoso o en «No olvidar».",
+   "Chi è qui non riceve più posti di allenamento, né nell'undici di allenamento e nell'allenamento max. né nella proposta della squadra B, nella pianificazione di coppa e amichevole o in «Non dimenticare».",
+   "Zawodnicy z tej listy nie dostają już miejsc treningowych, ani w jedenastce treningowej i maks. treningu, ani w propozycji kadry B, planie pucharu i meczu towarzyskiego czy w „Nie zapomnij”."
   ]
  }
 }

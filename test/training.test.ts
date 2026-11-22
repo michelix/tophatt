@@ -108,3 +108,20 @@ describe("Trainingself mit fester Formation", () => {
     for (const p of full) expect(weekFactor(played.get(p.playerId))).toBeLessThan(1);
   });
 });
+
+describe("Nicht trainieren und fast voll Trainierte", () => {
+  const t = TRAININGS[hrf.team.trainingType];
+  const onTraining = (plan: ReturnType<typeof planTrainingLineup>) => plan.lineup.positions.filter((p) => trainingFor(p.role, t) !== "keins").map((p) => p.playerId);
+  it("gibt Spielern auf der Liste keine Trainingsplätze", () => {
+    const first = onTraining(planTrainingLineup(hrf.players, hrf.team.trainingType, new Map()));
+    const exclude = new Set(first.slice(0, 2));
+    const again = onTraining(planTrainingLineup(hrf.players, hrf.team.trainingType, new Map(), false, {}, undefined, exclude));
+    for (const id of exclude) expect(again).not.toContain(id);
+  });
+  it("89 von 90 Minuten gilt als trainiert: kein Trainingsplatz mehr", () => {
+    const first = onTraining(planTrainingLineup(hrf.players, hrf.team.trainingType, new Map()));
+    const id = first[0];
+    const before = new Map([[id, { full: 89, partly: 0, sources: ["gespielt"] }]]);
+    expect(onTraining(planTrainingLineup(hrf.players, hrf.team.trainingType, before))).not.toContain(id);
+  });
+});

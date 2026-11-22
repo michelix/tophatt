@@ -65,7 +65,7 @@ export interface OrdersContext {
   /** nach jeder Änderung (z. B. Speichern-Leiste aktualisieren) */
   changed: () => void;
   /** Für Auswechslungs-Vorschläge: Training, schon gespielte Minuten der Woche, Spielart (1 Liga, 3 Pokal, 4/5 Freundschaft) */
-  subContext: () => { training?: TrainingDef; week?: Map<number, WeekMinutes>; matchType: number };
+  subContext: () => { training?: TrainingDef; week?: Map<number, WeekMinutes>; matchType: number; noTrain?: ReadonlySet<number> };
 }
 
 interface Stored {
@@ -111,6 +111,18 @@ export function loadOrders(matchId: number) {
   autoKey = "";
 }
 
+/**
+ * Ziel der Wechsel von außen setzen (Knopf „Max. Training“ auf der Aufstellungsseite): Wechsel werden wieder
+ * automatisch geplant. `undefined` = wieder nach Spielart. `only`: nur ändern, wenn gerade dieses Ziel gilt.
+ */
+export function setSubMode(mode: SubMode | undefined, only?: SubMode) {
+  if (only && store.subMode !== only) return;
+  store.subMode = mode;
+  if (mode) store.subAuto = true;
+  autoKey = "";
+  save();
+}
+
 // --- Automatische Wechsel ----------------------------------------------------------------
 
 let autoKey = "";
@@ -121,14 +133,14 @@ function freshSuggestions(l: Lineup, byId: Map<number, Player>): SubSuggestion[]
   const sc = ctx.subContext();
   const others = store.orders.filter((o) => o.kind !== "sub");
   const room = maxOrders(ctx.tacticalAssistants()) - others.filter((o) => o.kind !== "marking").length;
-  return suggestSubstitutions({ lineup: l, byId, mode: currentMode(), training: sc.training, week: sc.week, existing: others }).slice(0, Math.max(0, room));
+  return suggestSubstitutions({ lineup: l, byId, mode: currentMode(), training: sc.training, week: sc.week, existing: others, noTrain: sc.noTrain }).slice(0, Math.max(0, room));
 }
 
 /** Im Automatik-Modus folgen die Wechsel dem Vorschlag und damit jeder Änderung von Aufstellung und Ziel */
 function syncAuto(l: Lineup, byId: Map<number, Player>) {
   if (!ctx || store.subAuto === false) return;
   const others = store.orders.filter((o) => o.kind !== "sub");
-  const key = JSON.stringify([l.positions.map((p) => [p.role, p.playerId]), l.bench, l.tactic, currentMode(), others, ctx.subContext().matchType]);
+  const key = JSON.stringify([l.positions.map((p) => [p.role, p.playerId]), l.bench, l.tactic, currentMode(), others, ctx.subContext().matchType, [...(ctx.subContext().noTrain ?? [])]]);
   if (key === autoKey) return;
   autoKey = key;
   store.orders = [...freshSuggestions(l, byId).map(suggestionToOrder), ...others];
@@ -353,6 +365,7 @@ const MODE_HINT: Record<SubMode, string> = {
   sieg: "nur Wechsel, die die Mannschaft stärker machen (müde Spieler raus). Einsätze fürs Mitspielen nur bei mehr als 2 Toren Vorsprung.",
   ausgewogen: "Konditionswechsel plus Training und Einsatzzeit, solange die Mannschaft übers Spiel höchstens 2 % Stärke verliert.",
   training: "Trainingsminuten und Einsätze gehen vor, Stärke zählt wenig. Für Freundschaftsspiele.",
+  verteilen: "Die 3 Wechsel holen weitere Spieler von der Bank auf die Trainingspositionen, damit möglichst viele trainieren. Wer seine 90 Minuten schon fast hat, geht zuerst, sonst wird zur Halbzeit geteilt. Stärke zählt nicht.",
 };
 const REASON_TAG: Record<SubSuggestion["reason"], string> = { kondition: "Kondition", training: "Training", einsatz: "Einsatz" };
 
@@ -385,7 +398,7 @@ function suggestionsBlock(l: Lineup, byId: Map<number, Player>): string {
       <div class="mp-head">Vorschläge <span class="sug-sub">nach Kondition, Training und Einsatzzeit</span></div>
       <div class="controls sug-controls">
         <div class="seg" role="group" aria-label="Wechsel automatisch oder manuell"><button class="${auto ? "on" : ""}" data-sauto="1">Automatisch</button><button class="${auto ? "" : "on"}" data-sauto="0">Manuell</button></div>
-        <div class="seg" role="group" aria-label="Ziel">${(["sieg", "ausgewogen", "training"] as SubMode[]).map(modeBtn).join("")}</div>
+        <div class="seg" role="group" aria-label="Ziel">${(["sieg", "ausgewogen", "training", "verteilen"] as SubMode[]).map(modeBtn).join("")}</div>
         ${!auto && lastSuggestions.length ? `<button class="btn" data-sauto="1">Diese übernehmen (ersetzt deine Wechsel)</button>` : ""}</div>
       <p class="sub">${autoHint}</p>
       <p class="sub">Ziel ${SUB_MODE_DE[mode]}: ${MODE_HINT[mode]}${store.subMode ? "" : " (passend zur Spielart gewählt)"}</p>
