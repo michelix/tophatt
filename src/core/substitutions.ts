@@ -256,7 +256,8 @@ export function suggestSubstitutions(input: SubInput): SubSuggestion[] {
 }
 
 /**
- * Alle einsetzen: Bankspieler, die diese Woche noch nicht gespielt haben, kommen rein (höchstens 3), jeder für
+ * Alle einsetzen: Bankspieler, die diese Woche noch nicht gespielt haben, kommen rein (höchstens 3, Feldspieler vor
+ * Torhütern), jeder für
  * den Feldspieler, dessen Platz er am wenigsten schwächt. Wechselminute: ab der der Frische stärker ist, sonst 75.
  * Für die Form zählt nur, ob ein Spieler in der Woche überhaupt gespielt hat (Hattrick-Regeln).
  */
@@ -265,7 +266,9 @@ function bringUnplayed(input: SubInput, slots: number, usedOut: Set<number>, use
   const tactic = lineup.tactic;
   const bench = [...new Set(Object.values(lineup.bench).filter((x): x is number => !!x))]
     .map((id) => byId.get(id))
-    .filter((p): p is Player => !!p && !usedIn.has(p.id) && !(p.injury > 0) && !hasPlayed(p.id, week) && !input.noTrain?.has(p.id));
+    .filter((p): p is Player => !!p && !usedIn.has(p.id) && !(p.injury > 0) && !hasPlayed(p.id, week) && !input.noTrain?.has(p.id))
+    // Feldspieler zuerst; ein Torwart kommt nur, wenn danach noch ein Wechsel frei ist
+    .sort((x, y) => Number(isKeeperType(x)) - Number(isKeeperType(y)));
   const field = lineup.positions.map((pos) => ({ pos, p: byId.get(pos.playerId) })).filter((x): x is { pos: (typeof lineup.positions)[number]; p: Player } => !!x.p && !usedOut.has(x.p.id));
   const total = field.reduce((s, x) => s + slotValue(x.p, x.pos.role, tactic), 0) || 1;
   const out: SubSuggestion[] = [];

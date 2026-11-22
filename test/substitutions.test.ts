@@ -110,6 +110,14 @@ describe("Alle einsetzen (einsatz)", () => {
     }
   });
 
+  it("nimmt Feldspieler vor dem Torwart", () => {
+    const gk = hrf.players.find((p) => isKeeper(p) && !fieldIds.has(p.id) && !(p.injury > 0))!;
+    const s = suggestSubstitutions({ lineup: { ...l, bench: { ...bench, keeper: gk.id } }, byId, mode: "einsatz", training, week: new Map() });
+    expect(s.map((x) => x.playerIn)).not.toContain(gk.id);
+    const two = suggestSubstitutions({ lineup: { ...l, bench: { keeper: gk.id, innerMidfield: fresh[0].id } }, byId, mode: "einsatz", training, week: new Map() });
+    expect(two.map((x) => x.playerIn)).toContain(fresh[0].id);
+  });
+
   it("lässt Bankspieler aus, die schon gespielt haben oder auf „Nicht trainieren“ stehen", () => {
     const week = new Map<number, WeekMinutes>([[fresh[0].id, { full: 0, partly: 0, sources: ["gespielt IV"] }]]);
     const noTrain = new Set([fresh[1].id]);
