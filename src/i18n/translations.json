@@ -8057,6 +8057,30 @@
    "No se conoce la semana de entrenamiento.",
    "Settimana di allenamento sconosciuta.",
    "Brak danych o tygodniu treningowym."
+  ],
+  "Schon gespielte ausblenden": [
+   "Hide already played",
+   "Ocultar los que ya jugaron",
+   "Nascondi chi ha già giocato",
+   "Ukryj tych, którzy już grali"
+  ],
+  "{0} haben diese Woche gespielt": [
+   "{0} have played this week",
+   "{0} han jugado esta semana",
+   "{0} hanno giocato questa settimana",
+   "{0} grało w tym tygodniu"
+  ],
+  "diese Woche hat noch niemand gespielt": [
+   "nobody has played this week yet",
+   "nadie ha jugado aún esta semana",
+   "nessuno ha ancora giocato questa settimana",
+   "w tym tygodniu jeszcze nikt nie grał"
+  ],
+  "Blendet jeden aus, der seit dem Trainingsupdate ({0}) schon gespielt hat, egal ob Liga, Pokal oder Freundschaft und egal auf welcher Position.": [
+   "Hides everyone who has played since the training update ({0}), whether league, cup or friendly and whatever the position.",
+   "Oculta a todos los que han jugado desde la actualización ({0}), sea liga, copa o amistoso y en cualquier posición.",
+   "Nasconde chiunque abbia giocato dall'aggiornamento ({0}), campionato, coppa o amichevole e in qualsiasi posizione.",
+   "Ukrywa każdego, kto grał od aktualizacji treningu ({0}), w lidze, pucharze lub towarzysko i na dowolnej pozycji."
   ]
  }
 }

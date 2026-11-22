@@ -159,6 +159,8 @@ interface State {
   week: { window: TrainingWindow; played: Map<number, WeekMinutes> } | null;
   /** Aufstellung: schon voll trainierte Spieler in der Liste ausblenden */
   hideTrained: boolean;
+  /** Aufstellung: Spieler mit Einsatz in dieser Trainingswoche (Liga, Pokal, Freundschaft) ausblenden */
+  hidePlayed: boolean;
   /** Trainingself aktiv: Formationswechsel stellt weiter nur noch nicht trainierte Spieler auf */
   trainingMode: boolean;
   /** Noch nicht gespielt: Elf und Bank aus Spielern ohne Einsatz in dieser Woche, Wechsel bringen die Bank */
@@ -208,6 +210,7 @@ const state: State = {
   profiles: [],
   week: null,
   hideTrained: false,
+  hidePlayed: false,
   trainingMode: false,
   unplayed: false,
   noTrain: new Set(),
@@ -1282,6 +1285,7 @@ function poolHtml(): string {
   // ausgeblendet werden: praktisch fertig trainiert (ab 95 %, z. B. 89 von 90 Minuten) und die Liste „Nicht trainieren“.
   // Wer schon gespielt hat, aber nicht (oder nur halb) auf einer Trainingsposition, kann im zweiten Spiel noch trainieren.
   const skip = (id: number) => trained(id) >= DONE_FACTOR || state.noTrain.has(id);
+  const hide = (id: number) => (state.hideTrained && skip(id)) || (state.hidePlayed && playedWeek(id));
   const chip = (m: ReturnType<typeof squadGroups>[number]["members"][number], g: string, sector: LineupSector) => {
     const p = m.player;
     const off = unavailable(p);
@@ -1313,7 +1317,7 @@ function poolHtml(): string {
   const shown = new Set<number>();
   for (const g of groups) {
     // Bankspieler stehen schon unter dem Feld, deshalb hier nicht noch einmal
-    const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !benchIds.has(m.player.id) && !unavailable(m.player) && !(state.hideTrained && skip(m.player.id)));
+    const ms = g.members.filter((m) => m.home && !onField.has(m.player.id) && !benchIds.has(m.player.id) && !unavailable(m.player) && !hide(m.player.id));
     if (!ms.length) continue;
     out.push(`<h4>${esc(g.name)}</h4>${ms.map((m) => chip(m, GROUP_SHORT[g.group], g.group)).join("")}`);
     ms.forEach((m) => shown.add(m.player.id));
@@ -1324,17 +1328,19 @@ function poolHtml(): string {
   const rest = state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id)).length;
   const fullyTrained = state.hrf!.players.filter((p) => trained(p.id) >= DONE_FACTOR).length;
   const noTrainCount = state.hrf!.players.filter((p) => state.noTrain.has(p.id) && trained(p.id) < DONE_FACTOR).length;
-  const hidden = state.hideTrained ? state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id) && !unavailable(p) && skip(p.id)).length : 0;
+  const hidden = state.hrf!.players.filter((p) => !onField.has(p.id) && !benchIds.has(p.id) && !unavailable(p) && hide(p.id)).length;
+  const playedCount = state.hrf!.players.filter((p) => playedWeek(p.id)).length;
   const w = state.week?.window;
   const since = w ? w.start.toLocaleDateString(loc(), { weekday: "short", day: "2-digit", month: "2-digit" }) : "";
   const count = [
     fullyTrained ? `${fullyTrained} seit ${since} voll trainiert` : `seit dem Trainingsupdate ${since} noch niemand voll trainiert`,
     ...(noTrainCount ? [`${noTrainCount} auf „Nicht trainieren“`] : []),
-    ...(hidden ? [`${hidden} ausgeblendet`] : []),
   ].join(" · ");
   const why = `Ausgeblendet wird, wer diese Trainingswoche schon (fast) voll trainiert hat (ab 95 %) oder auf der Liste „Nicht trainieren“ (Trainingswoche) steht. Wer schon gespielt hat, aber nicht auf einer Trainingsposition, bleibt sichtbar: Er kann im zweiten Spiel noch trainieren. Zählt nur Spiele, die seit dem letzten Trainingsupdate (${since}) schon gespielt wurden.`;
   const filter = state.week
-    ? `<label class="trfilter" title="${esc(why)}"><input type="checkbox" id="hideTrained"${state.hideTrained ? " checked" : ""}> Schon trainierte ausblenden <span class="muted">(<span>${count}</span>)</span></label>`
+    ? `<label class="trfilter" title="${esc(why)}"><input type="checkbox" id="hideTrained"${state.hideTrained ? " checked" : ""}> Schon trainierte ausblenden <span class="muted">(<span>${count}</span>)</span></label>
+      <label class="trfilter" title="${esc(`Blendet jeden aus, der seit dem Trainingsupdate (${since}) schon gespielt hat, egal ob Liga, Pokal oder Freundschaft und egal auf welcher Position.`)}"><input type="checkbox" id="hidePlayed"${state.hidePlayed ? " checked" : ""}> Schon gespielte ausblenden <span class="muted">(<span>${playedCount ? `${playedCount} haben diese Woche gespielt` : "diese Woche hat noch niemand gespielt"}</span>)</span></label>
+      ${hidden ? `<div class="sub trhidden">${hidden} ausgeblendet</div>` : ""}`
     : "";
   return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${rest}) · ${benchCount} auf der Bank. ${state.editMode ? "Hierher ziehen = vom Feld oder von der Bank nehmen." : "Antippen zeigt die Karte. Zum Aufstellen oben auf „Ändern“ schalten."}</div>${filter}${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
 }
@@ -2099,10 +2105,11 @@ function initEditor() {
   });
   $("#poolOut").addEventListener("change", (e) => {
     const el = e.target as HTMLInputElement;
-    if (el.id !== "hideTrained") return;
-    state.hideTrained = el.checked;
+    if (el.id !== "hideTrained" && el.id !== "hidePlayed") return;
+    const key = el.id as "hideTrained" | "hidePlayed";
+    state[key] = el.checked;
     try {
-      localStorage.setItem("tophatt.hideTrained", el.checked ? "1" : "");
+      localStorage.setItem(`tophatt.${key}`, el.checked ? "1" : "");
     } catch {
       /* ohne Speicher geht es auch */
     }
@@ -2111,6 +2118,7 @@ function initEditor() {
   });
   try {
     state.hideTrained = localStorage.getItem("tophatt.hideTrained") === "1";
+    state.hidePlayed = localStorage.getItem("tophatt.hidePlayed") === "1";
   } catch {
     /* ohne Speicher geht es auch */
   }
