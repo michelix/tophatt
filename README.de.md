@@ -38,7 +38,7 @@ Spielfeld wie in HO (Torwart oben). Oben springt man über die nummerierten Knö
 <summary>1 · Spielfeld und Bank</summary>
 <br>
 
-- Formationsvorschlag als Karten, eingespielte Formationen zuerst; „Automatisch aufstellen“, „Trainingself“, „Feld leeren“.
+- Formationsvorschlag als Karten, eingespielte Formationen zuerst; „Automatisch aufstellen“, „B-Kader“, „Noch nicht gespielt“, „Feld leeren“.
 - **Ansehen/Ändern**: Im Ansehen-Modus zeigt ein Spieler beim Darüberfahren seine Karte, Antippen hält sie fest, nichts
   verschiebt sich versehentlich. Im Ändern-Modus Spieler ziehen oder antippen; die Linien zeigen, wo er am besten passt.
 - Rahmenfarbe = Eignung für die Position, Kreisfarbe = Kader (A lila, B blau, Rest grau), Pfeile = geplante Wechsel mit Minute.
@@ -151,7 +151,7 @@ Budget, Suchprofile für den Transfermarkt und Kandidaten passend zu den Schwach
 <summary><b>Trainingswoche</b>: wer spielt wo, damit möglichst viele trainieren?</summary>
 <br>
 
-A-Kader und B-Kader, Plan für Liga-, Pokal- und Freundschaftsspiel nach Trainingsnutzen.
+A-Kader und B-Kader, Plan für Liga-, Pokal- und Freundschaftsspiel nach Trainingsnutzen. Die Liste „Nicht trainieren“ hält Spieler, die verkauft oder entlassen werden, von den Trainingsplätzen fern. Auf der Aufstellungsseite stellt „Noch nicht gespielt“ alle auf, die diese Woche noch keinen Einsatz hatten, und wechselt bis zu 3 weitere von der Bank ein.
 
 ![Trainingswoche](docs/img/training.png)
 </details>

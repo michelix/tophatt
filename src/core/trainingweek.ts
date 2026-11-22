@@ -8,7 +8,7 @@ import type { FieldPosition, MatchSettings, Player } from "./model";
 import type { SectorRatings, TeamState } from "./rating";
 import { FORMATIONS, HATSTATS_OBJECTIVE, Evaluator, hatStatsOf, isAvailable, optimizeLineup } from "./optimizer";
 import { predict, type Side } from "./matchplan";
-import { type TrainingDef, type WeekMinutes, FORMATION_PREFERENCE, TRAININGS, addPlanned, formationSlots, planTrainingLineup, trainingFor, trainingPriority, weekFactor } from "./training";
+import { type TrainingDef, type WeekMinutes, DONE_FACTOR, FORMATION_PREFERENCE, TRAININGS, addPlanned, formationSlots, planTrainingLineup, trainingFor, trainingPriority, weekFactor } from "./training";
 import { fixed } from "./locale";
 
 export type SquadTier = "A" | "B" | "R";
@@ -27,7 +27,7 @@ const isKeeperType = (p: Player) => p.keeper >= Math.max(p.defending, p.playmaki
  * Vorschlag für die Kader: A = Stammelf der Liga, B = bis zu 11 weitere Spieler (ein Torwart, sonst nach
  * Trainingsnutzen), Rest = alle übrigen. Eigene Zuordnungen (`own`) gehen vor.
  */
-export function suggestSquads(players: Player[], leagueIds: number[], t: TrainingDef | undefined, own: Record<number, SquadTier> = {}): Map<number, SquadTier> {
+export function suggestSquads(players: Player[], leagueIds: number[], t: TrainingDef | undefined, own: Record<number, SquadTier> = {}, exclude: ReadonlySet<number> = new Set()): Map<number, SquadTier> {
   const out = new Map<number, SquadTier>();
   const a = new Set(leagueIds);
   for (const p of players) if (a.has(p.id)) out.set(p.id, "A");
@@ -35,7 +35,8 @@ export function suggestSquads(players: Player[], leagueIds: number[], t: Trainin
   const benefit = (p: Player) => (t ? trainingPriority(p, t) : 0);
   // ein Torwart für das zweite Spiel, der beste übrige
   const keeper = rest.filter(isKeeperType).sort((x, y) => y.keeper - x.keeper)[0];
-  const field = rest.filter((p) => p !== keeper && !isKeeperType(p)).sort((x, y) => benefit(y) - benefit(x) || x.age - y.age);
+  // wer nicht mehr trainiert werden soll (Verkauf, Entlassung), gehört nicht in die Trainingsgruppe
+  const field = rest.filter((p) => p !== keeper && !isKeeperType(p) && !exclude.has(p.id)).sort((x, y) => benefit(y) - benefit(x) || x.age - y.age);
   const b = [...(keeper ? [keeper] : []), ...field.slice(0, keeper ? 10 : 11)];
   for (const p of b) out.set(p.id, "B");
   for (const p of rest) if (!out.has(p.id)) out.set(p.id, "R");
@@ -116,9 +117,9 @@ export interface CupPlan {
   reason: string;
 }
 
-function gainCount(positions: FieldPosition[], before: Map<number, WeekMinutes>, t: TrainingDef): number {
+function gainCount(positions: FieldPosition[], before: Map<number, WeekMinutes>, t: TrainingDef, exclude: ReadonlySet<number> = new Set()): number {
   const after = addPlanned(before, positions, t, "x");
-  return positions.filter((p) => weekFactor(after.get(p.playerId)) > weekFactor(before.get(p.playerId)) + 1e-9).length;
+  return positions.filter((p) => !exclude.has(p.playerId) && weekFactor(after.get(p.playerId)) > weekFactor(before.get(p.playerId)) + 0.05).length;
 }
 
 /**
@@ -133,7 +134,7 @@ export function planCup(
   before: Map<number, WeekMinutes>,
   settings: MatchSettings,
   team: TeamState,
-  opt: { formationExperience: Record<string, number>; minExperience: number; allowBruised: boolean; opponent: Side | null; maxDrop?: number; hopeless?: number },
+  opt: { formationExperience: Record<string, number>; minExperience: number; allowBruised: boolean; opponent: Side | null; maxDrop?: number; hopeless?: number; exclude?: ReadonlySet<number> },
 ): CupPlan {
   const t = TRAININGS[trainingType];
   const maxDrop = opt.maxDrop ?? CUP_MAX_WIN_DROP;
@@ -149,13 +150,14 @@ export function planCup(
   const formations = FORMATIONS.filter((f) => (opt.formationExperience[f] ?? 0) >= opt.minExperience);
   const base = { formationExperience: opt.formationExperience, objective: HATSTATS_OBJECTIVE, allowBruised: opt.allowBruised, tryBehaviours: false, minFormationExperience: 0 };
 
+  const exclude = opt.exclude ?? new Set<number>();
   const strongRes = optimizeLineup(players, settings, team, { ...base, formations: formations.length ? formations : ["442"] });
-  const strong: CupVariant = { key: "strong", label: "Stärkste Elf", formation: strongRes.lineup.formation, positions: strongRes.lineup.positions, ...rate(strongRes.lineup.positions), newTrainees: gainCount(strongRes.lineup.positions, before, t) };
+  const strong: CupVariant = { key: "strong", label: "Stärkste Elf", formation: strongRes.lineup.formation, positions: strongRes.lineup.positions, ...rate(strongRes.lineup.positions), newTrainees: gainCount(strongRes.lineup.positions, before, t, exclude) };
 
   // Sieg + Training: von der besten Elf je Formation ausgehen und Trainingsplätze, auf denen schon voll
   // trainierte Spieler stehen, nacheinander an noch nicht trainierte geben (die billigsten Tausche zuerst),
   // solange die Siegchance (ohne Gegnerdaten: die Stärke) hoch genug bleibt.
-  const done = new Set([...before].filter(([, m]) => weekFactor(m) >= 1).map(([id]) => id));
+  const done = new Set([...[...before].filter(([, m]) => weekFactor(m) >= DONE_FACTOR).map(([id]) => id), ...exclude]);
   const floor = strong.win !== null ? strong.win - maxDrop : strong.hatStats * 0.95;
   const score = (x: { win: number | null; hatStats: number }) => x.win ?? x.hatStats;
   let mixed = null as CupVariant | null;
@@ -171,7 +173,7 @@ export function planCup(
       if (!cand || score(cand) < floor) return;
       if (!mixed || cand.newTrainees > mixed.newTrainees || (cand.newTrainees === mixed.newTrainees && score(cand) > score(mixed))) mixed = cand;
     };
-    const evalPos = (pos: FieldPosition[]): CupVariant => ({ key: "mixed", label: "Sieg + Training", formation: f, positions: pos, ...rate(pos), newTrainees: gainCount(pos, before, t) });
+    const evalPos = (pos: FieldPosition[]): CupVariant => ({ key: "mixed", label: "Sieg + Training", formation: f, positions: pos, ...rate(pos), newTrainees: gainCount(pos, before, t, exclude) });
     take(evalPos(positions));
     for (;;) {
       const inLineup = new Set(positions.map((p) => p.playerId));
@@ -191,8 +193,8 @@ export function planCup(
     }
   }
 
-  const trainPlan = planTrainingLineup(players, trainingType, before, opt.allowBruised, opt.formationExperience);
-  const training: CupVariant = { key: "training", label: "Reine Trainingself", formation: trainPlan.lineup.formation, positions: trainPlan.lineup.positions, ...rate(trainPlan.lineup.positions), newTrainees: trainPlan.gaining.length };
+  const trainPlan = planTrainingLineup(players, trainingType, before, opt.allowBruised, opt.formationExperience, undefined, exclude);
+  const training: CupVariant = { key: "training", label: "Reine Trainingself", formation: trainPlan.lineup.formation, positions: trainPlan.lineup.positions, ...rate(trainPlan.lineup.positions), newTrainees: gainCount(trainPlan.lineup.positions, before, t, exclude) };
 
   const variants = [strong, ...(mixed && mixed.newTrainees > strong.newTrainees ? [mixed] : []), training];
   const pct = (x: number) => `${Math.round(x * 100)} %`;
@@ -252,8 +254,8 @@ export function weekRows(
 }
 
 /** Spieler mit spürbarem Trainingsnutzen, die diese Woche leer ausgehen (ohne Torhüter bei Feldtraining) */
-export function forgotten(rows: WeekRow[], t: TrainingDef, minBenefit = 3): WeekRow[] {
-  return rows.filter((r) => r.factor === 0 && r.benefit >= minBenefit && (t.skill === "keeper" || !isKeeperType(r.player)));
+export function forgotten(rows: WeekRow[], t: TrainingDef, minBenefit = 3, exclude: ReadonlySet<number> = new Set()): WeekRow[] {
+  return rows.filter((r) => r.factor === 0 && r.benefit >= minBenefit && !exclude.has(r.player.id) && (t.skill === "keeper" || !isKeeperType(r.player)));
 }
 
 export { FORMATION_PREFERENCE };

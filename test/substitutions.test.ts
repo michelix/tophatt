@@ -92,3 +92,36 @@ describe("Auswechslungs-Vorschläge", () => {
     for (const x of rest) expect(existing.some((o) => o.playerIn === x.playerIn || o.playerOut === x.playerOut)).toBe(false);
   });
 });
+
+describe("Alle einsetzen (einsatz)", () => {
+  const isKeeper = (p: Player) => p.keeper > Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
+  const fresh = hrf.players.filter((p) => !fieldIds.has(p.id) && !isKeeper(p) && !(p.injury > 0)).slice(0, 4);
+  const bench = { innerMidfield: fresh[0]?.id, winger: fresh[1]?.id, forward: fresh[2]?.id, centralDefender: fresh[3]?.id };
+  const l = { ...lineup, bench };
+
+  it("bringt bis zu 3 Bankspieler ohne Einsatz in dieser Woche", () => {
+    const s = suggestSubstitutions({ lineup: l, byId, mode: "einsatz", training, week: new Map() });
+    expect(s.length).toBe(MAX_SUBSTITUTIONS);
+    expect(new Set(s.map((x) => x.playerOut)).size).toBe(s.length);
+    for (const x of s) {
+      expect(fresh.map((p) => p.id)).toContain(x.playerIn);
+      expect(x.reason).toBe("einsatz");
+      expect(x.standing).toBe(-1);
+    }
+  });
+
+  it("nimmt Feldspieler vor dem Torwart", () => {
+    const gk = hrf.players.find((p) => isKeeper(p) && !fieldIds.has(p.id) && !(p.injury > 0))!;
+    const s = suggestSubstitutions({ lineup: { ...l, bench: { ...bench, keeper: gk.id } }, byId, mode: "einsatz", training, week: new Map() });
+    expect(s.map((x) => x.playerIn)).not.toContain(gk.id);
+    const two = suggestSubstitutions({ lineup: { ...l, bench: { keeper: gk.id, innerMidfield: fresh[0].id } }, byId, mode: "einsatz", training, week: new Map() });
+    expect(two.map((x) => x.playerIn)).toContain(fresh[0].id);
+  });
+
+  it("lässt Bankspieler aus, die schon gespielt haben oder auf „Nicht trainieren“ stehen", () => {
+    const week = new Map<number, WeekMinutes>([[fresh[0].id, { full: 0, partly: 0, sources: ["gespielt IV"] }]]);
+    const noTrain = new Set([fresh[1].id]);
+    const s = suggestSubstitutions({ lineup: l, byId, mode: "einsatz", training, week, noTrain });
+    expect(s.map((x) => x.playerIn).sort()).toEqual([fresh[2].id, fresh[3].id].sort());
+  });
+});

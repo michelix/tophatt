@@ -154,7 +154,7 @@ Budget, search profiles for the transfer market and candidates that match the we
 <summary><b>Training week</b> („Trainingswoche“): who plays where so that as many as possible train?</summary>
 <br>
 
-A squad and B squad, and a plan for league, cup and friendly matches by training benefit.
+A squad and B squad, and a plan for league, cup and friendly matches by training benefit. A “Do not train” list keeps players you will sell or release off the training places. On the lineup page, “Not played yet” lines up everyone without a match this week and brings up to 3 more on as substitutes.
 
 ![Training week](docs/img/en/training.png)
 </details>
