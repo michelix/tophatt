@@ -462,6 +462,18 @@
    "{0} è squalificato.",
    "{0} jest zawieszony."
   ],
+  "{0} ist nicht mehr auf dem Feld, neuer Kapitän ist automatisch {1}": [
+   "{0} is no longer on the pitch, {1} is now captain automatically",
+   "{0} ya no está en el campo, {1} es ahora capitán automáticamente",
+   "{0} non è più in campo, {1} è ora capitano in automatico",
+   "{0} nie ma już na boisku, kapitanem automatycznie zostaje {1}"
+  ],
+  "{0} ist nicht mehr auf dem Feld, Standards schießt jetzt automatisch {1}": [
+   "{0} is no longer on the pitch, {1} now takes set pieces automatically",
+   "{0} ya no está en el campo, {1} lanza ahora el balón parado automáticamente",
+   "{0} non è più in campo, {1} ora batte i calci piazzati in automatico",
+   "{0} nie ma już na boisku, stałe fragmenty automatycznie wykonuje teraz {1}"
+  ],
   "{0} ist verletzt ({1} Wochen) und kann nicht spielen.": [
    "{0} is injured ({1} weeks) and cannot play.",
    "{0} está lesionado ({1} semanas) y no puede jugar.",
@@ -3162,6 +3174,12 @@
    "Amichevole",
    "Towarzyski"
   ],
+  "Führung": [
+   "Leadership",
+   "Liderazgo",
+   "Leadership",
+   "Przywództwo"
+  ],
   "Führung {0}": [
    "Leadership {0}",
    "Liderazgo {0}",
@@ -4097,6 +4115,12 @@
    "Capitán, balón parado, banquillo",
    "Capitano, calci piazzati, panchina",
    "Kapitan, stałe fragmenty, ławka"
+  ],
+  "Kapitän:": [
+   "Captain:",
+   "Capitán:",
+   "Capitano:",
+   "Kapitan:"
   ],
   "Karte schließen (Esc)": [
    "Close card (Esc)",
@@ -6389,6 +6413,12 @@
    "Lanzar balón parado",
    "Batte i calci piazzati",
    "Wykonuje stałe fragmenty"
+  ],
+  "Standards:": [
+   "Set pieces:",
+   "Balón parado:",
+   "Calci piazzati:",
+   "Stałe fragmenty:"
   ],
   "Stärke": [
    "Strength",

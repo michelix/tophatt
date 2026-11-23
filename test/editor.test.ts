@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseHrf, writeLineupToHrf } from "../src/core/hrf";
-import { completeLineup } from "../src/core/editor";
+import { completeLineup, droppedChoices } from "../src/core/editor";
 import { defaultMatchSettings } from "../src/core/model";
-import { HATSTATS_OBJECTIVE, optimizeLineup } from "../src/core/optimizer";
+import { HATSTATS_OBJECTIVE, optimizeLineup, rankCaptains, rankSetPieces } from "../src/core/optimizer";
 
 const hrf = parseHrf(readFileSync(new URL("./fixtures/team.hrf", import.meta.url), "utf8"));
 const team = { teamSpirit: hrf.team.teamSpirit, confidence: hrf.team.confidence };
@@ -51,5 +51,29 @@ describe("Kapitän, Standards und Bank selbst wählen", () => {
     const text = writeLineupToHrf(hrf, c, 123, 1);
     expect(text).toMatch(new RegExp(`^captain=${cap}$`, "m"));
     expect(text).toMatch(new RegExp(`^substxt1=${pick.id}$`, "m"));
+  });
+});
+
+describe("Auswahlzeile Kapitän und Standards", () => {
+  const field = positions.map((p) => hrf.players.find((x) => x.id === p.playerId)!);
+  const nonKeeper = positions.filter((p) => p.role !== 100).map((p) => hrf.players.find((x) => x.id === p.playerId)!);
+
+  it("listet alle Feldspieler, bester zuerst, und der erste ist der automatische Vorschlag", () => {
+    const cap = rankCaptains(field);
+    expect(cap.map((r) => r.id).sort()).toEqual(field.map((p) => p.id).sort());
+    expect(cap[0].id).toBe(auto.captainId);
+    for (let i = 1; i < cap.length; i++) expect(cap[i - 1].value).toBeGreaterThanOrEqual(cap[i].value);
+    const sp = rankSetPieces(nonKeeper);
+    expect(sp).toHaveLength(nonKeeper.length);
+    expect(sp[0].id).toBe(auto.setPiecesId);
+    for (let i = 1; i < sp.length; i++) expect(sp[i - 1].value).toBeGreaterThanOrEqual(sp[i].value);
+  });
+
+  it("meldet eine eigene Wahl, die nicht mehr auf dem Feld steht", () => {
+    const [first, second] = positions;
+    expect(droppedChoices(positions, { captainId: first.playerId, setPiecesId: second.playerId })).toEqual({});
+    const rest = positions.filter((p) => p.playerId !== first.playerId);
+    expect(droppedChoices(rest, { captainId: first.playerId, setPiecesId: second.playerId })).toEqual({ captainId: first.playerId });
+    expect(droppedChoices(rest, {})).toEqual({});
   });
 });

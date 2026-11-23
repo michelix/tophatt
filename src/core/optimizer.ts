@@ -421,17 +421,13 @@ export function pickBench(rest: Player[], fixed: Partial<Record<BenchSlot, numbe
 
 /** HO: Lineup.getAverageExperience – Kapitän maximiert (ØErfahrung) * Führungsfaktor */
 export function pickCaptain(field: Player[]): number {
+  return rankCaptains(field)[0]?.id ?? 0;
+}
+
+/** Kapitänskandidaten, bester zuerst; value = Erfahrungswert der Mannschaft mit ihm als Kapitän */
+export function rankCaptains(field: Player[]): { id: number; value: number }[] {
   const sumExp = field.reduce((a, p) => a + p.experience, 0);
-  let best = 0,
-    bestV = -Infinity;
-  for (const p of field) {
-    const v = ((sumExp + p.experience) / 12) * (1 - (7 - p.leadership) * 0.05);
-    if (v > bestV) {
-      bestV = v;
-      best = p.id;
-    }
-  }
-  return best;
+  return field.map((p) => ({ id: p.id, value: ((sumExp + p.experience) / 12) * (1 - (7 - p.leadership) * 0.05) })).sort((a, b) => b.value - a.value);
 }
 
 /** HO: getPlayerSetPiecesStrength (ohne Wetter/Kondition) */
@@ -442,14 +438,13 @@ export function setPiecesStrength(p: Player) {
 }
 
 export function pickSetPieces(field: Player[]): number {
-  let best = 0,
-    bestV = -Infinity;
-  for (const p of field) {
-    const v = setPiecesStrength(p);
-    if (v > bestV || (v === bestV && p.form > (field.find((x) => x.id === best)?.form ?? 0))) {
-      bestV = v;
-      best = p.id;
-    }
-  }
-  return best;
+  return rankSetPieces(field)[0]?.id ?? 0;
+}
+
+/** Standardschützen, bester zuerst (bei Gleichstand die bessere Form) */
+export function rankSetPieces(field: Player[]): { id: number; value: number }[] {
+  return field
+    .map((p) => ({ id: p.id, value: setPiecesStrength(p), form: p.form }))
+    .sort((a, b) => b.value - a.value || b.form - a.form)
+    .map(({ id, value }) => ({ id, value }));
 }

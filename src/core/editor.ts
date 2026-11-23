@@ -78,6 +78,15 @@ export function completeLineup(positions: FieldPosition[], players: Player[], se
   };
 }
 
+/** Selbst gewählter Kapitän oder Standardschütze, der nicht mehr auf dem Feld steht (wird automatisch ersetzt) */
+export function droppedChoices(positions: FieldPosition[], choices: LineupChoices): { captainId?: number; setPiecesId?: number } {
+  const ids = new Set(positions.map((p) => p.playerId));
+  const out: { captainId?: number; setPiecesId?: number } = {};
+  if (choices.captainId && !ids.has(choices.captainId)) out.captainId = choices.captainId;
+  if (choices.setPiecesId && !ids.has(choices.setPiecesId)) out.setPiecesId = choices.setPiecesId;
+  return out;
+}
+
 export interface SectorChange {
   sector: RatingSector;
   name: string;
