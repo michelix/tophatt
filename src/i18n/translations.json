@@ -5592,11 +5592,11 @@
    "Pressing",
    "Pressing"
   ],
-  "Pressing nimmt dem Gegner Chancen, kostet aber Kondition (in den Bewertungen enthalten). Die Pressingstärke berechnet TopHatt nicht.": [
-   "Pressing takes chances away from the opponent but costs stamina (included in the ratings). TopHatt does not calculate the pressing strength.",
-   "Presionar quita ocasiones al rival pero cuesta resistencia (incluido en las valoraciones). TopHatt no calcula la fuerza de presión.",
-   "Il pressing toglie occasioni all'avversario ma costa resistenza (incluso nelle valutazioni). TopHatt non calcola la forza del pressing.",
-   "Pressing odbiera rywalowi szanse, ale kosztuje kondycję (ujęte w ocenach). TopHatt nie liczy siły pressingu."
+  "Pressing nimmt beiden Mannschaften Angriffe weg und kostet Kondition (in den Bewertungen enthalten). Pressingstärke {0}, wirkt ab 5 (aus Verteidigung, Treue und Erfahrung der Elf, durchsetzungsstarke Spieler zählen doppelt).": [
+   "Pressing takes attacks away from both teams and costs stamina (included in the ratings). Pressing strength {0}, effective from 5 (from defending, loyalty and experience of the team, powerful players count double).",
+   "La presión quita ataques a ambos equipos y cuesta resistencia (incluido en las valoraciones). Fuerza de presión {0}, efectiva desde 5 (de defensa, fidelidad y experiencia del equipo, los jugadores potentes cuentan doble).",
+   "Il pressing toglie attacchi a entrambe le squadre e costa resistenza (incluso nelle valutazioni). Forza del pressing {0}, efficace da 5 (da difesa, fedeltà ed esperienza della squadra, i giocatori potenti contano doppio).",
+   "Pressing odbiera ataki obu drużynom i kosztuje kondycję (ujęte w ocenach). Siła pressingu {0}, działa od 5 (z defensywy, lojalności i doświadczenia drużyny, silni zawodnicy liczą się podwójnie)."
   ],
   "pro Saison": [
    "per season",

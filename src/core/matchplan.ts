@@ -90,6 +90,12 @@ function counterActions(t: Side, o: Side): number {
   return Math.min(3, 4.00008896306671 / (1 + 58995.2231780103 * Math.exp(-0.21970325236894 * idx)));
 }
 
+/** HO ActionGenerator.getPressing: Stufen über 4 zählen, ganzzahlige Taktikstärke */
+function pressingLevel(s: Side): number {
+  const l = Math.trunc(s.level ?? 0);
+  return s.tactic === Tactic.pressing && l > 4 ? l - 4 : 0;
+}
+
 function area(g: Game, r: () => number): 0 | 1 | 2 {
   let middle = 40;
   if (g.tactic === Tactic.attackMiddle) middle += g.level * 3;
@@ -102,8 +108,8 @@ function area(g: Game, r: () => number): 0 | 1 | 2 {
 const scores = (g: Game, where: 0 | 1 | 2, r: () => number) => Math.floor(r() * 100) < Math.trunc(effectiveness(g.chance[where]));
 
 /**
- * Spiel n-mal simulieren (HO ActionGenerator.simulate). Pressing ist nicht enthalten, weil TopHatt die
- * Pressing-Stärke nicht berechnet.
+ * Spiel n-mal simulieren (HO ActionGenerator.simulate), samt Pressing: Jede Pressingstufe über 4
+ * (beider Mannschaften zusammen) kann einen der 10 Angriffe ausfallen lassen.
  */
 export function predict(us: Side, them: Side, n = 3000, seed = 7): Prediction {
   const r = rng(seed);
@@ -114,6 +120,7 @@ export function predict(us: Side, them: Side, n = 3000, seed = 7): Prediction {
   const caUs = counterActions(us, them);
   const caThem = counterActions(them, us);
   const possUs = Math.trunc(effectiveness(a.poss));
+  const press = pressingLevel(us) + pressingLevel(them);
   let win = 0,
     draw = 0,
     gf = 0,
@@ -122,8 +129,14 @@ export function predict(us: Side, them: Side, n = 3000, seed = 7): Prediction {
     const A: Game = { ...a, counters: Math.floor(caUs) + (r() < caUs % 1 ? 1 : 0) };
     const B: Game = { ...b, counters: Math.floor(caThem) + (r() < caThem % 1 ? 1 : 0) };
     let g1 = 0,
-      g2 = 0;
+      g2 = 0,
+      pressed = 0;
     for (let k = 0; k < 10; k++) {
+      // HO: Pressing lässt Angriffe ausfallen, höchstens 7 und höchstens halb so viele wie die Pressingstufe
+      if (pressed < 7 && pressed * 2 <= press && Math.floor(r() * 14) < press) {
+        pressed++;
+        continue;
+      }
       const ours = Math.floor(r() * 100) < possUs;
       const [att, def] = ours ? [A, B] : [B, A];
       const where = area(att, r);
@@ -188,8 +201,8 @@ const de = (x: number) => fixed(x, 2);
 const fieldOf = (positions: FieldPosition[], byId: Map<number, Player>) =>
   positions.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role, behaviour: p.behaviour }));
 
-/** Taktiken, die das Spielmodell abbildet (Pressing, Kreativ und Fernschüsse nicht) */
-export const MODELLED_TACTICS = [Tactic.normal, Tactic.counter, Tactic.attackMiddle, Tactic.attackWings];
+/** Taktiken, die das Spielmodell abbildet (Kreativ und Fernschüsse nicht) */
+export const MODELLED_TACTICS = [Tactic.normal, Tactic.pressing, Tactic.counter, Tactic.attackMiddle, Tactic.attackWings];
 
 /** eine Einstellung mit der gegebenen Elf gegen den Gegner bewerten */
 export function evaluateSettings(positions: FieldPosition[], byId: Map<number, Player>, settings: MatchSettings, team: TeamState, opponent: Side): PlanOption {
