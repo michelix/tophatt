@@ -27,6 +27,8 @@ import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
 import { type PlannedMove, currentBackups, initOrdersPage, loadOrders, ordersBlocking, ordersSummary, plannedMoves, renderOrdersPage, setSubMode, staleOrders, withOrders } from "./orders-view";
 import { teamPlayers } from "../core/hodata";
+import { type SquadPlan, planWholeSquad } from "../core/squadplan";
+import { type PlanFilter, planViewHtml } from "./plan-view";
 import { avatarHtml, cutoutAvatars } from "./avatar";
 import { LEVEL_DE } from "../core/staff";
 import { fixed, loc } from "../core/locale";
@@ -150,6 +152,9 @@ interface State {
   /** Aufstellung: false = nur ansehen (Klick wechselt die Karte), true = ändern (Klick setzt/tauscht) */
   editMode: boolean;
   plans: GroupPlan[];
+  /** Kaderplanung für den ganzen Kader (Rollen, Bedarf, Schritte) und der Rollenfilter der Tabelle */
+  squadPlan: SquadPlan | null;
+  planFilter: PlanFilter;
   /** Grundlage der Kaderplanung (wie Schwachstellen), z. B. „deiner Aufstellung“ */
   planBasis: string;
   /** Projektion der Fertigkeiten je Spieler (32 Wochen), einmal je Berechnung */
@@ -206,6 +211,8 @@ const state: State = {
   editMode: false,
   plans: [],
   planBasis: "",
+  squadPlan: null,
+  planFilter: "all",
   projection: null,
   profiles: [],
   week: null,
@@ -2195,6 +2202,7 @@ function updateAnalysis() {
   // Kaderplanung auf derselben Grundlage wie die Schwachstellen (normalerweise deine Aufstellung)
   state.planBasis = B.label;
   state.plans = state.projection ? planSquad(hrf.players, { positions: B.positions }, state.projection) : [];
+  state.squadPlan = state.projection ? planWholeSquad(hrf.players, B.positions, state.projection) : null;
   state.profiles = searchProfiles(hrf.players, state.weak, state.plans);
 }
 
@@ -2454,27 +2462,8 @@ function renderDevChart() {
 // --- Spielplan, Freundschaftsspiel, Transfers, Kader ------------------------------------
 
 function renderPlan() {
-  const P = state.plans;
-  if (!P.length) return;
-  const label: Record<string, [string, string]> = { critical: ["!", "Lücke"], warning: ["–", "dünn"], good: ["✓", "gut besetzt"] };
-  const backupHtml = (b: GroupPlan["horizons"][number]["backup"]) => {
-    if (!b) return `<br><span class="down">Ersatz: keiner</span>`;
-    const cls = b.share >= BACKUP_SHARE ? "muted" : "down";
-    return `<br><span class="${cls}">Ersatz: ${esc(b.name.split(" ").slice(-1)[0])} (${b.value.toFixed(1)}, ${Math.round(b.share * 100)} %)</span>`;
-  };
-  const cell = (h: GroupPlan["horizons"][number], base: number, i: number) => {
-    const diff = base ? h.average / base - 1 : 0;
-    const trend = i === 0 || Math.abs(diff) < 0.03 ? "" : `<span class="${diff < 0 ? "down" : "up"}"> ${diff > 0 ? "+" : ""}${Math.round(diff * 100)} %</span>`;
-    return `<td class="st"><span class="val">${h.average.toFixed(1)}</span>${trend}<br>${h.starters.map((e) => `${esc(e.name.split(" ").slice(-1)[0])} <span class="muted">${e.age}</span>`).join(", ")}${backupHtml(h.backup)}</td>`;
-  };
-  $("#planOut").innerHTML = `<div class="scroll"><table class="plan"><thead><tr><th>Mannschaftsteil</th><th>Jetzt</th><th>In 1 Saison</th><th>In 2 Saisons</th><th>Bewertung</th></tr></thead><tbody>
-    ${P.map((g) => {
-      const [icon, l] = label[g.severity];
-      return `<tr><td><b>${esc(g.name)}</b><br><span class="muted">${g.needed} ${g.needed === 1 ? "Platz" : "Plätze"}</span></td>${g.horizons.map((h, i) => cell(h, g.horizons[0].average, i)).join("")}<td>${statusChip(g.severity, l, icon)}<br><span class="sub">${esc(g.note)}</span></td></tr>`;
-    }).join("")}
-    </tbody></table></div>
-    <p class="sub">Berechnet nach ${esc(state.planBasis || "deiner Aufstellung")} (wie die Seite Schwachstellen): „Jetzt“ zeigt genau diese Stammspieler. Später bleiben sie auf ihren Plätzen, bis ein anderer Spieler dort stärker ist und als Nachfolger übernimmt. Der Trend in Prozent vergleicht mit „Jetzt“. Zahl = durchschnittliche Positionsstärke der Stammspieler (HO-Formel), Alter zum jeweiligen Zeitpunkt. Training und Altersabbau wie in der Spielerentwicklung; Form und Erfahrung bleiben gleich.</p>
-    <p class="sub">Ersatz: je Mannschaftsteil einer, und jeder Spieler nur für einen Teil, wie auf der Bank. Prozent = Stärke im Vergleich zum schwächsten Stammspieler dort. Gleichwertig ab ${Math.round(BACKUP_SHARE * 100)} %, darunter rot. Verletzte und gesperrte Spieler zählen heute nicht.</p>`;
+  if (!state.squadPlan) return;
+  $("#planOut").innerHTML = planViewHtml(state.squadPlan, state.plans, state.planBasis || "deiner Aufstellung", state.planFilter);
 }
 
 function renderSchedule() {
@@ -3230,6 +3219,12 @@ function initNav() {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-goto]");
     if (b) document.getElementById(b.dataset.goto!)?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
+  $("#planOut").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-planfilter]");
+    if (!b) return;
+    state.planFilter = b.dataset.planfilter as PlanFilter;
+    renderPlan();
+  });
   $("#groupsOut").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-gmode]");
     if (!b) return;
@@ -3268,8 +3263,13 @@ function renderTiles() {
   const bruised = hrf.players.filter((p) => p.injury === 0).length;
   const banned = hrf.players.filter((p) => p.cards >= 3).length;
   tiles.push(tile("kader", "Kader", `${hrf.players.length - injured - banned} von ${hrf.players.length} einsatzbereit`, [injured ? `${injured} verletzt` : "", bruised ? `${bruised} angeschlagen` : "", banned ? `${banned} gesperrt` : ""].filter(Boolean).join(", ") || "alle fit"));
-  const gaps = state.plans.filter((g) => g.severity !== "good");
-  tiles.push(tile("kaderplanung", "Kaderplanung", gaps.length ? `${gaps.length} ${gaps.length === 1 ? "Baustelle" : "Baustellen"}` : "gut besetzt", gaps.map((g) => esc(g.name)).join(", ") || "auch in zwei Saisons"));
+  const SP = state.squadPlan;
+  if (SP) {
+    const gaps = SP.groups.filter((g) => g.missing > 0);
+    const surplus = SP.players.filter((x) => x.role === "surplus").length;
+    const v = [gaps.length ? `${gaps.length} ${gaps.length === 1 ? "Lücke" : "Lücken"}` : "", surplus ? `${surplus} überzählig` : ""].filter(Boolean).join(", ") || "gut besetzt";
+    tiles.push(tile("kaderplanung", "Kaderplanung", v, gaps.map((g) => esc(g.name)).join(", ") || `${SP.size} Spieler, Bedarf ${SP.target}`));
+  }
   if (state.profiles[0]) tiles.push(tile("transfers", "Transfer-Tipp", esc(state.profiles[0].title.split(":")[0]), esc(state.profiles[0].title.split(":")[1] ?? "")));
   $("#tiles").innerHTML = tiles.join("");
 }

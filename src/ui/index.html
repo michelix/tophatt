@@ -377,6 +377,46 @@ main .tiles.show{display:grid}
 .seg button{border:0;background:var(--surface);color:var(--ink-2);padding:6px 12px;font-size:13px}
 .seg button.on{background:var(--brand);color:var(--brand-ink);font-weight:600}
 
+/* Kaderplanung */
+.sp-kpis{margin:8px 0 18px}
+.sp-actions{list-style:none;margin:8px 0 18px;padding:0;display:grid;gap:8px}
+.sp-actions li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-left-width:4px;border-radius:8px;background:var(--surface)}
+.sp-actions li>i{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:700;color:#fff;background:var(--muted)}
+.sp-actions li>div{display:grid;gap:2px;min-width:0}
+.sp-actions li .sub{font-size:13px;color:var(--ink-2)}
+.sp-actions li.fill{border-left-color:var(--critical)}.sp-actions li.fill>i{background:var(--critical)}
+.sp-actions li.successor{border-left-color:var(--warning)}.sp-actions li.successor>i{background:var(--warning);color:#1b1b1b}
+.sp-actions li.sell{border-left-color:var(--serious)}.sp-actions li.sell>i{background:var(--serious)}
+.sp-actions li.develop{border-left-color:var(--good)}.sp-actions li.develop>i{background:var(--good)}
+.sp-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin:8px 0 18px}
+.sp-group{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);min-width:0}
+.sp-group.gap{border-top:3px solid var(--critical)}.sp-group.thin{border-top:3px solid var(--warning)}.sp-group.crowded{border-top:3px solid var(--serious)}.sp-group.ok{border-top:3px solid var(--good)}
+.sp-group header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sp-group h4{margin:0;font-size:15px}
+.sp-count{font-size:13px;color:var(--ink-2);margin:4px 0 2px}
+.sp-count b{color:var(--ink)}
+.sp-list{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.sp-list li{display:grid;grid-template-columns:86px minmax(0,1fr) 70px 64px;align-items:center;gap:8px;font-size:13px}
+.sp-list li.surplus .sp-name{color:var(--muted)}
+.sp-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-val{font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:12px;white-space:nowrap}
+.sp-bar{position:relative;display:block;height:8px;border-radius:4px;background:var(--surface-2)}
+.sp-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.sp-bar i.now{background:var(--brand);opacity:.75}
+.sp-bar i.later{border:1.5px solid var(--brand);background:transparent}
+.sp-role{display:inline-block;min-width:0;text-align:center;justify-self:start;font-size:11px;font-weight:600;padding:2px 6px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.sp-role.starter{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.sp-role.backup{border-color:var(--brand);color:var(--brand)}
+.sp-role.talent{border-color:var(--good);color:var(--good-ink)}
+.sp-role.surplus{border-color:var(--serious);color:var(--serious)}
+.sp-filter{margin:6px 0 10px;flex-wrap:wrap}
+.sp-table td.sub{font-size:12px;max-width:340px}
+.sp-table tr.surplus td:first-child{box-shadow:inset 3px 0 0 var(--serious)}
+.sp-table tr.talent td:first-child{box-shadow:inset 3px 0 0 var(--good)}
+.sp-timeline{margin:18px 0 8px}
+.sp-timeline summary{cursor:pointer;font-weight:600}
+@media (max-width:600px){.sp-groups{grid-template-columns:1fr}.sp-list li{grid-template-columns:auto minmax(0,1fr) auto}.sp-list li .sp-bar{display:none}.sp-role{min-width:0}}
+
 /* Kader nach Mannschaftsteilen */
 .groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
 .group{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface)}
@@ -943,7 +983,7 @@ select.training{border-color:var(--brand);font-weight:600}
     </section>
 
     <section class="card" id="kaderplanung" data-view="kaderplanung">
-      <header><h2>Kaderplanung</h2><span class="sub">Wer trägt welchen Mannschaftsteil jetzt, in einer und in zwei Saisons?</span></header>
+      <header><h2>Kaderplanung</h2><span class="sub">Wer wird gebraucht, wo fehlt jemand, wer ist zu viel?</span></header>
       <div id="planOut"></div>
     </section>
 
