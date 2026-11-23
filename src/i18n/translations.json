@@ -6,6 +6,12 @@
   "pl"
  ],
  "strings": {
+  " {0} ({1}) käme dort auf {2} des schwächsten Stammspielers und könnte aushelfen.": [
+   " {0} ({1}) would reach {2} of the weakest starter there and could help out.",
+   " {0} ({1}) llegaría allí al {2} del titular más débil y podría ayudar.",
+   " {0} ({1}) arriverebbe lì al {2} del titolare più debole e potrebbe dare una mano.",
+   " {0} ({1}) osiągnąłby tam {2} najsłabszego podstawowego i mógłby pomóc."
+  ],
   "– wählen –": [
    "– choose –",
    "– elegir –",
@@ -270,6 +276,12 @@
    "{0} {1} · gioca qui",
    "{0} {1} · gra tutaj"
   ],
+  "{0} {1} bis in zwei Saisons mindestens 10 % Stärke. {2}": [
+   "{0} {1} at least 10 % strength within two seasons. {2}",
+   "{0} {1} al menos un 10 % de fuerza en dos temporadas. {2}",
+   "{0} {1} almeno il 10 % di forza entro due stagioni. {2}",
+   "{0} {1} co najmniej 10 % siły w ciągu dwóch sezonów. {2}"
+  ],
   "{0} {1} in etwa {2} {3}": [
    "{0} {1} in about {2} {3}",
    "{0} {1} en aprox. {2} {3}",
@@ -348,11 +360,23 @@
    "{0} marca {1}",
    "{0} kryje {1}"
   ],
+  "{0} des schwächsten Stammspielers.": [
+   "{0} of the weakest starter.",
+   "{0} del titular más débil.",
+   "{0} del titolare più debole.",
+   "{0} najsłabszego podstawowego."
+  ],
   "{0} gegen {1}": [
    "{0} vs {1}",
    "{0} contra {1}",
    "{0} contro {1}",
    "{0} przeciw {1}"
+  ],
+  "{0} Gehalt pro Woche": [
+   "{0} wages per week",
+   "{0} de sueldo por semana",
+   "{0} di stipendio a settimana",
+   "{0} pensji tygodniowo"
   ],
   "{0} geht in Minute {1} raus, für {2}": [
    "{0} goes off in minute {1}, for {2}",
@@ -498,6 +522,12 @@
    "{0} anni, ormai cresce poco",
    "{0} lat, prawie się już nie rozwija"
   ],
+  "{0} Jahre, in zwei Saisons {1} der Stammspieler.": [
+   "{0} years, {1} of the starters in two seasons.",
+   "{0} años, {1} de los titulares en dos temporadas.",
+   "{0} anni, {1} dei titolari tra due stagioni.",
+   "{0} lat, za dwa sezony {1} podstawowych."
+  ],
   "{0} kommt diese Woche sonst nicht zum Einsatz (wichtig für die Form, Konditionstraining 75 % statt 50 %)": [
    "{0} would otherwise not play this week (important for form, stamina training 75 % instead of 50 %)",
    "{0} no jugaría si no esta semana (importante para la forma, entrenamiento de resistencia 75 % en vez de 50 %)",
@@ -527,6 +557,18 @@
    "{0} compensa aquí: probabilidad de victoria {1} → {2} (+{3} puntos esperados). Después baja el espíritu, así que solo en un partido decisivo{4}.",
    "{0} conviene qui: probabilità di vittoria {1} → {2} (+{3} punti attesi). Dopo lo spirito cala, quindi solo in una partita decisiva{4}.",
    "{0} opłaca się tutaj: szansa na wygraną {1} → {2} (+{3} oczekiwanych punktów). Potem morale spada, więc tylko w decydującym meczu{4}."
+  ],
+  "{0} Lücke": [
+   "{0} gap",
+   "{0} hueco",
+   "{0} lacuna",
+   "{0} luka"
+  ],
+  "{0} Lücken": [
+   "{0} gaps",
+   "{0} huecos",
+   "{0} lacune",
+   "{0} luk"
   ],
   "{0} Mio €": [
    "{0} M €",
@@ -588,6 +630,12 @@
    "{0} non è in panchina.",
    "{0} nie siedzi na ławce."
   ],
+  "{0} Spieler": [
+   "{0} players",
+   "{0} jugadores",
+   "{0} giocatori",
+   "{0} zawodników"
+  ],
   "{0} Spieler auf dem Feld, erlaubt sind 11.": [
    "{0} players on the pitch, 11 are allowed.",
    "{0} jugadores en el campo, se permiten 11.",
@@ -605,6 +653,18 @@
    "{0} jugadores no entran ni en el once inicial ni en el banquillo: valora venderlos, ahorra salarios.",
    "{0} giocatori non entrano né nell'undici iniziale né in panchina: valuta la cessione, si risparmiano stipendi.",
    "{0} zawodników nie łapie się ani do jedenastki, ani na ławkę – rozważ sprzedaż, to oszczędza pensje."
+  ],
+  "{0} Spieler verkaufen oder entlassen": [
+   "Sell or release {0} players",
+   "Vender o despedir a {0} jugadores",
+   "Vendere o licenziare {0} giocatori",
+   "Sprzedać lub zwolnić {0} zawodników"
+  ],
+  "{0} Spieler, Bedarf {1}": [
+   "{0} players, need {1}",
+   "{0} jugadores, necesidad {1}",
+   "{0} giocatori, fabbisogno {1}",
+   "{0} zawodników, potrzeba {1}"
   ],
   "{0} spielt {1} statt {2}.": [
    "{0} plays {1} instead of {2}.",
@@ -642,6 +702,18 @@
    "{0} g.",
    "{0} d."
   ],
+  "{0} Talent halten und trainieren": [
+   "Keep and train {0} talent",
+   "Mantener y entrenar {0} talento",
+   "Tenere e allenare {0} talento",
+   "Zatrzymać i trenować {0} talent"
+  ],
+  "{0} Talente halten und trainieren": [
+   "Keep and train {0} talents",
+   "Mantener y entrenar {0} talentos",
+   "Tenere e allenare {0} talenti",
+   "Zatrzymać i trenować {0} talentów"
+  ],
   "{0} tauscht in Minute {1} mit {2}": [
    "{0} swaps with {2} in minute {1}",
    "{0} se intercambia con {2} en el minuto {1}",
@@ -659,6 +731,12 @@
    "{0} plazas de entrenamiento{1}",
    "{0} posti di allenamento{1}",
    "{0} miejsc treningowych{1}"
+  ],
+  "{0} überzählig": [
+   "{0} surplus",
+   "{0} sobrantes",
+   "{0} in esubero",
+   "{0} zbędnych"
   ],
   "{0} verletzt": [
    "{0} injured",
@@ -786,6 +864,24 @@
    "{0}: {1} % del migliore della rosa",
    "{0}: {1} % najlepszego w kadrze"
   ],
+  "{0}: {1} reichen für {2}; {3} Jahre, {4} €/Woche.": [
+   "{0}: {1} are enough for {2}; {3} years, {4} €/week.",
+   "{0}: {1} bastan para {2}; {3} años, {4} €/semana.",
+   "{0}: {1} bastano per {2}; {3} anni, {4} €/settimana.",
+   "{0}: {1} wystarczy na {2}; {3} lat, {4} €/tydz."
+  ],
+  "{0}: {1} Spieler fehlen": [
+   "{0}: {1} players missing",
+   "{0}: faltan {1} jugadores",
+   "{0}: mancano {1} giocatori",
+   "{0}: brakuje {1} zawodników"
+  ],
+  "{0}: {1} Spieler fehlt": [
+   "{0}: {1} player missing",
+   "{0}: falta {1} jugador",
+   "{0}: manca {1} giocatore",
+   "{0}: brakuje {1} zawodnika"
+  ],
   "{0}: {1} statt {2}.": [
    "{0}: {1} instead of {2}.",
    "{0}: {1} en lugar de {2}.",
@@ -804,6 +900,12 @@
    "{0}: valore attuale dell'abilità allenata",
    "{0}: obecna wartość trenowanej umiejętności"
   ],
+  "{0}: Nachfolger für {1}": [
+   "{0}: successor for {1}",
+   "{0}: sucesor para {1}",
+   "{0}: successore per {1}",
+   "{0}: następca dla {1}"
+  ],
   "{0}: Positionsstärke {1}, Form {2}, Kondition {3}": [
    "{0}: position strength {1}, form {2}, stamina {3}",
    "{0}: fuerza en la posición {1}, forma {2}, resistencia {3}",
@@ -815,6 +917,12 @@
    "{0}: sin cambios",
    "{0}: invariato",
    "{0}: bez zmian"
+  ],
+  "{0}. Sie sind heute noch keine Ersatzleute, wachsen aber in zwei Saisons fast auf Stammspieler-Niveau.": [
+   "{0}. They are not backups yet, but grow almost to starter level within two seasons.",
+   "{0}. Hoy aún no son suplentes, pero en dos temporadas casi alcanzan el nivel de titular.",
+   "{0}. Oggi non sono ancora riserve, ma in due stagioni crescono quasi al livello dei titolari.",
+   "{0}. Dziś to jeszcze nie rezerwowi, ale w dwa sezony dorastają niemal do poziomu podstawowych."
   ],
   "{0}. Spieltag": [
    "matchday {0}",
@@ -1122,6 +1230,12 @@
    "1 squalificato",
    "zawieszony: 1"
   ],
+  "1 Platz": [
+   "1 place",
+   "1 puesto",
+   "1 posto",
+   "1 miejsce"
+  ],
   "1 verletzt": [
    "1 injured",
    "1 lesionado",
@@ -1326,6 +1440,12 @@
    "tutti",
    "wszyscy"
   ],
+  "Alle": [
+   "All",
+   "Todos",
+   "Tutti",
+   "Wszyscy"
+  ],
   "alle fit": [
    "all fit",
    "todos en forma",
@@ -1343,6 +1463,18 @@
    "Todas las líneas están cerca de la media.",
    "Tutti i reparti sono vicini alla media.",
    "Wszystkie formacje są blisko średniej."
+  ],
+  "alle Mannschaftsteile mit Ersatz": [
+   "every area has a backup",
+   "todas las líneas con suplente",
+   "ogni reparto ha una riserva",
+   "każda formacja ma rezerwę"
+  ],
+  "Alle Spieler": [
+   "All players",
+   "Todos los jugadores",
+   "Tutti i giocatori",
+   "Wszyscy zawodnicy"
   ],
   "Alle Spieler sind aufgestellt.": [
    "All players are in the lineup.",
@@ -1968,6 +2100,18 @@
    "criticità",
    "problemy"
   ],
+  "Bedarf {0}: {1} Plätze und je Platz ein Ersatz": [
+   "Need {0}: {1} places plus one backup per place",
+   "Necesidad {0}: {1} puestos y un suplente por puesto",
+   "Fabbisogno {0}: {1} posti e una riserva per posto",
+   "Potrzeba {0}: {1} miejsc i rezerwowy na każde"
+  ],
+  "Bedarf je Mannschaftsteil": [
+   "Needs per area",
+   "Necesidades por línea",
+   "Fabbisogno per reparto",
+   "Potrzeby w formacjach"
+  ],
   "Bedingungen wie in Hattrick: Die Anweisung gilt ab der Minute, sobald Spielstand und Rote Karten passen. Hattrick führt die Anweisungen in dieser Reihenfolge aus. Spieler, die nicht mehr in der Aufstellung stehen, werden rot markiert.": [
    "Conditions as in Hattrick: the order applies from that minute as soon as score and red cards match. Hattrick executes the orders in this order. Players who are no longer in the lineup are marked red.",
    "Condiciones como en Hattrick: la orden vale desde ese minuto en cuanto coincidan el marcador y las tarjetas rojas. Hattrick ejecuta las órdenes en este orden. Los jugadores que ya no están en la alineación se marcan en rojo.",
@@ -2015,6 +2159,12 @@
    "Calculado con la predicción de partidos de HO (10 ataques, posesión desde el mediocampo, ocasión de gol por ataque contra defensa, contraataques), 3000 partidos simulados cada uno, todos con actitud Normal.",
    "Calcolato con la previsione partite di HO (10 attacchi, possesso dal centrocampo, occasione da attacco contro difesa, contropiede), 3000 partite simulate ciascuna, tutte con atteggiamento Normale.",
    "Obliczone predykcją meczu z HO (10 ataków, posiadanie z pomocy, szansa z ataku przeciw obronie, kontry), po 3000 symulowanych meczów, wszystkie z nastawieniem Normalnym."
+  ],
+  "Berechnet nach {0}. Soll je Mannschaftsteil: Plätze plus je Platz ein Ersatz, im Tor zwei. Ersatz ist, wer heute mindestens {1} % des schwächsten Stammspielers erreicht, jeder nur einmal. Talent: bis {2} Jahre und in zwei Saisons mindestens {3} % der Stammspieler. Überzählig: weder Stamm, Ersatz noch Talent. Stärke = HO-Positionsstärke, in zwei Saisons mit Training und Altersabbau wie in der Spielerentwicklung.": [
+   "Calculated from {0}. Target per area: places plus one backup per place, two in goal. A backup reaches at least {1} % of the weakest starter today, each player only once. Talent: up to {2} years and at least {3} % of the starters in two seasons. Surplus: neither starter, backup nor talent. Strength = HO position rating, in two seasons with training and ageing as in player development.",
+   "Calculado según {0}. Objetivo por línea: puestos más un suplente por puesto, dos en la portería. Suplente es quien alcanza hoy al menos el {1} % del titular más débil, cada uno solo una vez. Talento: hasta {2} años y al menos el {3} % de los titulares en dos temporadas. Sobrante: ni titular, ni suplente, ni talento. Fuerza = valoración de posición de HO, en dos temporadas con entrenamiento y declive por edad como en el desarrollo.",
+   "Calcolato in base a {0}. Obiettivo per reparto: posti più una riserva per posto, due in porta. Riserva è chi oggi raggiunge almeno il {1} % del titolare più debole, ognuno una sola volta. Talento: fino a {2} anni e almeno il {3} % dei titolari tra due stagioni. In esubero: né titolare, né riserva, né talento. Forza = valutazione di ruolo di HO, tra due stagioni con allenamento e calo d'età come nello sviluppo.",
+   "Obliczono wg {0}. Cel na formację: miejsca plus rezerwowy na każde, w bramce dwóch. Rezerwowy osiąga dziś co najmniej {1} % najsłabszego podstawowego, każdy tylko raz. Talent: do {2} lat i za dwa sezony co najmniej {3} % podstawowych. Zbędny: ani podstawowy, ani rezerwowy, ani talent. Siła = ocena pozycji HO, za dwa sezony z treningiem i spadkiem wieku jak w rozwoju zawodników."
   ],
   "Berechnet nach {1} (wie die Seite Schwachstellen): „Jetzt“ zeigt genau diese Stammspieler. Später bleiben sie auf ihren Plätzen, bis ein anderer Spieler dort stärker ist und als Nachfolger übernimmt. Der Trend in Prozent vergleicht mit „Jetzt“. Zahl = durchschnittliche Positionsstärke der Stammspieler (HO-Formel), Alter zum jeweiligen Zeitpunkt. Training und Altersabbau wie in der Spielerentwicklung; Form und Erfahrung bleiben gleich.": [
    "Calculated from {1} (like the Weak spots page): “Now” shows exactly these regulars. Later they stay in their places until another player is stronger there and takes over as successor. The percentage trend compares with “Now”. Number = average position strength of the regulars (HO formula), age at the given time. Training and age decline as in Player development; form and experience stay the same.",
@@ -2820,6 +2970,12 @@
    "Risultati e rosa",
    "Wyniki i kadra"
   ],
+  "Ersatz": [
+   "Backup",
+   "Suplente",
+   "Riserva",
+   "Rezerwowy"
+  ],
   "Ersatz gleich stark": [
    "Replacement equally strong",
    "Sustituto igual de fuerte",
@@ -3210,6 +3366,18 @@
    "per {0} contro {1}",
    "dla {0} przeciw {1}"
   ],
+  "Für {0} gibt es keinen brauchbaren Ersatz.{1} Sonst kaufen (Suchprofil unter Transfers).": [
+   "For {0} there is no usable backup.{1} Otherwise buy (search profile under Transfers).",
+   "Para {0} no hay suplente útil.{1} Si no, fichar (perfil de búsqueda en Fichajes).",
+   "Per {0} non c'è una riserva utile.{1} Altrimenti acquistare (profilo di ricerca in Trasferimenti).",
+   "Na {0} nie ma użytecznego rezerwowego.{1} W przeciwnym razie kupić (profil wyszukiwania w Transferach)."
+  ],
+  "Für {0} gibt es nur {1} brauchbaren Ersatz.{2} Sonst kaufen (Suchprofil unter Transfers).": [
+   "For {0} there is only {1} usable backup.{2} Otherwise buy (search profile under Transfers).",
+   "Para {0} solo hay {1} suplente útil.{2} Si no, fichar (perfil de búsqueda en Fichajes).",
+   "Per {0} c'è solo {1} riserva utile.{2} Altrimenti acquistare (profilo di ricerca in Trasferimenti).",
+   "Na {0} jest tylko {1} użyteczny rezerwowy.{2} W przeciwnym razie kupić (profil wyszukiwania w Transferach)."
+  ],
   "Für die Form zählt laut Hattrick-Regeln, ob ein Spieler in der Woche überhaupt gespielt hat, nicht wie lange. Wer gar nicht spielt, bekommt außerdem nur 50 % Konditionstraining statt mindestens 75 %. Ein kurzer Einsatz reicht also schon.": [
    "According to the Hattrick rules, form depends on whether a player played at all during the week, not how long. A player who does not play at all also gets only 50 % stamina training instead of at least 75 %. So a short appearance is enough.",
    "Según las reglas de Hattrick, para la forma cuenta si un jugador jugó en la semana, no cuánto. Quien no juega nada recibe además solo un 50 % de entrenamiento de resistencia en lugar de al menos un 75 %. Así que basta con una aparición corta.",
@@ -3377,6 +3545,12 @@
    "Salario {0} €/semana",
    "Stipendio {0} €/settimana",
    "Pensja {0} €/tydzień"
+  ],
+  "Gehalt gesamt {0} pro Woche": [
+   "Total wages {0} per week",
+   "Sueldos totales {0} por semana",
+   "Stipendi totali {0} a settimana",
+   "Pensje łącznie {0} tygodniowo"
   ],
   "Gehalt/Woche": [
    "Wage/week",
@@ -3678,6 +3852,12 @@
    "oggi",
    "dziś"
   ],
+  "heute {0}, in zwei Saisons {1}": [
+   "today {0}, in two seasons {1}",
+   "hoy {0}, en dos temporadas {1}",
+   "oggi {0}, tra due stagioni {1}",
+   "dziś {0}, za dwa sezony {1}"
+  ],
   "Hier einmal den Ordner": [
    "Connect the folder here once:",
    "Conecta aquí una vez la carpeta",
@@ -3809,6 +3989,18 @@
    "Su ataque derecho contra nuestra defensa izquierda",
    "Il loro attacco destro contro la nostra difesa sinistra",
    "Ich prawy atak przeciw naszej lewej obronie"
+  ],
+  "Im Kader ist kein Nachfolger in Sicht.": [
+   "No successor in sight in the squad.",
+   "No hay sucesor a la vista en la plantilla.",
+   "Nessun successore in vista nella rosa.",
+   "W kadrze nie widać następcy."
+  ],
+  "Im Kader rückt {0} ({1}) nach.": [
+   "{0} ({1}) from the squad steps up.",
+   "{0} ({1}) de la plantilla toma el relevo.",
+   "{0} ({1}) della rosa prende il posto.",
+   "{0} ({1}) z kadry przejmuje miejsce."
   ],
   "Im Ordner „{0}“ liegt keine .hrf-Datei aus HO.": [
    "There is no .hrf file from HO in the folder “{0}”.",
@@ -4020,11 +4212,23 @@
    "Ogni riga porta più efficienza di tutte quelle più economiche. I prezzi una tantum sono distribuiti sul periodo; nuovi assistenti con contratto di 16 settimane, intensità e resistenza come ora. Costo per punto = costo extra a settimana diviso i punti di efficienza guadagnati.",
    "Każdy wiersz daje więcej efektywności niż wszystkie tańsze. Ceny jednorazowe są rozłożone na okres; nowi asystenci z umową na 16 tygodni, intensywność i kondycja jak teraz. Koszt za punkt = dodatkowy koszt tygodniowy podzielony przez zyskane punkty efektywności."
   ],
+  "jeder hat eine Rolle": [
+   "everyone has a role",
+   "todos tienen un papel",
+   "ognuno ha un ruolo",
+   "każdy ma rolę"
+  ],
   "Jeder Spieler baut ab Anpfiff ab, erholt sich zur Halbzeit teilweise und baut weiter ab, ein Einwechselspieler startet frisch (Modell aus HO). TopHatt sucht je Startspieler und Bankspieler die Minute, ab der die Mannschaft mit dem frischen Ersatz insgesamt stärker ist. Faustregel (Ersatz mit Kondition 6):": [
    "Every player declines from kick-off, recovers partly at half-time and keeps declining; a substitute starts fresh (model from HO). For each starter and bench player TopHatt looks for the minute from which the team is stronger overall with the fresh replacement. Rule of thumb (replacement with stamina 6):",
    "Cada jugador baja desde el pitido inicial, se recupera en parte en el descanso y sigue bajando; quien entra empieza fresco (modelo de HO). Para cada titular y suplente, TopHatt busca el minuto a partir del cual el equipo es en conjunto más fuerte con el sustituto fresco. Regla práctica (sustituto con resistencia 6):",
    "Ogni giocatore cala dal fischio d'inizio, recupera in parte all'intervallo e continua a calare; chi entra parte fresco (modello di HO). Per ogni titolare e panchinaro TopHatt cerca il minuto da cui la squadra è nel complesso più forte con il sostituto fresco. Regola pratica (sostituto con resistenza 6):",
    "Każdy zawodnik słabnie od pierwszego gwizdka, w przerwie częściowo się regeneruje i dalej słabnie; zmiennik zaczyna wypoczęty (model z HO). Dla każdego zawodnika z wyjściowej jedenastki i z ławki TopHatt szuka minuty, od której drużyna jest ogólnie silniejsza ze świeżym zmiennikiem. Reguła kciuka (zmiennik z kondycją 6):"
+  ],
+  "Jeder Spieler steht einmal, dort, wo er gebraucht wird. Balken: heute (voll) und in zwei Saisons (Umriss).": [
+   "Every player appears once, where he is needed. Bars: today (filled) and in two seasons (outline).",
+   "Cada jugador aparece una vez, donde se le necesita. Barras: hoy (relleno) y en dos temporadas (contorno).",
+   "Ogni giocatore compare una volta, dove serve. Barre: oggi (piena) e tra due stagioni (contorno).",
+   "Każdy zawodnik pojawia się raz, tam gdzie jest potrzebny. Paski: dziś (pełny) i za dwa sezony (obrys)."
   ],
   "Jeder Spieler steht einmal, in der Gruppe, in der er dem Kaderbesten am nächsten kommt. Ein Ausreißer (z. B. ein Verteidiger mit Flügelspiel 10) kann dabei alle anderen aus einer Gruppe drängen.": [
    "Each player appears once, in the group where he comes closest to the squad's best. An outlier (e.g. a defender with winger 10) can push everyone else out of a group.",
@@ -4680,6 +4884,12 @@
    "Lacuna",
    "Luka"
   ],
+  "Lücken": [
+   "Gaps",
+   "Huecos",
+   "Lacune",
+   "Luki"
+  ],
   "LV": [
    "LWB",
    "LI",
@@ -5106,6 +5316,12 @@
    "inesistente",
    "beznadziejny"
   ],
+  "Nichts zu tun: Jeder Mannschaftsteil hat Ersatz, niemand ist überzählig.": [
+   "Nothing to do: every area has a backup and nobody is surplus.",
+   "Nada que hacer: cada línea tiene suplente y nadie sobra.",
+   "Niente da fare: ogni reparto ha una riserva e nessuno è di troppo.",
+   "Nic do zrobienia: każda formacja ma rezerwę i nikt nie jest zbędny."
+  ],
   "niedrig": [
    "low",
    "bajo",
@@ -5250,6 +5466,12 @@
    "Beneficio",
    "Korzyść"
   ],
+  "Ø Alter": [
+   "Avg. age",
+   "Edad media",
+   "Età media",
+   "Śr. wiek"
+  ],
   "oder eine Datei auswählen": [
    "or choose a file",
    "o elige un archivo",
@@ -5381,6 +5603,12 @@
    "Pases",
    "Passaggi",
    "Podania"
+  ],
+  "passt": [
+   "fine",
+   "bien",
+   "ok",
+   "w porządku"
   ],
   "Passt am besten · gleiche Farben wie die Linien": [
    "Fits best · same colours as the lines",
@@ -5988,6 +6216,12 @@
    "Carica backup …",
    "Wczytaj kopię …"
   ],
+  "Sie haben weder in Elf und Bank noch als Talent einen Platz. Zusammen {0} €/Woche Gehalt. Teuerste zuerst: {1}.": [
+   "They have no place in the eleven, on the bench or as a talent. Together {0} €/week in wages. Most expensive first: {1}.",
+   "No tienen sitio ni en el once, ni en el banquillo, ni como talento. En total {0} €/semana de sueldo. Primero los más caros: {1}.",
+   "Non hanno posto né in campo, né in panchina, né come talento. In totale {0} €/settimana di stipendio. Prima i più cari: {1}.",
+   "Nie mają miejsca ani w jedenastce, ani na ławce, ani jako talent. Razem {0} €/tydz. pensji. Najdrożsi najpierw: {1}."
+  ],
   "Sieg": [
    "Win",
    "Victoria",
@@ -6072,6 +6306,12 @@
    "Solido",
    "Solidny"
   ],
+  "Soll {0}": [
+   "Target {0}",
+   "Objetivo {0}",
+   "Obiettivo {0}",
+   "Cel {0}"
+  ],
   "Sonne": [
    "Sun",
    "Sol",
@@ -6089,6 +6329,12 @@
    "PJ",
    "G",
    "M"
+  ],
+  "Später bleiben die Stammspieler auf ihren Plätzen, bis ein anderer Spieler dort stärker ist und als Nachfolger übernimmt. Ersatz: je Mannschaftsteil einer, Prozent im Vergleich zum schwächsten Stammspieler, gleichwertig ab {0} %.": [
+   "Later the starters keep their places until another player is stronger there and takes over as successor. Backup: one per area, percentage compared with the weakest starter, equivalent from {0} %.",
+   "Después los titulares mantienen su puesto hasta que otro jugador es más fuerte allí y le sucede. Suplente: uno por línea, porcentaje frente al titular más débil, equivalente desde {0} %.",
+   "In seguito i titolari restano al loro posto finché un altro giocatore non è più forte lì e subentra. Riserva: una per reparto, percentuale rispetto al titolare più debole, equivalente da {0} %.",
+   "Później podstawowi zachowują miejsca, aż inny zawodnik będzie tam silniejszy i przejmie je jako następca. Rezerwowy: jeden na formację, procent względem najsłabszego podstawowego, równorzędny od {0} %."
   ],
   "Speichern": [
    "Save",
@@ -6312,11 +6558,23 @@
    "gioca qui",
    "gra tutaj"
   ],
+  "Spielt in deiner Aufstellung.": [
+   "Plays in your lineup.",
+   "Juega en tu alineación.",
+   "Gioca nella tua formazione.",
+   "Gra w twoim składzie."
+  ],
   "Spielt jetzt": [
    "Plays now",
    "Juega ahora",
    "Gioca ora",
    "Gra teraz"
+  ],
+  "Spielt, baut aber ab: {0} schwächer in zwei Saisons.": [
+   "Plays, but declining: {0} weaker in two seasons.",
+   "Juega, pero en declive: {0} más débil en dos temporadas.",
+   "Gioca, ma in calo: {0} più debole tra due stagioni.",
+   "Gra, ale słabnie: {0} słabszy za dwa sezony."
   ],
   "Spieltag": [
    "Matchday",
@@ -6390,11 +6648,29 @@
    "Stadio",
    "Stadion"
   ],
+  "Stammbesetzung jetzt, in einer und in zwei Saisons": [
+   "Starting line-up now, in one and in two seasons",
+   "Once titular ahora, en una y en dos temporadas",
+   "Titolari ora, tra una e tra due stagioni",
+   "Podstawowy skład teraz, za jeden i za dwa sezony"
+  ],
   "Stammelf, {0}": [
    "Regular XI, {0}",
    "Once titular, {0}",
    "Undici titolare, {0}",
    "Podstawowa jedenastka, {0}"
+  ],
+  "Stammspieler": [
+   "Starter",
+   "Titular",
+   "Titolare",
+   "Podstawowy"
+  ],
+  "Stammspieler {0} → {1} in zwei Saisons": [
+   "Starters {0} → {1} in two seasons",
+   "Titulares {0} → {1} en dos temporadas",
+   "Titolari {0} → {1} tra due stagioni",
+   "Podstawowi {0} → {1} za dwa sezony"
   ],
   "Stand {0}": [
    "As of {0}",
@@ -6582,6 +6858,12 @@
    "Attaccante",
    "Napastnik"
   ],
+  "Suchprofil ansehen": [
+   "View search profile",
+   "Ver perfil de búsqueda",
+   "Vedi profilo di ricerca",
+   "Zobacz profil wyszukiwania"
+  ],
   "Suchprofile für den Transfermarkt": [
    "Search profiles for the transfer market",
    "Perfiles de búsqueda para el mercado de traspasos",
@@ -6648,6 +6930,12 @@
    "Abilità tattica {0}: {1}. Deriva dalle abilità dei giocatori schierati; una tattica non va provata.",
    "Siła taktyki {0}: {1}. Wynika z umiejętności ustawionych zawodników; taktyki nie trzeba ćwiczyć."
   ],
+  "Talent": [
+   "Talent",
+   "Talento",
+   "Talento",
+   "Talent"
+  ],
   "Tausch, mit Minute (* = nur unter Bedingung) ·": [
    "swap, with minute (* = only under a condition) ·",
    "intercambio, con minuto (* = solo con condición) ·",
@@ -6689,6 +6977,12 @@
    "Espíritu de equipo",
    "Spirito di squadra",
    "Morale drużyny"
+  ],
+  "Teil": [
+   "Area",
+   "Línea",
+   "Reparto",
+   "Formacja"
   ],
   "Teilpositionen": [
    "partial positions",
@@ -7014,6 +7308,12 @@
    "Panoramica",
    "Przegląd"
   ],
+  "Überzählig": [
+   "Surplus",
+   "Sobrante",
+   "In esubero",
+   "Zbędny"
+  ],
   "unbekannt": [
    "unknown",
    "desconocido",
@@ -7206,6 +7506,18 @@
    "infortunato, {0} {1}",
    "kontuzjowany, {0} {1}"
   ],
+  "verlieren": [
+   "lose",
+   "pierden",
+   "perdono",
+   "tracą"
+  ],
+  "verliert": [
+   "loses",
+   "pierde",
+   "perde",
+   "traci"
+  ],
   "Verstärkung für sofort": [
    "Reinforcement right away",
    "Refuerzo inmediato",
@@ -7362,6 +7674,12 @@
    "Quando diventa pericoloso?",
    "Kiedy robi się niebezpiecznie?"
   ],
+  "Warum": [
+   "Why",
+   "Por qué",
+   "Perché",
+   "Dlaczego"
+  ],
   "Was bringt welcher Euro für Trainer, Assistenten, Intensität und Kondition?": [
    "What does each euro bring for coach, assistants, intensity and stamina?",
    "¿Qué aporta cada euro en entrenador, asistentes, intensidad y resistencia?",
@@ -7379,6 +7697,12 @@
    "¿Qué pasaría si…?",
    "E se…?",
    "Co by było, gdyby?"
+  ],
+  "Was zu tun ist": [
+   "What to do",
+   "Qué hacer",
+   "Cosa fare",
+   "Co zrobić"
   ],
   "Wechsel automatisch oder manuell": [
    "Substitutions automatic or manual",
@@ -7451,6 +7775,12 @@
    "¿Quién sostiene cada zona ahora, en una y en dos temporadas?",
    "Chi regge quale reparto ora, tra una e tra due stagioni?",
    "Kto dźwiga którą formację teraz, za jeden i za dwa sezony?"
+  ],
+  "Wer wird gebraucht, wo fehlt jemand, wer ist zu viel?": [
+   "Who is needed, where is someone missing, who is surplus?",
+   "¿Quién hace falta, dónde falta alguien, quién sobra?",
+   "Chi serve, dove manca qualcuno, chi è di troppo?",
+   "Kto jest potrzebny, gdzie kogoś brakuje, kto jest zbędny?"
   ],
   "Wert": [
    "Value",
@@ -7673,6 +8003,18 @@
    "No hay datos de {0}. Para una recomendación real haz el análisis del rival en HO y pulsa «Actualizar».",
    "Non ci sono dati su {0}. Per un vero consiglio esegui l'analisi avversario in HO e clicca «Aggiorna».",
    "Brak danych o {0}. Aby dostać prawdziwą rekomendację, sprawdź rywala w HO i kliknij „Odśwież”."
+  ],
+  "zu schwach als Ersatz ({0} des schwächsten Stammspielers); {1} Jahre, {2} €/Woche.": [
+   "too weak as a backup ({0} of the weakest starter); {1} years, {2} €/week.",
+   "demasiado débil como suplente ({0} del titular más débil); {1} años, {2} €/semana.",
+   "troppo debole come riserva ({0} del titolare più debole); {1} anni, {2} €/settimana.",
+   "za słaby na rezerwowego ({0} najsłabszego podstawowego); {1} lat, {2} €/tydz."
+  ],
+  "zu viele": [
+   "too many",
+   "demasiados",
+   "troppi",
+   "za dużo"
   ],
   "Zu viele Anweisungen: erlaubt sind {0}.": [
    "Too many orders: {0} are allowed.",
