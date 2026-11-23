@@ -17,8 +17,8 @@ import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
 import { MODELLED_TACTICS, evaluateSettings, planMatch, styleName, type MatchPlan } from "../core/matchplan";
 import { BACKUP_SHARE, type GroupPlan, GROUPS, GROUP_DE, GROUP_SHORT, GROUP_SKILLS, availability, balancedHome, fitTable, groupValue, planSquad, squadGroups, staminaShare } from "../core/squad";
-import { type LineupChoices, completeLineup, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
-import { FORMATIONS, behavioursFor } from "../core/optimizer";
+import { type LineupChoices, completeLineup, droppedChoices, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
+import { FORMATIONS, behavioursFor, rankCaptains, rankSetPieces } from "../core/optimizer";
 import { ATTITUDE_NAME, TACTIC_NAME, centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
 import { Behaviour, type BenchSlot, type FieldPosition } from "../core/model";
 import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
@@ -1027,11 +1027,32 @@ function editPitch(): string {
     </div>`;
   });
   const mine = manualEval();
-  return `<div class="field">${FIELD_LINES}<div class="pitch edit">${slots.join("")}</div>
+  return `${rolesBar(C, byId)}<div class="field">${FIELD_LINES}<div class="pitch edit">${slots.join("")}</div>
     <div class="stats-strip"><span>${formationLabel(formationCode(state.manual))}</span><span><b>${mine.hatStats.toFixed(0)}</b> HatStats${hsDiff(mine.hatStats - L.hatStats)}</span><span>${state.manual.length}/11</span></div></div>
     ${benchHtml(C)}
     <div class="flow-legend"><span><i style="color:#3ddc6a"></i>passende Position</span><span><i style="color:#ffd23f"></i>geht</span><span><i style="color:#ff5a4a"></i>schwach</span><span><i style="color:#b4bcc4"></i>Notlösung</span><span>gilt für Ring und Linien · Zahl = Positionsstärke · ! = Warnung · OFF/DEF/MIT/AUS = Verhalten</span><span class="tk-legend"><i class="tk-A"></i>A-Kader <i class="tk-B"></i>B-Kader <i class="tk-R"></i>Rest · Kreisfarbe = Kader (änderbar unter Trainingswoche)</span><span><b class="lg-out">▼</b> raus · <b class="lg-in">▲</b> rein · <b class="lg-swap">⇄</b> Tausch, mit Minute (* = nur unter Bedingung) · <b class="lg-bad">!</b> passt nicht mehr zur Aufstellung · antippen öffnet die Anweisungen · Res. = Reserve (zweite Bankreihe)</span>${state.week ? `<span><b class="trb done">✓</b> diese Woche schon trainiert · <b class="trb half">½</b> halb · ohne Zeichen = noch nicht trainiert</span>` : ""}</div>
 `;
+}
+
+/** Zeile über dem Spielfeld: Kapitän und Standardschütze mit Auswahlfeldern (Feldspieler, bester zuerst) */
+function rolesBar(C: Lineup, byId: Map<number, Player>): string {
+  const field = state.manual.map((p) => byId.get(p.playerId)).filter((p): p is Player => !!p);
+  if (!field.length) return "";
+  const nonKeeper = state.manual.filter((p) => p.role !== Role.keeper).map((p) => byId.get(p.playerId)).filter((p): p is Player => !!p);
+  const name = (id: number) => byId.get(id)?.name ?? "-";
+  const select = (id: string, label: string, chosen: number | undefined, current: number, ranked: { id: number }[], info: (p: Player) => string) => {
+    const own = !!chosen && chosen === current;
+    const auto = ranked[0]?.id ?? current;
+    // eigene Wahl außerhalb der Liste (z. B. Torwart als Standardschütze über die Spielerkarte) bleibt wählbar
+    const list = own && !ranked.some((r) => r.id === current) ? [...ranked, { id: current }] : ranked;
+    const opts = [`<option value="0"${own ? "" : " selected"}>Automatisch: ${esc(name(auto))}</option>`, ...list.map((r) => `<option value="${r.id}"${own && r.id === current ? " selected" : ""}>${esc(name(r.id))} · ${esc(info(byId.get(r.id)!))}</option>`)];
+    return `<label class="rb-item"><span class="rb-label">${label}:</span><select id="${id}">${opts.join("")}</select></label>`;
+  };
+  return `<div class="roles-bar">
+    ${select("capSel", "Kapitän", state.choices.captainId, C.captainId, rankCaptains(field), (p) => `Führung ${p.leadership}, Erf. ${p.experience}`)}
+    <span class="rb-sep" aria-hidden="true">·</span>
+    ${select("spSel", "Standards", state.choices.setPiecesId, C.setPiecesId, rankSetPieces(nonKeeper.length ? nonKeeper : field), (p) => `Standards ${p.setPieces}`)}
+  </div>`;
 }
 
 const BEHAVIOUR_SHORT = ["", "OFF", "DEF", "MIT", "AUS"];
@@ -1493,11 +1514,26 @@ function renderMatchPlan() {
   });
 }
 
+/** Eigene Wahl für Kapitän/Standards verwerfen, wenn der Spieler nicht mehr auf dem Feld steht, und den automatischen Ersatz nennen */
+function dropStaleChoices(byId: Map<number, Player>) {
+  const gone = droppedChoices(state.manual, state.choices);
+  if (!gone.captainId && !gone.setPiecesId) return;
+  state.choices = { ...state.choices, captainId: gone.captainId ? undefined : state.choices.captainId, setPiecesId: gone.setPiecesId ? undefined : state.choices.setPiecesId };
+  const C = myLineup();
+  const name = (id: number) => byId.get(id)?.name ?? "?";
+  const msgs: string[] = [];
+  // ohne Ersatz (Feld leer) gibt es nichts zu melden
+  if (gone.captainId && C.captainId) msgs.push(`${name(gone.captainId)} ist nicht mehr auf dem Feld, neuer Kapitän ist automatisch ${name(C.captainId)}`);
+  if (gone.setPiecesId && C.setPiecesId) msgs.push(`${name(gone.setPiecesId)} ist nicht mehr auf dem Feld, Standards schießt jetzt automatisch ${name(C.setPiecesId)}`);
+  if (msgs.length) toast(msgs.join(". "));
+}
+
 function renderLineup() {
   tierCache = null;
   const L = state.league;
   if (!L) return;
   const byId = playersById();
+  dropStaleChoices(byId);
   const m = state.match;
   $("#lineupSub").textContent = m ? `für ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : "";
   const prev = tokenRects();
@@ -2102,6 +2138,14 @@ function initEditor() {
       return;
     }
     if (el.closest("#trainingOff")) $<HTMLButtonElement>("#autoFill").click();
+  });
+  $("#pitchOut").addEventListener("change", (e) => {
+    const el = e.target as HTMLSelectElement;
+    if (el.id !== "capSel" && el.id !== "spSel") return;
+    const id = Number(el.value) || undefined;
+    state.choices = { ...state.choices, [el.id === "capSel" ? "captainId" : "setPiecesId"]: id };
+    state.manualEdited = true;
+    renderLineup();
   });
   $("#poolOut").addEventListener("change", (e) => {
     const el = e.target as HTMLInputElement;
