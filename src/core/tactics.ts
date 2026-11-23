@@ -3,7 +3,7 @@
 // Taktikstärke und LoddarStats (aus HO RatingPredictionModel portiert) sowie die Wirkung von
 // Spielort, Taktik, Einstellung und Ausrichtung gegenüber "Normal".
 
-import { Attitude, type FieldPosition, type MatchSettings, type Player, Role, Tactic } from "./model";
+import { Attitude, type FieldPosition, type MatchSettings, type Player, Role, Specialty, Tactic } from "./model";
 import { RATING_SECTORS, type RatingSector, type SectorRatings, type TeamState, loyaltyBonus, skillRating, strength } from "./rating";
 import { Evaluator, hatStatsOf } from "./optimizer";
 import { SECTOR_DE } from "./weakness";
@@ -22,7 +22,13 @@ const STYLE_NAME: Record<number, string> = { [-10]: "defensiv", [-5]: "eher defe
 
 type Field = { player: Player; role: number }[];
 
-/** Taktikstärke wie in HO (calcTacticsRating); null, wenn TopHatt sie nicht berechnet (Pressing) */
+/** HO calcPlayerTacticStrength: Treue + Stärke (enthält Treue noch einmal) + Erfahrungsbonus */
+function tacticStrength(p: Player, skill: "defending"): number {
+  const xp = skillRating(p.experience);
+  return loyaltyBonus(p) + strength(p, skill) + (xp > 0 ? (Math.log10(xp) * 4) / 3 : 0);
+}
+
+/** Taktikstärke wie in HO (calcTacticsRating) zu Spielbeginn; null für unbekannte Taktiken */
 export function tacticLevel(field: Field, tactic: number): number | null {
   const players = field.map((f) => f.player);
   switch (tactic) {
@@ -61,6 +67,16 @@ export function tacticLevel(field: Field, tactic: number): number | null {
         sum += c;
       }
       return sum / 50;
+    }
+    case Tactic.pressing: {
+      // HO calcPressing: alle Spieler auf dem Feld, Verteidigung als Taktikstärke, durchsetzungsstarke doppelt
+      let sum = 0;
+      for (const p of players) {
+        let d = tacticStrength(p, "defending");
+        if (d > 0 && p.specialty === Specialty.Powerful) d *= 2;
+        sum += d;
+      }
+      return 0.085 * sum + 0.075;
     }
     case Tactic.normal:
       return 1;
@@ -139,7 +155,8 @@ export function settingsEffect(positions: FieldPosition[], byId: Map<number, Pla
     notes.push(`Kontern bringt zusätzliche Chancen, wenn der Gegner mehr Ballbesitz hat. Konterstärke ${level!.toFixed(1)} (aus Passspiel, Verteidigung und Form der Abwehr).`);
   if (settings.tactic === Tactic.longShots) notes.push(`Fernschussstärke ${level!.toFixed(1)} (aus Torschuss und Standards der Feldspieler).`);
   if (settings.tactic === Tactic.creative) notes.push(`Kreativ erhöht die Zahl der Sonderereignisse. Stärke ${level!.toFixed(1)} (aus Passspiel und Erfahrung, unberechenbare Spieler zählen doppelt).`);
-  if (settings.tactic === Tactic.pressing) notes.push("Pressing nimmt dem Gegner Chancen, kostet aber Kondition (in den Bewertungen enthalten). Die Pressingstärke berechnet TopHatt nicht.");
+  if (settings.tactic === Tactic.pressing)
+    notes.push(`Pressing nimmt beiden Mannschaften Angriffe weg und kostet Kondition (in den Bewertungen enthalten). Pressingstärke ${level!.toFixed(1)}, wirkt ab 5 (aus Verteidigung, Treue und Erfahrung der Elf, durchsetzungsstarke Spieler zählen doppelt).`);
   if (settings.attitude === Attitude.mots) notes.push("Spiel des Jahres senkt danach für einige Wochen die Stimmung. Nur für entscheidende Spiele.");
   if (settings.attitude === Attitude.pic) notes.push("Nicht so ernst nehmen hebt danach die Stimmung, das Spiel selbst wird aber schwerer.");
   const loc = settings.location === 1 ? "Heimspiel: Mittelfeld +20 %." : settings.location === 2 ? "Auswärts-Derby: Mittelfeld +11 %." : "Auswärtsspiel: kein Heimvorteil.";
