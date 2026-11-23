@@ -11,7 +11,7 @@ import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRating
 import { DONE_FACTOR, FORMATION_PREFERENCE, TRAININGS, type TrainingWindow, type WeekMinutes, addPlanned, formationSlots, maxTrainingSlots, planFriendly, planTrainingLineup, playedThisWeek, positionShort, trainingFor, trainingPriority, trainingWindow, weekFactor, type FriendlyPlan } from "../core/training";
 import { type CupPlan, type CupVariant, type LeagueChoice, type SquadTier, type WeekRow, TIER_NAME, chooseLeagueFormation, forgotten, planCup, slotText, suggestSquads, weekRows } from "../core/trainingweek";
 import { advise, type Advice } from "../core/advisor";
-import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
+import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, applyHoSubskills, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
 import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type ProjectionPoint, type TrainingSetup, mainSkills, outlookFor, project, skillsOf } from "../core/development";
 import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
@@ -328,6 +328,8 @@ async function refresh() {
 function afterLoad(resetMatch: boolean) {
   const hrf = state.hrf;
   if (!hrf) return;
+  // Form- und Fähigkeits-Unterstufen wie in HO, damit HatStats und Bewertungen mit HO übereinstimmen
+  applyHoSubskills(hrf.players, state.ho, hrf.team.hrfDate);
   applyStyleRange(hrf);
   if (resetMatch) {
     state.manualEdited = false;

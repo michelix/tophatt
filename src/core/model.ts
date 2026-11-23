@@ -14,6 +14,8 @@ export enum Specialty {
   Support = 8, // Teamplayer
 }
 
+export type SubSkill = "keeper" | "defending" | "playmaking" | "passing" | "winger" | "scoring" | "setPieces";
+
 export interface Player {
   id: number;
   name: string;
@@ -32,6 +34,8 @@ export interface Player {
   form: number;
   /** geschätzte Nachkommastelle der Form (aus TSI, wie HO) */
   formSub: number;
+  /** Unterstufen der Fähigkeiten aus HO (Trainingsfortschritt 0–0,99), fehlt ohne HO-Daten */
+  subs?: Partial<Record<SubSkill, number>>;
   stamina: number;
   loyalty: number;
   homegrown: boolean;

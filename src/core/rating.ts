@@ -246,8 +246,9 @@ export function loyaltyBonus(p: Player) {
   return skillRating(p.loyalty) / 19;
 }
 
+/** HO calcStrength: Fähigkeit samt Unterstufe (getSkill), Loyalität, Form */
 export function strength(p: Player, skill: Skill | "setPieces"): number {
-  return (skillRating(p[skill]) + loyaltyBonus(p)) * formFactor(p);
+  return (skillRating(p[skill] + (p.subs?.[skill] ?? 0)) + loyaltyBonus(p)) * formFactor(p);
 }
 
 /** Beitrag eines Spielers auf einer Position zu einem Bewertungsbereich, ohne Erfahrung/Kondition */
