@@ -4,6 +4,7 @@
 // Spielplan, Tabelle, Spielerhistorie, Training.
 
 import { type MatchRating, parseMatchRatings } from "./opponent";
+import type { Player, SubSkill } from "./model";
 
 export interface HoMatch {
   id: number;
@@ -61,6 +62,8 @@ export interface SkillSnapshot {
   scoring: number;
   setPieces: number;
   form: number;
+  /** HOs Unterstufe der Form (aus der TSI geschätzt, nach HRF-Import 0) */
+  formSub: number;
   stamina: number;
   tsi: number;
 }
@@ -167,6 +170,7 @@ export function parseHoData(json: string): HoData {
       scoring: n(r.torschuss) + sub("torschuss"),
       setPieces: n(r.standards) + sub("standards"),
       form: n(r.form),
+      formSub: sub("form"),
       stamina: n(r.kondition),
       tsi: n(r.marktwert),
     };
@@ -302,4 +306,33 @@ export function teamPlayers(d: HoData, teamId: number): { id: number; name: stri
     e.roles.push(l.roleId);
   }
   return [...by.values()].sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
+}
+
+/**
+ * Unterstufen aus HO auf die Spieler der HRF übertragen (Form und Fähigkeiten), damit die Bewertungen
+ * mit denselben Werten rechnen wie HO. Genommen wird HOs Stand zur selben Datei (Datum ± 6 Stunden);
+ * ohne passenden Stand bleibt alles, wie es ist. Liefert die Zahl der übernommenen Spieler.
+ */
+export function applyHoSubskills(players: Player[], ho: HoData | null, hrfDate: string): number {
+  if (!ho || !hrfDate) return 0;
+  const at = parseHoDate(hrfDate).getTime();
+  if (!Number.isFinite(at)) return 0;
+  const keys: SubSkill[] = ["keeper", "defending", "playmaking", "passing", "winger", "scoring", "setPieces"];
+  let n = 0;
+  for (const p of players) {
+    const list = ho.history.get(p.id);
+    if (!list?.length) continue;
+    const snap = list.reduce((a, b) => (Math.abs(b.date.getTime() - at) < Math.abs(a.date.getTime() - at) ? b : a));
+    if (Math.abs(snap.date.getTime() - at) > 6 * 3600_000) continue;
+    const subs: Partial<Record<SubSkill, number>> = {};
+    for (const k of keys) {
+      const whole = Math.floor(snap[k]);
+      // Nur wenn HO dieselbe Stufe kennt; sonst wäre die Unterstufe veraltet
+      if (whole === p[k] && snap[k] > whole) subs[k] = snap[k] - whole;
+    }
+    p.subs = subs;
+    if (snap.form === p.form) p.formSub = snap.formSub;
+    n++;
+  }
+  return n;
 }

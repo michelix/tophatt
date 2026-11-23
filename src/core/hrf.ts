@@ -76,7 +76,8 @@ function parsePlayer(p: Map<string, string>, id: number, currencyRate: number): 
     number: num(p, "playernumber"),
   };
   // HO schätzt die Form-Unterstufe aus der TSI. Mit aktuellen TSI-Werten liefert die Formel
-  // durchweg den Maximalwert, deshalb nehmen wir die neutrale Mitte (0,5).
+  // durchweg den Maximalwert, deshalb nehmen wir die neutrale Mitte (0,5). Mit HO-Daten übernimmt
+  // applyHoSubskills (hodata.ts) HOs eigenen Wert (nach HRF-Import 0), damit die HatStats zu HO passen.
   player.formSub = FORM_SUB_DEFAULT;
   return player;
 }
