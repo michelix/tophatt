@@ -8891,6 +8891,162 @@
    "por semana {0}",
    "a settimana {0}",
    "tygodniowo {0}"
+  ],
+  "Gerechnet, als ob Nr. {0} den Richtwert ausgibt.": [
+   "Calculated as if no. {0} spends its guide value.",
+   "Calculado como si el n.º {0} gastara su valor orientativo.",
+   "Calcolato come se il n. {0} spendesse il valore indicativo.",
+   "Policzone tak, jakby nr {0} wydał kwotę orientacyjną."
+  ],
+  "Gerechnet, als ob Nr. {0} das volle Höchstgebot ausgibt.": [
+   "Calculated as if no. {0} spends its full maximum bid.",
+   "Calculado como si el n.º {0} gastara su puja máxima completa.",
+   "Calcolato come se il n. {0} spendesse l'intera offerta massima.",
+   "Policzone tak, jakby nr {0} wydał pełną maksymalną ofertę."
+  ],
+  "Gerechnet, als ob die Karten davor ihren Richtwert ausgeben.": [
+   "Calculated as if the cards before spend their guide value.",
+   "Calculado como si las tarjetas anteriores gastaran su valor orientativo.",
+   "Calcolato come se le schede precedenti spendessero il valore indicativo.",
+   "Policzone tak, jakby wcześniejsze karty wydały kwoty orientacyjne."
+  ],
+  "Gerechnet, als ob die Karten davor Richtwert und volles Höchstgebot ausgeben.": [
+   "Calculated as if the cards before spend their guide value and full maximum bid.",
+   "Calculado como si las tarjetas anteriores gastaran su valor orientativo y su puja máxima completa.",
+   "Calcolato come se le schede precedenti spendessero valore indicativo e offerta massima intera.",
+   "Policzone tak, jakby wcześniejsze karty wydały kwotę orientacyjną i pełną maksymalną ofertę."
+  ],
+  "Dieselben Spieler, die die Kaderplanung als überzählig zeigt.": [
+   "The same players that squad planning shows as surplus.",
+   "Los mismos jugadores que la planificación de plantilla marca como sobrantes.",
+   "Gli stessi giocatori che la pianificazione rosa indica come in esubero.",
+   "Ci sami zawodnicy, których planowanie kadry pokazuje jako zbędnych."
+  ],
+  "Spieler gibt es dort genug ({0}, davon {1} überzählig), aber keiner ist stark genug.": [
+   "There are enough players there ({0}, {1} of them surplus), but none is strong enough.",
+   "Hay suficientes jugadores ahí ({0}, {1} sobrantes), pero ninguno es lo bastante bueno.",
+   "Lì ci sono abbastanza giocatori ({0}, di cui {1} in esubero), ma nessuno è abbastanza forte.",
+   "Zawodników jest tam dość ({0}, w tym {1} zbędnych), ale żaden nie jest wystarczająco silny."
+  ],
+  "Nach dem Kauf dort verkaufen.": [
+   "Sell there after buying.",
+   "Vende ahí después de comprar.",
+   "Dopo l'acquisto vendi lì.",
+   "Po zakupie sprzedaj tam."
+  ],
+  "Kaderplanung: {0} Spieler fehlt.": [
+   "Squad planning: {0} player missing.",
+   "Planificación de plantilla: falta {0} jugador.",
+   "Pianificazione rosa: manca {0} giocatore.",
+   "Planowanie kadry: brakuje {0} zawodnika."
+  ],
+  "Kaderplanung: {0} Spieler fehlen.": [
+   "Squad planning: {0} players missing.",
+   "Planificación de plantilla: faltan {0} jugadores.",
+   "Pianificazione rosa: mancano {0} giocatori.",
+   "Planowanie kadry: brakuje {0} zawodników."
+  ],
+  "Für {0} Plätze gibt es nur {1} brauchbaren Ersatz.": [
+   "For {0} places there is only {1} usable backup.",
+   "Para {0} puestos solo hay {1} suplente útil.",
+   "Per {0} posti c'è solo {1} riserva utile.",
+   "Na {0} miejsca jest tylko {1} przydatny rezerwowy."
+  ],
+  "Für {0} Plätze gibt es keinen brauchbaren Ersatz.": [
+   "For {0} places there is no usable backup.",
+   "Para {0} puestos no hay ningún suplente útil.",
+   "Per {0} posti non c'è nessuna riserva utile.",
+   "Na {0} miejsca nie ma przydatnego rezerwowego."
+  ],
+  "Für 1 Platz gibt es nur {0} brauchbaren Ersatz.": [
+   "For 1 place there is only {0} usable backup.",
+   "Para 1 puesto solo hay {0} suplente útil.",
+   "Per 1 posto c'è solo {0} riserva utile.",
+   "Na 1 miejsce jest tylko {0} przydatny rezerwowy."
+  ],
+  "Für 1 Platz gibt es keinen brauchbaren Ersatz.": [
+   "For 1 place there is no usable backup.",
+   "Para 1 puesto no hay ningún suplente útil.",
+   "Per 1 posto non c'è nessuna riserva utile.",
+   "Na 1 miejsce nie ma przydatnego rezerwowego."
+  ],
+  "Ersatzniveau reicht, das ist meist günstig.": [
+   "Backup level is enough, which is usually cheap.",
+   "Basta con nivel de suplente, suele ser barato.",
+   "Basta il livello da riserva, di solito costa poco.",
+   "Wystarczy poziom rezerwowego, zwykle to tanie."
+  ],
+  "{0}: Ersatz für die Lücke": [
+   "{0}: backup for the gap",
+   "{0}: suplente para el hueco",
+   "{0}: riserva per la lacuna",
+   "{0}: rezerwowy na lukę"
+  ],
+  "Schließt die Lücke": [
+   "Closes the gap",
+   "Cubre el hueco",
+   "Chiude la lacuna",
+   "Zamyka lukę"
+  ],
+  "aus der Kaderplanung.": [
+   "from squad planning.",
+   "de la planificación de plantilla.",
+   "della pianificazione rosa.",
+   "z planowania kadry."
+  ],
+  "Ohne Ersatz fehlt bei Verletzung oder Sperre ein brauchbarer Spieler.": [
+   "Without a backup, an injury or suspension leaves you without a usable player.",
+   "Sin suplente, una lesión o sanción te deja sin un jugador útil.",
+   "Senza riserva, un infortunio o una squalifica ti lascia senza un giocatore utile.",
+   "Bez rezerwowego kontuzja lub zawieszenie zostawia cię bez przydatnego zawodnika."
+  ],
+  "Ein Viertel des freien Budgets reicht für Ersatzniveau.": [
+   "A quarter of the free budget is enough for backup level.",
+   "Un cuarto del presupuesto libre basta para nivel de suplente.",
+   "Un quarto del budget libero basta per il livello da riserva.",
+   "Ćwierć wolnego budżetu wystarczy na poziom rezerwowego."
+  ],
+  "Größter Hebel": [
+   "Biggest lever",
+   "Mayor palanca",
+   "Leva maggiore",
+   "Największa dźwignia"
+  ],
+  "Lücke schließen": [
+   "Close the gap",
+   "Cubrir el hueco",
+   "Chiudi la lacuna",
+   "Zamknij lukę"
+  ],
+  "Richtwert": [
+   "Guide value",
+   "Valor orientativo",
+   "Valore indicativo",
+   "Kwota orientacyjna"
+  ],
+  "Freies Budget": [
+   "Free budget",
+   "Presupuesto libre",
+   "Budget libero",
+   "Wolny budżet"
+  ],
+  "für alle Suchprofile zusammen; Puffer hält {0} Wochen": [
+   "for all search profiles together; buffer holds for {0} weeks",
+   "para todos los perfiles juntos; el colchón aguanta {0} semanas",
+   "per tutti i profili insieme; il margine regge {0} settimane",
+   "na wszystkie profile razem; bufor wytrzyma {0} tyg."
+  ],
+  "für alle Suchprofile zusammen": [
+   "for all search profiles together",
+   "para todos los perfiles juntos",
+   "per tutti i profili insieme",
+   "na wszystkie profile razem"
+  ],
+  "Kein Spieler ist überzählig.": [
+   "No player is surplus.",
+   "Ningún jugador sobra.",
+   "Nessun giocatore è in esubero.",
+   "Żaden zawodnik nie jest zbędny."
   ]
  }
 }

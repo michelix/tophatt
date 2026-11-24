@@ -2208,7 +2208,7 @@ function updateAnalysis() {
   state.planBasis = B.label;
   state.plans = state.projection ? planSquad(hrf.players, { positions: B.positions }, state.projection) : [];
   state.squadPlan = state.projection ? planWholeSquad(hrf.players, B.positions, state.projection) : null;
-  state.profiles = searchProfiles(hrf.players, state.weak, state.plans);
+  state.profiles = searchProfiles(hrf.players, state.weak, state.plans, state.squadPlan);
 }
 
 /** Grundlage der Schwachstellen: eigene Elf, automatischer Vorschlag oder beste Elf einer Formation */
@@ -3104,6 +3104,7 @@ function renderAdvice() {
     financeHistory: state.financeWeeks,
     profiles: state.profiles,
     advice: A,
+    squadPlan: state.squadPlan,
     starters: state.adviceLineup.starters,
     bench: state.adviceLineup.bench,
     transfers: state.ho?.transfers ?? null,

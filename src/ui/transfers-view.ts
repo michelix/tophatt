@@ -10,6 +10,7 @@ import { loc } from "../core/locale";
 import type { Player, TeamInfo } from "../core/model";
 import { budget, type SearchProfile } from "../core/scouting";
 import { type Commitment, type RankedProfile, maxPrice, rankProfiles, transferTotals } from "../core/transferplan";
+import type { SquadPlan } from "../core/squadplan";
 import { financeAssumptions } from "./finance-view";
 
 export interface TransferContext {
@@ -19,6 +20,8 @@ export interface TransferContext {
   financeHistory: PastWeek[];
   profiles: SearchProfile[];
   advice: Advice;
+  /** Kaderplanung: Lücken, Überzählige (dieselbe Planung wie die Seite Kaderplanung) */
+  squadPlan: SquadPlan | null;
   /** Startelf und Bank der Grundlage (wie Schwachstellen) */
   starters: Set<number>;
   bench: Set<number>;
@@ -48,7 +51,23 @@ let ctx: TransferContext | null = null;
 let ranked: RankedProfile[] = [];
 
 // Puffer oder Zuschauer auf der Seite Finanzen geändert
-if (typeof document !== "undefined") document.addEventListener("tophatt:finance-assumptions", () => update());
+if (typeof document !== "undefined") {
+  document.addEventListener("tophatt:finance-assumptions", () => update());
+  // Link „Suchprofil ansehen“ (Kaderplanung): zur passenden Karte springen, Lücke vor anderen Profilen derselben Gruppe
+  document.addEventListener("click", (e) => {
+    const a = (e.target as HTMLElement).closest<HTMLElement>("[data-profile]");
+    const g = a?.dataset.profile;
+    if (!g) return;
+    setTimeout(() => {
+      const el = root?.querySelector<HTMLElement>(`.tr-card[data-group="${g}"][data-kind="luecke"]`) ?? root?.querySelector<HTMLElement>(`.tr-card[data-group="${g}"]`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+    }, 80);
+  });
+}
 
 export function renderTransfers(el: HTMLElement, c: TransferContext) {
   root = el;
@@ -56,7 +75,7 @@ export function renderTransfers(el: HTMLElement, c: TransferContext) {
   ranked = rankProfiles(c.profiles, c.advice, c.players);
   // Eingaben zu Profilen/Spielern, die es nicht mehr gibt, verwerfen
   for (const k of [...buys.keys()]) if (!ranked.some((r) => r.profile.title === k)) buys.delete(k);
-  for (const k of [...sells.keys()]) if (!c.advice.unused.includes(k)) sells.delete(k);
+  for (const k of [...sells.keys()]) if (!sellable(c).some((x) => x.player.id === k)) sells.delete(k);
   el.innerHTML = skeleton(c);
   wire(el);
   update();
@@ -95,20 +114,38 @@ function commitment(skip: number | null): Commitment {
   return c;
 }
 
-/** Höchstgebot für Profil i jetzt und später. Hat die Nummer 1 noch keinen Preis, nimmt die Rechnung für die anderen an, dass sie ihr volles Höchstgebot kostet. */
+/** Ein Ersatz für eine Lücke muss nicht teuer sein: Richtwert ein Viertel des freien Budgets */
+export const GAP_SHARE = 0.25;
+
+/**
+ * Karten vor `i` ohne eingetragenen Preis, mit denen die Rechnung für Karte `i` vorab rechnet:
+ * Lücken mit ihrem Richtwert, dazu die erste Verstärkung mit ihrem vollen Höchstgebot.
+ */
+function assumedBefore(i: number): number[] {
+  const out: number[] = [];
+  for (let j = 0; j < i; j++) {
+    if (buyOf(ranked[j]).price !== null) continue;
+    out.push(j);
+    if (ranked[j].profile.kind !== "luecke") break;
+  }
+  return out;
+}
+
+/** Höchstgebot für Profil i jetzt (oder in `atWeek` Wochen). Für Lücken höchstens der Richtwert. */
 function capFor(i: number, atWeek = 0): number {
   const m = money(ctx!);
   const normal = m.normal ?? { total: 0 };
   const c = commitment(i);
-  if (i > 0 && buyOf(ranked[0]).price === null) {
-    const first = ranked[0];
-    const firstCap = maxPrice(m.s, normal, m.buffer, commitment(0), first.salary);
-    c.oneTime += firstCap;
-    c.weekly += first.salary;
+  for (const j of assumedBefore(i)) {
+    c.oneTime += capFor(j);
+    c.weekly += ranked[j].salary;
   }
   const r = ranked[i];
   const salary = buyOf(r).salary ?? r.salary;
-  return m.withForecast ? maxPrice(m.s, normal, m.buffer, c, salary, atWeek) : Math.max(0, Math.floor((m.s.expectedCash - m.buffer - c.oneTime) / 1000) * 1000);
+  const full = m.withForecast ? maxPrice(m.s, normal, m.buffer, c, salary, atWeek) : Math.max(0, Math.floor((m.s.expectedCash - m.buffer - c.oneTime) / 1000) * 1000);
+  if (r.profile.kind !== "luecke" || atWeek > 0) return full;
+  const free = m.withForecast ? maxPrice(m.s, normal, m.buffer, commitment(null), salary) : full;
+  return Math.min(full, Math.floor((free * GAP_SHARE) / 1000) * 1000);
 }
 
 function skeleton(c: TransferContext): string {
@@ -119,7 +156,7 @@ function skeleton(c: TransferContext): string {
         ${tile("Erwartet zum Update", eur(m.s.expectedCash), "Kontostand zum nächsten Wirtschaftsupdate", m.s.expectedCash < 0 ? "neg" : "")}
         <div class="tile fin-tile"><div class="k">Typische Woche</div><div class="v" id="trWeek"></div><div class="sub">Überschuss pro Woche ohne Transfers</div></div>
         <div class="tile fin-tile"><div class="k">Mindest-Puffer</div><div class="v" id="trBuffer"></div><div class="sub">einstellbar auf der Seite Finanzen</div></div>
-        <div class="tile fin-tile"><div class="k">Frei für den ersten Kauf</div><div class="v" id="trFree"></div><div class="sub" id="trFreeSub"></div></div>
+        <div class="tile fin-tile"><div class="k">Freies Budget</div><div class="v" id="trFree"></div><div class="sub" id="trFreeSub"></div></div>
       </div>`
     : `<p class="focus">Die geladene HRF-Datei enthält keine Finanzdaten. Budget deshalb vereinfacht: Kontostand ${eur(m.s.expectedCash)} minus fünf Wochen Gehälter (${eur(m.buffer)}), ohne Einnahmen-Prognose.</p>`;
 
@@ -153,22 +190,25 @@ function card(r: RankedProfile, i: number): string {
   const p = r.profile;
   const b = buyOf(r);
   const benefit =
-    r.gain === null
+    p.kind === "luecke"
+      ? `<b>Schließt die Lücke</b> aus der Kaderplanung. Ohne Ersatz fehlt bei Verletzung oder Sperre ein brauchbarer Spieler.`
+      : r.gain === null
       ? `<span class="muted">Nutzen später: Nachfolger, wird über die Saisons stärker.</span>`
       : r.gain < 0.3
         ? `<span class="muted">Bringt sofort kaum etwas (+${r.gain.toFixed(1)} HatStats).</span>`
         : r.helpsWeak
           ? `<b>+${r.gain.toFixed(1)} HatStats</b> in den Schwachstellen.`
           : `<b>+${r.gain.toFixed(1)} HatStats</b>, aber nicht in einer Schwachstelle.`;
-  return `<div class="profile tr-card${i === 0 ? " first" : ""}" data-rank="${i}">
-    <div class="tr-rank"><span class="badge">${i + 1}.</span> <span>${i === 0 ? "Zuerst kaufen" : "Danach"}</span></div>
+  const label = p.kind === "luecke" ? "Lücke schließen" : i === 0 || ranked.slice(0, i).every((x) => x.profile.kind === "luecke") ? "Größter Hebel" : "Danach";
+  return `<div class="profile tr-card${i === 0 ? " first" : ""}" data-rank="${i}" data-group="${p.group}" data-kind="${p.kind}">
+    <div class="tr-rank"><span class="badge">${i + 1}.</span> <span>${label}</span></div>
     <h4>${esc(p.title)}</h4><div class="sub">${esc(p.reason)}</div>
     <p class="tr-benefit">${benefit}</p>
     <dl>
       <dt>Alter</dt><dd>${p.age[0]} bis ${p.age[1]} Jahre</dd>
       ${p.skills.map((k) => `<dt>${esc(k.name)}</dt><dd>${k.max ? `${k.min} bis ${k.max}` : `ab ${k.min}`}</dd>`).join("")}
       <dt>Gehalt ca.</dt><dd>${eur(r.salary)} pro Woche</dd>
-      <dt>Höchstgebot</dt><dd id="trCap${i}"></dd>
+      <dt>${p.kind === "luecke" ? "Richtwert" : "Höchstgebot"}</dt><dd id="trCap${i}"></dd>
     </dl>
     <div class="tr-later sub" id="trLater${i}"></div>
     <div class="tr-inputs">
@@ -179,26 +219,39 @@ function card(r: RankedProfile, i: number): string {
   </div>`;
 }
 
-function sellTable(c: TransferContext): string {
-  const unused = c.advice.unused.map((id) => c.players.find((p) => p.id === id)).filter((p): p is Player => !!p);
-  if (!unused.length) return `<p class="muted">Alle Spieler stehen in der Startelf oder auf der Bank.</p>`;
+interface Sellable {
+  player: Player;
+  reason: string;
+}
+
+/** Verkaufskandidaten: die Überzähligen aus der Kaderplanung, ohne Kaderplanung die Spieler ohne Platz in Elf und Bank */
+function sellable(c: TransferContext): Sellable[] {
+  if (c.squadPlan)
+    return c.squadPlan.players
+      .filter((x) => x.role === "surplus")
+      .sort((a, b) => b.player.salary - a.player.salary)
+      .map((x) => ({ player: x.player, reason: x.reason }));
   const reason = new Map(c.advice.sellCandidates.map((s) => [s.playerId, s.reason]));
-  const row = (p: Player) => {
+  return c.advice.unused
+    .map((id) => c.players.find((p) => p.id === id))
+    .filter((p): p is Player => !!p && reason.has(p.id))
+    .map((p) => ({ player: p, reason: reason.get(p.id)! }));
+}
+
+function sellTable(c: TransferContext): string {
+  const list = sellable(c);
+  if (!list.length) return `<p class="muted">Kein Spieler ist überzählig.</p>`;
+  const row = ({ player: p, reason }: Sellable) => {
     const x = sells.get(p.id);
-    const r = reason.get(p.id) ?? (p.injury > 0 ? "verletzt, deshalb gerade nicht in der Elf" : p.age < 21 ? "jung, kann sich noch entwickeln" : "");
     return `<tr><td><label class="check"><input type="checkbox" data-sell="${p.id}"${x?.on ? " checked" : ""}> verkaufen</label></td>
       <td>${esc(p.name)}</td><td class="num">${p.age}</td><td class="num">${best(p)}</td><td class="num">${p.tsi.toLocaleString(loc())}</td>
       <td class="num">${eur(p.salary)}</td><td class="num">${eur(p.salary * DEFAULT_HORIZON)}</td>
       <td><input type="number" min="0" step="1000" data-sell-price="${p.id}" value="${x?.price ?? ""}" placeholder="€" style="width:110px"></td>
-      <td class="sub">${esc(r)}</td></tr>`;
+      <td class="sub">${esc(reason)}</td></tr>`;
   };
   const head = `<thead><tr><th>Verkaufen</th><th>Spieler</th><th class="num">Alter</th><th class="num">Beste Fertigkeit</th><th class="num">TSI</th><th class="num">Gehalt/Woche</th><th class="num">pro Saison</th><th>Erlös</th><th>Hinweis</th></tr></thead>`;
-  // zuerst die echten Verkaufskandidaten (alt oder teuer), die übrigen (meist jung) eingeklappt
-  const first = unused.filter((p) => reason.has(p.id));
-  const rest = unused.filter((p) => !reason.has(p.id));
-  return `<p class="sub">Ein Verkauf bringt Geld und spart Gehalt. Hake an, wen du verkaufen willst, und trag den erwarteten Erlös ein (vergleichbare Spieler auf dem Transfermarkt; Heimatverein und Vorverein bekommen davon einen kleinen Anteil). Das Geld steht dann allen Suchprofilen zur Verfügung.</p>
-    ${first.length ? `<div class="scroll"><table class="nowrap tr-sell">${head}<tbody>${first.map(row).join("")}</tbody></table></div>` : `<p class="muted">Kein Spieler ist alt oder teuer und zugleich ohne Einsatz.</p>`}
-    ${rest.length ? `<details${rest.some((p) => sells.get(p.id)?.on) ? " open" : ""}><summary>${rest.length} weitere Spieler ohne Platz in Startelf und Bank</summary><div class="scroll"><table class="nowrap tr-sell">${head}<tbody>${rest.map(row).join("")}</tbody></table></div></details>` : ""}`;
+  return `<p class="sub">${c.squadPlan ? "Dieselben Spieler, die die Kaderplanung als überzählig zeigt. " : ""}Ein Verkauf bringt Geld und spart Gehalt. Hake an, wen du verkaufen willst, und trag den erwarteten Erlös ein (vergleichbare Spieler auf dem Transfermarkt; Heimatverein und Vorverein bekommen davon einen kleinen Anteil). Das Geld steht dann allen Suchprofilen zur Verfügung.</p>
+    <div class="scroll"><table class="nowrap tr-sell">${head}<tbody>${list.map(row).join("")}</tbody></table></div>`;
 }
 
 function pastTable(c: TransferContext): string {
@@ -262,13 +315,11 @@ function update() {
   if (!root || !ctx) return;
   const m = money(ctx);
   const q = <T extends HTMLElement>(sel: string) => root!.querySelector<T>(sel);
-  if (m.withForecast && ranked.length) {
-    const free = capFor(0);
-    q("#trFree")!.textContent = eur(free);
-    q("#trFreeSub")!.textContent = `Puffer hält ${DEFAULT_HORIZON} Wochen, mit Gehalt von ca. ${eur(buyOf(ranked[0]).salary ?? ranked[0].salary)} pro Woche`;
-  } else if (q("#trFree")) {
-    q("#trFree")!.textContent = eur(maxPrice(m.s, m.normal ?? { total: 0 }, m.buffer, commitment(null), 0));
-    q("#trFreeSub")!.textContent = `Puffer hält ${DEFAULT_HORIZON} Wochen`;
+  if (q("#trFree")) {
+    // für alle Suchprofile zusammen, mit dem Gehalt der teuersten Karte
+    const salary = ranked.length ? Math.max(...ranked.map((r) => buyOf(r).salary ?? r.salary)) : 0;
+    q("#trFree")!.textContent = eur(maxPrice(m.s, m.normal ?? { total: 0 }, m.buffer, commitment(null), salary));
+    q("#trFreeSub")!.textContent = `für alle Suchprofile zusammen; Puffer hält ${DEFAULT_HORIZON} Wochen`;
   }
   const weekly = m.normal?.total ?? 0;
   const wk = q("#trWeek");
@@ -288,7 +339,20 @@ function update() {
       const c8 = capFor(i, 8);
       if (c8 > cap) later = `Wenn du wartest: in 4 Wochen bis ${eur(c4)}, in 8 Wochen bis ${eur(c8)}.`;
     }
-    if (i > 0 && buyOf(ranked[0]).price === null && m.withForecast) later = `Gerechnet, als ob Nr. 1 ihr volles Höchstgebot kostet. ${later}`.trim();
+    const assumed = assumedBefore(i);
+    if (assumed.length && m.withForecast) {
+      const gaps = assumed.every((j) => ranked[j].profile.kind === "luecke");
+      const head =
+        assumed.length === 1
+          ? gaps
+            ? `Gerechnet, als ob Nr. ${assumed[0] + 1} den Richtwert ausgibt.`
+            : `Gerechnet, als ob Nr. ${assumed[0] + 1} das volle Höchstgebot ausgibt.`
+          : gaps
+            ? "Gerechnet, als ob die Karten davor ihren Richtwert ausgeben."
+            : "Gerechnet, als ob die Karten davor Richtwert und volles Höchstgebot ausgeben.";
+      later = `${head} ${later}`.trim();
+    }
+    if (r.profile.kind === "luecke" && m.withForecast) later = `Ein Viertel des freien Budgets reicht für Ersatzniveau. ${later}`.trim();
     q(`#trLater${i}`)!.textContent = later;
     const check = q(`#trCheck${i}`)!;
     if (b.price === null) {

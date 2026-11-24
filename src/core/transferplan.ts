@@ -83,7 +83,7 @@ export interface RankedProfile {
 }
 
 /**
- * Kaufreihenfolge: zuerst Verstärkungen für sofort, die in einer Schwachstelle ankommen (größter Zuwachs zuerst),
+ * Kaufreihenfolge: zuerst Lücken aus der Kaderplanung, dann Verstärkungen für sofort, die in einer Schwachstelle ankommen (größter Zuwachs zuerst),
  * dann übrige Verstärkungen nach HatStats, zuletzt Nachfolger zum Aufbauen in der Reihenfolge der Suchprofile.
  */
 export function rankProfiles(profiles: SearchProfile[], advice: Pick<Advice, "allUpgrades"> | null, players: Player[]): RankedProfile[] {
@@ -96,7 +96,8 @@ export function rankProfiles(profiles: SearchProfile[], advice: Pick<Advice, "al
     const gain = profile.kind === "sofort" ? (u ? Math.max(0, helpsWeak ? u.weakGain : u.gainPlus2) : 0) : null;
     return { r: { profile, gain, helpsWeak, salary: estimateSalary(players, level), level } as RankedProfile, i };
   });
-  const cls = (r: RankedProfile) => (r.gain === null ? 2 : r.helpsWeak ? 0 : 1);
+  // Lücken aus der Kaderplanung zuerst: Pflicht und auf Ersatzniveau günstig
+  const cls = (r: RankedProfile) => (r.profile.kind === "luecke" ? -1 : r.gain === null ? 2 : r.helpsWeak ? 0 : 1);
   ranked.sort((a, z) => cls(a.r) - cls(z.r) || (z.r.gain ?? 0) - (a.r.gain ?? 0) || a.r.profile.priority - z.r.profile.priority || a.i - z.i);
   return ranked.map((x) => x.r);
 }
