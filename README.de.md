@@ -142,7 +142,7 @@ Graph mit Prognose aus dem HO-Trainingsmodell, Altersabbau und Hinweis, wann ein
 <summary><b>Transfers</b>: welche Verstärkung bringt am meisten?</summary>
 <br>
 
-Budget, Suchprofile für den Transfermarkt und Kandidaten passend zu den Schwachstellen.
+Suchprofile für den Transfermarkt in Kaufreihenfolge mit einem gemeinsamen Budget: Das Höchstgebot hält den Kontostand eine ganze Saison über dem Mindest-Puffer (mit Gehalt und typischen Wocheneinnahmen). Trag den Preis eines echten Kandidaten ein, um ihn zu prüfen, hake ungenutzte Spieler zum Verkauf an und sieh deine bisherigen Transfers aus HO.
 
 ![Transfers](docs/img/transfers.png)
 </details>
@@ -233,7 +233,7 @@ Die Pfade zu HO stehen oben in `TopHatt.bat` und lassen sich dort anpassen. Spie
 | `src/core/staff.ts` | Trainer, Assistenten, Spezialisten: Kosten und Trainingseffizienz |
 | `src/core/finance.ts` | Kontostand, Wochenbilanz und Prognose |
 | `src/core/history.ts` | Wochen-Schnappschüsse für den Verlauf |
-| `src/core/scouting.ts`, `advisor.ts` | Suchprofile, Transfer- und Trainingshinweise |
+| `src/core/scouting.ts`, `advisor.ts`, `transferplan.ts` | Suchprofile, Transferbudget und Kaufreihenfolge, Trainingshinweise |
 | `src/ui/` | Oberfläche; `build.mjs` packt alles in eine HTML-Datei |
 
 ## Entwickeln

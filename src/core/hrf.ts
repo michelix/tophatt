@@ -122,6 +122,7 @@ export function parseHrf(text: string): Hrf {
     cash: num(economy, "cash") / currencyRate,
     expectedCash: economy.has("expectedcash") ? num(economy, "expectedcash") / currencyRate : null,
     costsBoughtPlayers: num(economy, "costsboughtplayers") / currencyRate,
+    currencyRate,
     hrfDate: str(basics, "date"),
   };
 

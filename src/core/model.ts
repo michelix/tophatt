@@ -87,6 +87,8 @@ export interface TeamInfo {
   expectedCash: number | null;
   /** Ausgaben für gekaufte Spieler in dieser Woche */
   costsBoughtPlayers: number;
+  /** Hattrick-Basiseinheit je Euro ([xtra] CurrencyRate, EUR: 10); HO speichert Transferpreise in der Basiseinheit */
+  currencyRate?: number;
   hrfDate: string;
 }
 

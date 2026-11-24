@@ -332,6 +332,18 @@ dialog h3:first-child{margin-top:0}
 .profile h4{margin:0 0 4px;font-size:15px}
 .profile dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:8px 0 0;font-size:13px}
 .profile dt{color:var(--muted)}.profile dd{margin:0;font-weight:600}
+.tr-card{display:flex;flex-direction:column}
+.tr-card.first{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.tr-rank{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.tr-rank .badge{display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:11px;background:var(--surface);border:1px solid var(--line);color:var(--ink);letter-spacing:0}
+.tr-card.first .tr-rank{color:var(--good-ink)}.tr-card.first .tr-rank .badge{background:var(--good);border-color:var(--good);color:#fff}
+.tr-benefit{margin:8px 0 0;font-size:13px}
+.tr-later{margin-top:6px;font-size:12px}
+.tr-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:auto;padding-top:10px}
+.tr-inputs label{display:grid;gap:3px;font-size:12px;color:var(--muted)}
+.tr-inputs input{min-width:0;width:100%}
+.tr-check{margin-top:8px;min-height:1em;font-size:13px}
+.tr-check .sub{color:var(--ink-2)}
 .plan td.st{font-size:13px}
 .plan .val{font-weight:600;font-variant-numeric:tabular-nums}
 .plan .down{color:var(--critical)}.plan .up{color:var(--good-ink)}

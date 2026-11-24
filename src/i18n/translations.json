@@ -7788,12 +7788,6 @@
    "Valore",
    "Wartość"
   ],
-  "Werte so im Transfermarkt eintragen (Fertigkeit von/bis, Alter von/bis). Hauptfertigkeit zwei Stufen über dem schwächsten Stammspieler, weil gekaufte Spieler anfangs keine Treue haben. {1}": [
-   "Enter the values like this in the transfer market (skill from/to, age from/to). Main skill two levels above the weakest regular, because bought players have no loyalty at first. {1}",
-   "Introduce los valores así en el mercado de traspasos (habilidad desde/hasta, edad desde/hasta). Habilidad principal dos niveles por encima del titular más débil, porque los jugadores comprados al principio no tienen fidelidad. {1}",
-   "Inserisci i valori così nel mercato trasferimenti (abilità da/a, età da/a). Abilità principale due livelli sopra il titolare più debole, perché i giocatori acquistati inizialmente non hanno fedeltà. {1}",
-   "Wpisz wartości tak na rynku transferowym (umiejętność od/do, wiek od/do). Główna umiejętność dwa poziomy powyżej najsłabszego podstawowego zawodnika, bo kupieni zawodnicy na początku nie mają lojalności. {1}"
-  ],
   "Wetter-Prognose: {0}": [
    "Weather forecast: {0}",
    "Previsión del tiempo: {0}",
@@ -8453,6 +8447,450 @@
    "Oculta a todos los que han jugado desde la actualización ({0}), sea liga, copa o amistoso y en cualquier posición.",
    "Nasconde chiunque abbia giocato dall'aggiornamento ({0}), campionato, coppa o amichevole e in qualsiasi posizione.",
    "Ukrywa każdego, kto grał od aktualizacji treningu ({0}), w lidze, pucharze lub towarzysko i na dowolnej pozycji."
+  ],
+  "Kontostand zum nächsten Wirtschaftsupdate": [
+   "Balance at the next economy update",
+   "Saldo en la próxima actualización económica",
+   "Saldo al prossimo aggiornamento economico",
+   "Saldo przy następnej aktualizacji finansów"
+  ],
+  "Überschuss pro Woche ohne Transfers": [
+   "Surplus per week without transfers",
+   "Superávit semanal sin traspasos",
+   "Avanzo settimanale senza trasferimenti",
+   "Nadwyżka tygodniowa bez transferów"
+  ],
+  "einstellbar auf der Seite Finanzen": [
+   "adjustable on the Finances page",
+   "ajustable en la página Finanzas",
+   "regolabile nella pagina Finanze",
+   "do ustawienia na stronie Finanse"
+  ],
+  "Frei für den ersten Kauf": [
+   "Free for the first purchase",
+   "Disponible para el primer fichaje",
+   "Disponibile per il primo acquisto",
+   "Dostępne na pierwszy zakup"
+  ],
+  "Puffer hält {0} Wochen, mit Gehalt von ca. {1} pro Woche": [
+   "Buffer holds for {0} weeks, with a wage of about {1} per week",
+   "El colchón aguanta {0} semanas, con un salario de unos {1} por semana",
+   "Il margine regge {0} settimane, con uno stipendio di circa {1} a settimana",
+   "Bufor wytrzyma {0} tyg., przy pensji ok. {1} tygodniowo"
+  ],
+  "Puffer hält {0} Wochen": [
+   "Buffer holds for {0} weeks",
+   "El colchón aguanta {0} semanas",
+   "Il margine regge {0} settimane",
+   "Bufor wytrzyma {0} tyg."
+  ],
+  "Suchprofile in Kaufreihenfolge": [
+   "Search profiles in buying order",
+   "Perfiles de búsqueda por orden de compra",
+   "Profili di ricerca in ordine di acquisto",
+   "Profile wyszukiwania w kolejności zakupu"
+  ],
+  "Zuerst kaufen": [
+   "Buy first",
+   "Comprar primero",
+   "Acquista per primo",
+   "Kup najpierw"
+  ],
+  "Danach": [
+   "Afterwards",
+   "Después",
+   "Dopo",
+   "Potem"
+  ],
+  "Gehalt ca.": [
+   "Wage approx.",
+   "Salario aprox.",
+   "Stipendio circa",
+   "Pensja ok."
+  ],
+  "Höchstgebot": [
+   "Maximum bid",
+   "Puja máxima",
+   "Offerta massima",
+   "Maksymalna oferta"
+  ],
+  "Preis Kandidat": [
+   "Candidate price",
+   "Precio del candidato",
+   "Prezzo candidato",
+   "Cena kandydata"
+  ],
+  "Gehalt pro Woche": [
+   "Wage per week",
+   "Salario por semana",
+   "Stipendio a settimana",
+   "Pensja tygodniowo"
+  ],
+  "jetzt kein Geld frei": [
+   "no money free right now",
+   "ahora no hay dinero libre",
+   "ora nessun fondo libero",
+   "teraz brak wolnych środków"
+  ],
+  "Gerechnet, als ob Nr. 1 ihr volles Höchstgebot kostet.": [
+   "Calculated as if no. 1 costs its full maximum bid.",
+   "Calculado como si el n.º 1 costara su puja máxima completa.",
+   "Calcolato come se il n. 1 costasse l'intera offerta massima.",
+   "Policzone tak, jakby nr 1 kosztował pełną maksymalną ofertę."
+  ],
+  "Wenn du wartest: in 4 Wochen bis {0}, in 8 Wochen bis {1}.": [
+   "If you wait: up to {0} in 4 weeks, up to {1} in 8 weeks.",
+   "Si esperas: hasta {0} en 4 semanas, hasta {1} en 8 semanas.",
+   "Se aspetti: fino a {0} tra 4 settimane, fino a {1} tra 8 settimane.",
+   "Jeśli poczekasz: do {0} za 4 tygodnie, do {1} za 8 tygodni."
+  ],
+  "Nutzen später: Nachfolger, wird über die Saisons stärker.": [
+   "Pays off later: successor who gets stronger over the seasons.",
+   "Beneficio a futuro: sucesor que mejora con las temporadas.",
+   "Utile più avanti: successore che migliora nelle stagioni.",
+   "Korzyść później: następca, który z sezonami będzie silniejszy."
+  ],
+  "Bringt sofort kaum etwas (+{0} HatStats).": [
+   "Hardly helps right now (+{0} HatStats).",
+   "Apenas aporta ahora (+{0} HatStats).",
+   "Serve a poco subito (+{0} HatStats).",
+   "Teraz prawie nic nie daje (+{0} HatStats)."
+  ],
+  "in den Schwachstellen.": [
+   "in the weak spots.",
+   "en los puntos débiles.",
+   "nei punti deboli.",
+   "w słabych punktach."
+  ],
+  ", aber nicht in einer Schwachstelle.": [
+   ", but not in a weak spot.",
+   ", pero no en un punto débil.",
+   ", ma non in un punto debole.",
+   ", ale nie w słabym punkcie."
+  ],
+  "Alle Suchprofile teilen sich ein Budget.": [
+   "All search profiles share one budget.",
+   "Todos los perfiles de búsqueda comparten un presupuesto.",
+   "Tutti i profili di ricerca condividono un budget.",
+   "Wszystkie profile wyszukiwania dzielą jeden budżet."
+  ],
+  "Das Höchstgebot ist so berechnet, dass der Kontostand nach dem Kauf eine ganze Saison ({0} Wochen) lang über dem Puffer bleibt, mit Gehalt des neuen Spielers und typischen Wocheneinnahmen.": [
+   "The maximum bid is calculated so that after the purchase the balance stays above the buffer for a whole season ({0} weeks), including the new player's wage and typical weekly income.",
+   "La puja máxima se calcula para que tras la compra el saldo se mantenga por encima del colchón durante toda una temporada ({0} semanas), con el salario del nuevo jugador e ingresos semanales típicos.",
+   "L'offerta massima è calcolata in modo che dopo l'acquisto il saldo resti sopra il margine per un'intera stagione ({0} settimane), con lo stipendio del nuovo giocatore e le entrate settimanali tipiche.",
+   "Maksymalna oferta jest liczona tak, by po zakupie saldo przez cały sezon ({0} tygodni) pozostało powyżej bufora, z pensją nowego zawodnika i typowymi tygodniowymi wpływami."
+  ],
+  "Trag den Preis und das Gehalt eines konkreten Spielers vom Transfermarkt ein, dann rechnen alle Karten und der Plan unten damit.": [
+   "Enter the price and wage of a specific player from the transfer market, and all cards and the plan below will use them.",
+   "Introduce el precio y el salario de un jugador concreto del mercado de traspasos y todas las tarjetas y el plan de abajo los usarán.",
+   "Inserisci prezzo e stipendio di un giocatore concreto dal mercato, e tutte le schede e il piano sotto li useranno.",
+   "Wpisz cenę i pensję konkretnego zawodnika z rynku transferowego, a wszystkie karty i plan poniżej je uwzględnią."
+  ],
+  "Werte so im Transfermarkt eintragen (Fertigkeit von/bis, Alter von/bis).": [
+   "Enter these values in the transfer market search (skill from/to, age from/to).",
+   "Introduce estos valores en el mercado de traspasos (habilidad desde/hasta, edad desde/hasta).",
+   "Inserisci questi valori nel mercato trasferimenti (abilità da/a, età da/a).",
+   "Wpisz te wartości na rynku transferowym (umiejętność od/do, wiek od/do)."
+  ],
+  "Hauptfertigkeit zwei Stufen über dem schwächsten Stammspieler, weil gekaufte Spieler anfangs keine Treue haben.": [
+   "Main skill two levels above the weakest starter, because bought players have no loyalty at first.",
+   "Habilidad principal dos niveles por encima del titular más débil, porque los jugadores comprados no tienen fidelidad al principio.",
+   "Abilità principale due livelli sopra il titolare più debole, perché i giocatori acquistati all'inizio non hanno fedeltà.",
+   "Główna umiejętność dwa poziomy wyżej niż najsłabszy podstawowy, bo kupieni zawodnicy na początku nie mają lojalności."
+  ],
+  "Verkaufen, um Geld frei zu machen": [
+   "Sell to free up money",
+   "Vender para liberar dinero",
+   "Vendere per liberare fondi",
+   "Sprzedaj, aby zwolnić środki"
+  ],
+  "Ein Verkauf bringt Geld und spart Gehalt.": [
+   "A sale brings in money and saves wages.",
+   "Una venta aporta dinero y ahorra salario.",
+   "Una vendita porta soldi e fa risparmiare stipendio.",
+   "Sprzedaż daje pieniądze i oszczędza pensję."
+  ],
+  "Hake an, wen du verkaufen willst, und trag den erwarteten Erlös ein (vergleichbare Spieler auf dem Transfermarkt; Heimatverein und Vorverein bekommen davon einen kleinen Anteil).": [
+   "Tick whom you want to sell and enter the expected proceeds (comparable players on the transfer market; the mother club and previous club get a small share).",
+   "Marca a quién quieres vender e introduce los ingresos esperados (jugadores comparables en el mercado; el club de origen y el club anterior reciben una pequeña parte).",
+   "Spunta chi vuoi vendere e inserisci il ricavo atteso (giocatori simili sul mercato; il club d'origine e quello precedente ricevono una piccola quota).",
+   "Zaznacz, kogo chcesz sprzedać, i wpisz oczekiwany przychód (podobni zawodnicy na rynku; klub macierzysty i poprzedni dostają niewielką część)."
+  ],
+  "Das Geld steht dann allen Suchprofilen zur Verfügung.": [
+   "The money is then available to all search profiles.",
+   "El dinero queda disponible para todos los perfiles de búsqueda.",
+   "I soldi sono poi disponibili per tutti i profili di ricerca.",
+   "Pieniądze są wtedy dostępne dla wszystkich profili wyszukiwania."
+  ],
+  "Verkaufen": [
+   "Sell",
+   "Vender",
+   "Vendi",
+   "Sprzedaj"
+  ],
+  "verkaufen": [
+   "sell",
+   "vender",
+   "vendi",
+   "sprzedaj"
+  ],
+  "Beste Fertigkeit": [
+   "Best skill",
+   "Mejor habilidad",
+   "Abilità migliore",
+   "Najlepsza umiejętność"
+  ],
+  "Erlös": [
+   "Proceeds",
+   "Ingresos",
+   "Ricavo",
+   "Przychód"
+  ],
+  "{0} weitere Spieler ohne Platz in Startelf und Bank": [
+   "{0} more players without a place in the starting XI or on the bench",
+   "{0} jugadores más sin sitio en el once ni en el banquillo",
+   "altri {0} giocatori senza posto tra titolari e panchina",
+   "{0} kolejnych zawodników bez miejsca w składzie i na ławce"
+  ],
+  "jung, kann sich noch entwickeln": [
+   "young, can still develop",
+   "joven, aún puede progresar",
+   "giovane, può ancora crescere",
+   "młody, może się jeszcze rozwinąć"
+  ],
+  "verletzt, deshalb gerade nicht in der Elf": [
+   "injured, so not in the XI right now",
+   "lesionado, por eso ahora no está en el once",
+   "infortunato, per questo ora non è tra gli undici",
+   "kontuzjowany, dlatego teraz poza składem"
+  ],
+  "Kein Spieler ist alt oder teuer und zugleich ohne Einsatz.": [
+   "No player is old or expensive and unused at the same time.",
+   "Ningún jugador es veterano o caro y a la vez sin minutos.",
+   "Nessun giocatore è anziano o costoso e al tempo stesso inutilizzato.",
+   "Żaden zawodnik nie jest jednocześnie stary lub drogi i niewykorzystany."
+  ],
+  "Alle Spieler stehen in der Startelf oder auf der Bank.": [
+   "All players are in the starting XI or on the bench.",
+   "Todos los jugadores están en el once o en el banquillo.",
+   "Tutti i giocatori sono titolari o in panchina.",
+   "Wszyscy zawodnicy są w składzie lub na ławce."
+  ],
+  "Dein Transferplan": [
+   "Your transfer plan",
+   "Tu plan de traspasos",
+   "Il tuo piano trasferimenti",
+   "Twój plan transferowy"
+  ],
+  "Noch nichts eingetragen.": [
+   "Nothing entered yet.",
+   "Aún no has introducido nada.",
+   "Ancora niente inserito.",
+   "Nic jeszcze nie wpisano."
+  ],
+  "Trag bei einem Suchprofil den Preis eines Kandidaten ein oder hake einen Verkauf an, dann siehst du hier, wie sich der Kontostand entwickelt.": [
+   "Enter a candidate's price in a search profile or tick a sale, and you will see here how the balance develops.",
+   "Introduce el precio de un candidato en un perfil o marca una venta y aquí verás cómo evoluciona el saldo.",
+   "Inserisci il prezzo di un candidato in un profilo o spunta una vendita e qui vedrai come evolve il saldo.",
+   "Wpisz cenę kandydata w profilu lub zaznacz sprzedaż, a zobaczysz tu, jak zmienia się saldo."
+  ],
+  "Mit 1 Woche Ansparen hält der Puffer.": [
+   "After saving for 1 week the buffer holds.",
+   "Ahorrando 1 semana el colchón aguanta.",
+   "Risparmiando 1 settimana il margine regge.",
+   "Po 1 tygodniu oszczędzania bufor wytrzyma."
+  ],
+  "Mit {0} Wochen Ansparen hält der Puffer.": [
+   "After saving for {0} weeks the buffer holds.",
+   "Ahorrando {0} semanas el colchón aguanta.",
+   "Risparmiando {0} settimane il margine regge.",
+   "Po {0} tyg. oszczędzania bufor wytrzyma."
+  ],
+  "Hattrick: ab {0} US$ Schulden sind Ausgaben eingeschränkt, ab {1} US$ kommt die Bankrottwarnung, dann bleiben {2} Wochen Zeit.": [
+   "Hattrick: from {0} US$ of debt spending is restricted, from {1} US$ the bankruptcy warning comes, then you have {2} weeks.",
+   "Hattrick: con {0} US$ de deuda se limitan los gastos, con {1} US$ llega el aviso de bancarrota y quedan {2} semanas.",
+   "Hattrick: da {0} US$ di debiti le spese sono limitate, da {1} US$ arriva l'avviso di bancarotta, poi restano {2} settimane.",
+   "Hattrick: od {0} US$ długu wydatki są ograniczone, od {1} US$ przychodzi ostrzeżenie o bankructwie, potem zostają {2} tygodnie."
+  ],
+  "Nach dem Plan bleiben {0}.": [
+   "After the plan {0} remain.",
+   "Tras el plan quedan {0}.",
+   "Dopo il piano restano {0}.",
+   "Po planie zostaje {0}."
+  ],
+  "Bisherige Transfers": [
+   "Past transfers",
+   "Traspasos anteriores",
+   "Trasferimenti precedenti",
+   "Dotychczasowe transfery"
+  ],
+  "Art": [
+   "Type",
+   "Tipo",
+   "Tipo",
+   "Rodzaj"
+  ],
+  "Preis": [
+   "Price",
+   "Precio",
+   "Prezzo",
+   "Cena"
+  ],
+  "Heute": [
+   "Today",
+   "Hoy",
+   "Oggi",
+   "Dziś"
+  ],
+  "Kauf": [
+   "Purchase",
+   "Compra",
+   "Acquisto",
+   "Zakup"
+  ],
+  "Verkauf": [
+   "Sale",
+   "Venta",
+   "Vendita",
+   "Sprzedaż"
+  ],
+  "verkauft": [
+   "sold",
+   "vendido",
+   "venduto",
+   "sprzedany"
+  ],
+  "nicht mehr im Kader": [
+   "no longer in the squad",
+   "ya no está en la plantilla",
+   "non più in rosa",
+   "już nie w kadrze"
+  ],
+  "Aus HOs Transferliste des Vereins.": [
+   "From HO's list of the club's transfers.",
+   "De la lista de traspasos del club en HO.",
+   "Dall'elenco trasferimenti del club in HO.",
+   "Z listy transferów klubu w HO."
+  ],
+  "Preise ohne Gebühren für Heimatverein und Vorverein.": [
+   "Prices without fees for mother club and previous club.",
+   "Precios sin comisiones para el club de origen y el anterior.",
+   "Prezzi senza commissioni per club d'origine e club precedente.",
+   "Ceny bez opłat dla klubu macierzystego i poprzedniego."
+  ],
+  "Bisherige Transfers kommen aus der HO-Datenbank.": [
+   "Past transfers come from the HO database.",
+   "Los traspasos anteriores vienen de la base de datos de HO.",
+   "I trasferimenti precedenti provengono dal database di HO.",
+   "Dotychczasowe transfery pochodzą z bazy danych HO."
+  ],
+  "TopHatt mit TopHatt.bat starten, dann erscheinen sie hier.": [
+   "Start TopHatt with TopHatt.bat and they will appear here.",
+   "Inicia TopHatt con TopHatt.bat y aparecerán aquí.",
+   "Avvia TopHatt con TopHatt.bat e appariranno qui.",
+   "Uruchom TopHatt przez TopHatt.bat, a pojawią się tutaj."
+  ],
+  "Die geladene tophatt-data.json enthält noch keine Transfers.": [
+   "The loaded tophatt-data.json does not contain transfers yet.",
+   "El tophatt-data.json cargado aún no contiene traspasos.",
+   "Il tophatt-data.json caricato non contiene ancora trasferimenti.",
+   "Wczytany tophatt-data.json nie zawiera jeszcze transferów."
+  ],
+  "TopHatt einmal mit der neuen TopHatt.bat starten (der Sync liest sie aus HO).": [
+   "Start TopHatt once with the new TopHatt.bat (the sync reads them from HO).",
+   "Inicia TopHatt una vez con el nuevo TopHatt.bat (la sincronización los lee de HO).",
+   "Avvia TopHatt una volta con il nuovo TopHatt.bat (la sincronizzazione li legge da HO).",
+   "Uruchom raz TopHatt nowym TopHatt.bat (synchronizacja odczyta je z HO)."
+  ],
+  "In HO sind keine Transfers gespeichert.": [
+   "No transfers are stored in HO.",
+   "No hay traspasos guardados en HO.",
+   "In HO non ci sono trasferimenti salvati.",
+   "W HO nie zapisano transferów."
+  ],
+  "In HO „Daten herunterladen“ ausführen, dann TopHatt neu starten.": [
+   "Run \"Download data\" in HO, then restart TopHatt.",
+   "Ejecuta «Descargar datos» en HO y reinicia TopHatt.",
+   "Esegui «Scarica dati» in HO, poi riavvia TopHatt.",
+   "Uruchom w HO „Pobierz dane”, potem uruchom ponownie TopHatt."
+  ],
+  "Zu teuer": [
+   "Too expensive",
+   "Demasiado caro",
+   "Troppo caro",
+   "Za drogo"
+  ],
+  "Passt": [
+   "Fits",
+   "Encaja",
+   "Va bene",
+   "Pasuje"
+  ],
+  "{0} über dem Höchstgebot": [
+   "{0} above the maximum bid",
+   "{0} por encima de la puja máxima",
+   "{0} sopra l'offerta massima",
+   "{0} powyżej maksymalnej oferty"
+  ],
+  "{0} unter dem Höchstgebot": [
+   "{0} below the maximum bid",
+   "{0} por debajo de la puja máxima",
+   "{0} sotto l'offerta massima",
+   "{0} poniżej maksymalnej oferty"
+  ],
+  "{0} HatStats je {1}": [
+   "{0} HatStats per {1}",
+   "{0} HatStats por cada {1}",
+   "{0} HatStats ogni {1}",
+   "{0} HatStats na {1}"
+  ],
+  "Die geladene HRF-Datei enthält keine Finanzdaten.": [
+   "The loaded HRF file contains no finance data.",
+   "El archivo HRF cargado no contiene datos financieros.",
+   "Il file HRF caricato non contiene dati finanziari.",
+   "Wczytany plik HRF nie zawiera danych finansowych."
+  ],
+  "Budget deshalb vereinfacht: Kontostand {0} minus fünf Wochen Gehälter ({1}), ohne Einnahmen-Prognose.": [
+   "Budget therefore simplified: balance {0} minus five weeks of wages ({1}), without an income forecast.",
+   "Presupuesto simplificado: saldo {0} menos cinco semanas de salarios ({1}), sin previsión de ingresos.",
+   "Budget quindi semplificato: saldo {0} meno cinque settimane di stipendi ({1}), senza previsione delle entrate.",
+   "Budżet uproszczony: saldo {0} minus pięć tygodni pensji ({1}), bez prognozy wpływów."
+  ],
+  "Käufe: {0}": [
+   "Purchases: {0}",
+   "Compras: {0}",
+   "Acquisti: {0}",
+   "Zakupy: {0}"
+  ],
+  "Verkäufe: {0}": [
+   "Sales: {0}",
+   "Ventas: {0}",
+   "Vendite: {0}",
+   "Sprzedaże: {0}"
+  ],
+  "einmalig {0}": [
+   "one-off {0}",
+   "único {0}",
+   "una tantum {0}",
+   "jednorazowo {0}"
+  ],
+  "Gekauft: {0}": [
+   "Bought: {0}",
+   "Comprados: {0}",
+   "Acquistati: {0}",
+   "Kupieni: {0}"
+  ],
+  "verkauft: {0}": [
+   "sold: {0}",
+   "vendidos: {0}",
+   "venduti: {0}",
+   "sprzedani: {0}"
+  ],
+  "pro Woche {0}": [
+   "per week {0}",
+   "por semana {0}",
+   "a settimana {0}",
+   "tygodniowo {0}"
   ]
  }
 }

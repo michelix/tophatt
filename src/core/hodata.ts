@@ -95,6 +95,24 @@ export interface HoData {
   lineupPlayers: LineupPlayer[];
   /** Spielerbilder aus HO (img/playersAvatar), als data:-URL je Spieler-ID; nur lokal */
   avatars: Map<number, string>;
+  /** Transfers des eigenen Vereins aus HOs Tabelle TRANSFER, neueste zuerst; null = ältere tophatt-data.json ohne Transfers */
+  transfers: HoTransfer[] | null;
+}
+
+export interface HoTransfer {
+  id: number;
+  date: Date;
+  season: number;
+  week: number;
+  playerId: number;
+  playerName: string;
+  buyerId: number;
+  buyerName: string;
+  sellerId: number;
+  sellerName: string;
+  /** Preis in der Hattrick-Basiseinheit (wie in HO), Umrechnung mit CurrencyRate */
+  price: number;
+  tsi: number;
 }
 
 export interface LineupPlayer {
@@ -218,6 +236,24 @@ export function parseHoData(json: string): HoData {
         .filter((r) => n(r.spielerid) > 0 && typeof r.png === "string" && /^[A-Za-z0-9+/=]+$/.test(r.png as string))
         .map((r) => [n(r.spielerid), `data:image/png;base64,${r.png as string}`]),
     ),
+    transfers: Array.isArray(raw.transfers)
+      ? rows("transfers")
+          .map((r) => ({
+            id: n(r.transferid),
+            date: parseHoDate(r.date),
+            season: n(r.season),
+            week: n(r.week),
+            playerId: n(r.playerid),
+            playerName: s(r.playername),
+            buyerId: n(r.buyerid),
+            buyerName: s(r.buyername),
+            sellerId: n(r.sellerid),
+            sellerName: s(r.sellername),
+            price: n(r.price),
+            tsi: n(r.tsi),
+          }))
+          .sort((a, z) => z.date.getTime() - a.date.getTime())
+      : null,
   };
 }
 

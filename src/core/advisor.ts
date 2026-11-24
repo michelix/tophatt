@@ -13,7 +13,7 @@ import { Evaluator, HATSTATS_OBJECTIVE, hatStatsOf } from "./optimizer";
 import { TRAININGS, trainingPriority } from "./training";
 import { loc } from "./locale";
 
-type SkillKey = "keeper" | "defending" | "playmaking" | "passing" | "winger" | "scoring";
+export type SkillKey = "keeper" | "defending" | "playmaking" | "passing" | "winger" | "scoring";
 
 const MAIN_SKILLS: Record<string, SkillKey[]> = {
   goal: ["keeper"],
@@ -43,6 +43,9 @@ const POS_DE: Record<string, string> = {
 };
 
 export interface UpgradeHint {
+  /** Positionsgruppe (goal, back, centralDefence, wing, innerMidfield, forward) */
+  group: string;
+  skillKey: SkillKey;
   position: string;
   currentPlayer: string;
   skill: string;
@@ -62,6 +65,10 @@ export interface SquadHint {
 
 export interface Advice {
   upgrades: UpgradeHint[];
+  /** bester Zuwachs je Positionsgruppe und Fertigkeit (alle, nicht nur die sechs größten) */
+  allUpgrades: UpgradeHint[];
+  /** weder in der Startelf noch auf der Bank */
+  unused: number[];
   sellCandidates: SquadHint[];
   trainingTargets: SquadHint[];
   summary: string[];
@@ -83,6 +90,7 @@ export function advise(
 
   // 1) Verstärkungs-Simulation
   const upgrades: UpgradeHint[] = [];
+  const allUpgrades: UpgradeHint[] = [];
   const seenSector = new Set<string>();
   const candidates: UpgradeHint[] = [];
   for (let i = 0; i < field.length; i++) {
@@ -100,6 +108,8 @@ export function advise(
       for (const k of weakSectors) mixed[k] = r2[k];
       const helps = RATING_SECTORS.filter((k) => weakSectors.has(k) && r2[k] - baseR[k] > 0.02).map((k) => SECTOR_DE[k]);
       candidates.push({
+        group: sector,
+        skillKey: skill,
         position: POS_DE[sector],
         currentPlayer: field[i].player.name,
         skill: SKILL_DE[skill],
@@ -116,8 +126,8 @@ export function advise(
     const key = c.position + c.skill;
     if (seenSector.has(key)) continue;
     seenSector.add(key);
-    upgrades.push(c);
-    if (upgrades.length >= 6) break;
+    allUpgrades.push(c);
+    if (upgrades.length < 6) upgrades.push(c);
   }
 
   // 2) Entbehrliche Spieler
@@ -168,5 +178,6 @@ export function advise(
     summary.push(`Keine deutliche Schwachstelle. Größter Hebel nach HatStats: ${overall.position} (${overall.skill}), etwa +${overall.gainPlus2.toFixed(1)} HatStats bei +2 Stufen gegenüber ${overall.currentPlayer}.`);
   }
   if (sellCandidates.length) summary.push(`${sellCandidates.length} Spieler kommen weder in die Startelf noch auf die Bank – Verkauf prüfen, das spart Gehalt.`);
-  return { upgrades, sellCandidates, trainingTargets, summary };
+  const unused = players.filter((p) => !inLineup.has(p.id)).map((p) => p.id);
+  return { upgrades, allUpgrades, unused, sellCandidates, trainingTargets, summary };
 }
