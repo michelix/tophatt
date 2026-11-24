@@ -21,7 +21,8 @@ import { type LineupChoices, completeLineup, droppedChoices, evaluatePositions, 
 import { FORMATIONS, behavioursFor, rankCaptains, rankSetPieces } from "../core/optimizer";
 import { ATTITUDE_NAME, TACTIC_NAME, centralShare, loddarStats, settingsEffect, tacticLevel } from "../core/tactics";
 import { Behaviour, type BenchSlot, type FieldPosition } from "../core/model";
-import { type SearchProfile, budget, searchProfiles } from "../core/scouting";
+import { type SearchProfile, searchProfiles } from "../core/scouting";
+import { renderTransfers } from "./transfers-view";
 import { type FinanceSnapshot, type PastWeek, parseFinance, pastWeeks } from "../core/finance";
 import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
@@ -125,6 +126,8 @@ interface State {
   league: OptimizeResult | null;
   friendly: FriendlyPlan | null;
   advice: Advice | null;
+  /** Startelf und Bank, auf denen die Transfer-Ratschläge beruhen */
+  adviceLineup: { starters: Set<number>; bench: Set<number> };
   weak: SectorAssessment[];
   outlooks: Map<number, PlayerOutlook>;
   setup: TrainingSetup | null;
@@ -191,6 +194,7 @@ const state: State = {
   league: null,
   friendly: null,
   advice: null,
+  adviceLineup: { starters: new Set(), bench: new Set() },
   weak: [],
   outlooks: new Map(),
   setup: null,
@@ -2199,6 +2203,7 @@ function updateAnalysis() {
   const weakSet = new Set(state.weak.filter((w) => w.severity !== "good").map((w) => w.sector));
   const lineup = B.positions === state.league!.lineup.positions ? state.league!.lineup : { positions: B.positions, bench: completeLineup(B.positions, hrf.players, state.settings, $<HTMLInputElement>("#bruised").checked).bench };
   state.advice = advise(hrf.players, lineup, state.settings, team, hrf.team.trainingType, weakSet);
+  state.adviceLineup = { starters: new Set(lineup.positions.map((p) => p.playerId)), bench: new Set(Object.values(lineup.bench ?? {}) as number[]) };
   // Kaderplanung auf derselben Grundlage wie die Schwachstellen (normalerweise deine Aufstellung)
   state.planBasis = B.label;
   state.plans = state.projection ? planSquad(hrf.players, { positions: B.positions }, state.projection) : [];
@@ -3090,42 +3095,20 @@ function initPlayerCard() {
 
 function renderAdvice() {
   const A = state.advice;
-  if (!A) return;
-  const hrf = state.hrf!;
-  const cash = hrf.team.expectedCash ?? hrf.team.cash;
-  const B = budget(hrf.players, cash);
-  const euro = (v: number) => `${Math.round(v).toLocaleString(loc())} €`;
-  const profiles = state.profiles.length
-    ? `<div class="profiles">${state.profiles
-        .map(
-          (p) => `<div class="profile"><h4>${esc(p.title)}</h4><div class="sub">${esc(p.reason)}</div><dl>
-            <dt>Alter</dt><dd>${p.age[0]} bis ${p.age[1]} Jahre</dd>
-            ${p.skills.map((k) => `<dt>${esc(k.name)}</dt><dd>${k.max ? `${k.min} bis ${k.max}` : `ab ${k.min}`}</dd>`).join("")}
-            ${B.cash > 0 ? `<dt>Budget</dt><dd>bis ${euro(B.available)}</dd>` : ""}
-          </dl></div>`,
-        )
-        .join("")}</div>
-      <p class="sub">Werte so im Transfermarkt eintragen (Fertigkeit von/bis, Alter von/bis). Hauptfertigkeit zwei Stufen über dem schwächsten Stammspieler, weil gekaufte Spieler anfangs keine Treue haben. ${
-        B.cash > 0
-          ? hrf.team.expectedCash !== null
-            ? `Budget = erwarteter Kontostand zum Wochenende ${euro(B.cash)} (Kontostand ${euro(hrf.team.cash)}${hrf.team.costsBoughtPlayers > 0 ? `, Käufe dieser Woche ${euro(hrf.team.costsBoughtPlayers)}` : ""}) minus fünf Wochen Gehälter (${euro(B.reserve)}).`
-            : `Budget = Kontostand ${euro(B.cash)} minus fünf Wochen Gehälter (${euro(B.reserve)}).`
-          : "Kontostand ist in der Datei nicht enthalten, deshalb ohne Budget."
-      }</p>`
-    : `<p class="focus ok">Kein dringender Transferbedarf: keine deutliche Schwachstelle und keine Lücke in der Kaderplanung.</p>`;
-  $("#adviceOut").innerHTML = `
-    <h3>Suchprofile für den Transfermarkt</h3>
-    ${profiles}
-    ${A.summary.map((s) => `<p class="focus ok">${esc(s)}</p>`).join("")}
-    <h3>Wo eine Verstärkung am meisten bringt</h3>
-    <div class="scroll"><table class="nowrap"><thead><tr><th>Position</th><th>Fertigkeit</th><th>Spielt jetzt</th><th class="num">+1 Stufe</th><th class="num">+2 Stufen</th><th>Hilft bei Schwachstelle</th></tr></thead><tbody>
-    ${A.upgrades.map((u) => `<tr><td>${u.position}</td><td>${u.skill}</td><td>${esc(u.currentPlayer)}</td><td class="num">+${u.gainPlus1.toFixed(1)}</td><td class="num">+${u.gainPlus2.toFixed(1)}</td><td>${u.helps.length ? esc(u.helps.join(", ")) : '<span class="muted">nein</span>'}</td></tr>`).join("")}
-    </tbody></table></div>
-    <p class="sub">Zuwachs an HatStats, wenn auf dieser Position ein sonst gleicher Spieler mit höherer Fertigkeit stünde. Sortiert nach dem Zuwachs in den Schwachstellen (gleiche Grundlage wie die Seite Schwachstellen). Ein Torwart oder Innenverteidiger hebt alle drei Abwehrteile gleichzeitig und hat deshalb oft viele HatStats, hilft aber nur, wenn die Abwehr eine Schwachstelle ist. Gekaufte Spieler haben anfangs keine Treue, sie brauchen deshalb etwa eine Stufe mehr.</p>
-    <h3>Verkauf prüfen</h3>
-    <ul>${A.sellCandidates.map((s) => `<li><b>${esc(s.name)}</b>: ${esc(s.reason)}</li>`).join("") || "<li>Niemand auffällig.</li>"}</ul>
-    <h3>Trainingskandidaten</h3>
-    <ul>${A.trainingTargets.map((s) => `<li><b>${esc(s.name)}</b>: ${esc(s.reason)}</li>`).join("")}</ul>`;
+  const hrf = state.hrf;
+  if (!A || !hrf) return;
+  renderTransfers($("#adviceOut"), {
+    players: hrf.players,
+    team: hrf.team,
+    finance: state.finance,
+    financeHistory: state.financeWeeks,
+    profiles: state.profiles,
+    advice: A,
+    starters: state.adviceLineup.starters,
+    bench: state.adviceLineup.bench,
+    transfers: state.ho?.transfers ?? null,
+    hoLoaded: !!state.ho,
+  });
 }
 
 function bestPosition(p: Player): { role: number; value: number } {

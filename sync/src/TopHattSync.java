@@ -53,6 +53,8 @@ public class TopHattSync {
             + "WHERE l.ROLEID BETWEEN 100 AND 113 AND m.SPIELDATUM > CURRENT_TIMESTAMP - INTERVAL '120' DAY ORDER BY m.SPIELDATUM DESC");
         section(w, c, "training", "SELECT * FROM TRAINING ORDER BY TRAINING_DATE");
         section(w, c, "futureTraining", "SELECT * FROM FUTURETRAINING ORDER BY TRAINING_DATE");
+        // Käufe und Verkäufe des Vereins (HO lädt sie mit „Daten herunterladen“)
+        section(w, c, "transfers", "SELECT TRANSFERID,DATE,SEASON,WEEK,PLAYERID,PLAYERNAME,BUYERID,BUYERNAME,SELLERID,SELLERNAME,PRICE,TSI FROM TRANSFER ORDER BY DATE");
         avatars(w, dbDir.toAbsolutePath().getParent().resolve("img").resolve("playersAvatar"));
         w.write("\n}\n");
       }

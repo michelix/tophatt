@@ -60,6 +60,16 @@ export function renderFinance(el: HTMLElement, snap: FinanceSnapshot | null, his
   update();
 }
 
+/**
+ * Annahmen der Finanzen-Seite (Zuschauer pro Woche, Mindest-Puffer), damit andere Seiten wie Transfers
+ * mit denselben Zahlen rechnen.
+ */
+export function financeAssumptions(snap: FinanceSnapshot, history: PastWeek[]): { normal: NormalWeek; buffer: number } {
+  const n = normalWeek(snap, history);
+  const normal = inputs.spectators === null ? n : { ...n, spectators: inputs.spectators, total: inputs.spectators + n.sponsors - n.costs };
+  return { normal, buffer: inputs.buffer };
+}
+
 function baseNormal(): NormalWeek {
   return normalWeek(data!.snap, data!.history);
 }
@@ -212,6 +222,8 @@ function wire(el: HTMLElement) {
       inputs.spectators = Math.round(v) === Math.round(baseNormal().spectators) ? null : v;
     }
     update();
+    // Puffer und Zuschauer gelten auch für die Transfers-Seite
+    if (id === "finBuffer" || id === "finSpect") document.dispatchEvent(new CustomEvent("tophatt:finance-assumptions"));
   });
   el.querySelectorAll<HTMLInputElement>("[data-fire]").forEach((c) =>
     c.addEventListener("change", () => {

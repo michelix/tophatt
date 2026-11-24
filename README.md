@@ -145,7 +145,7 @@ Chart with a forecast from HO's training model, age decline, and a hint when it 
 <summary><b>Transfers</b>: which signing helps the most?</summary>
 <br>
 
-Budget, search profiles for the transfer market and candidates that match the weak spots.
+Search profiles for the transfer market in buying order, with one shared budget: the maximum bid keeps your balance above the minimum buffer for a whole season (wage and typical weekly income included). Enter the price of a real candidate to check it, tick unused players to sell, and see your past transfers from HO.
 
 ![Transfers](docs/img/en/transfers.png)
 </details>
@@ -236,7 +236,7 @@ The paths to HO are at the top of `TopHatt.bat` and can be changed there. The sy
 | `src/core/staff.ts` | Coach, assistants, specialists: costs and training efficiency |
 | `src/core/finance.ts` | Cash, weekly balance and forecast |
 | `src/core/history.ts` | Weekly snapshots for the history page |
-| `src/core/scouting.ts`, `advisor.ts` | Search profiles, transfer and training hints |
+| `src/core/scouting.ts`, `advisor.ts`, `transferplan.ts` | Search profiles, transfer budget and buying order, training hints |
 | `src/ui/` | User interface; `build.mjs` bundles everything into one HTML file |
 
 ## Development
