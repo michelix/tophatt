@@ -73,6 +73,8 @@ export interface GroupNeed {
 
 export interface SquadAction {
   kind: "sell" | "fill" | "successor" | "develop";
+  /** Mannschaftsteil (bei Lücken und Nachfolgern) */
+  group?: LineupSector;
   title: string;
   text: string;
   players: number[];
@@ -237,6 +239,7 @@ export function planWholeSquad(players: Player[], positions: FieldPosition[], pr
       title: `${n.name}: ${n.missing} Spieler ${n.missing === 1 ? "fehlt" : "fehlen"}`,
       text: `Für ${n.places} ${n.places === 1 ? "Platz" : "Plätze"} gibt es ${n.backups.length ? `nur ${n.backups.length} brauchbaren Ersatz` : "keinen brauchbaren Ersatz"}.${help} Sonst kaufen (Suchprofil unter Transfers).`,
       players: d && d.share >= USABLE_BACKUP ? [d.x.player.id] : [],
+      group: n.group,
     });
   }
   for (const n of groups) {

@@ -76,3 +76,28 @@ describe("bisherige Transfers", () => {
     expect(parseHoData("{}").transfers).toBeNull();
   });
 });
+
+describe("Suchprofile aus der Kaderplanung", () => {
+  it("Lücke wird eigenes Profil auf Ersatzniveau und steht vorn; volle Gruppe bekommt Hinweis", async () => {
+    const { searchProfiles } = await import("../src/core/scouting");
+    const p = (id: number, defending: number, playmaking: number) => ({ id, age: 26, salary: 500, keeper: 1, defending, playmaking, winger: 6, scoring: 3, passing: 5, setPieces: 3 }) as unknown as Player;
+    const pp = (player: Player) => ({ player, now: 5, later: 5 });
+    const squad = {
+      groups: [
+        { group: "back", name: "Außenverteidigung", places: 2, missing: 1, starters: [pp(p(1, 7, 3)), pp(p(2, 8, 3))], backups: [pp(p(3, 6, 3))], talents: [], surplus: [] },
+        { group: "innerMidfield", name: "Zentrales Mittelfeld", places: 2, missing: 0, starters: [pp(p(4, 4, 7)), pp(p(5, 4, 6))], backups: [], talents: [], surplus: [pp(p(6, 3, 5)), pp(p(7, 3, 5))] },
+      ],
+    } as never;
+    const weak = [{ sector: "midfield", name: "Mittelfeld", severity: "critical", rating: 4.4, delta: -2 }] as never;
+    const prof = searchProfiles([], weak, [], squad);
+    expect(prof.map((x) => x.kind)).toEqual(["luecke", "sofort"]);
+    expect(prof[0].group).toBe("back");
+    expect(prof[0].skills[0]).toMatchObject({ skill: "defending", min: 6, max: 7 });
+    expect(prof[1].reason).toMatch(/2 überzählig/);
+    const r = rankProfiles(prof, { allUpgrades: [up2("innerMidfield", "playmaking", 3.5)] }, []);
+    expect(r[0].profile.kind).toBe("luecke");
+  });
+});
+function up2(group: string, skillKey: string, g: number) {
+  return { group, skillKey, weakGain: g, gainPlus2: g } as UpgradeHint;
+}

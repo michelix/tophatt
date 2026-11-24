@@ -87,7 +87,7 @@ export function planViewHtml(plan: SquadPlan, timelinePlans: GroupPlan[], basis:
 
   const actions = plan.actions.length
     ? `<ol class="sp-actions">${plan.actions
-        .map((a) => `<li class="${a.kind}"><i aria-hidden="true">${ACTION_ICON[a.kind]}</i><div><b>${esc(a.title)}</b><span class="sub">${esc(a.text)}</span>${a.kind === "fill" ? ` <a class="linkbtn" href="#transfers">Suchprofil ansehen</a>` : ""}</div></li>`)
+        .map((a) => `<li class="${a.kind}"><i aria-hidden="true">${ACTION_ICON[a.kind]}</i><div><b>${esc(a.title)}</b><span class="sub">${esc(a.text)}</span>${a.kind === "fill" ? ` <a class="linkbtn" href="#transfers" data-profile="${a.group ?? ""}">Suchprofil ansehen</a>` : ""}</div></li>`)
         .join("")}</ol>`
     : `<p class="muted">Nichts zu tun: Jeder Mannschaftsteil hat Ersatz, niemand ist überzählig.</p>`;
 

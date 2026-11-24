@@ -344,6 +344,11 @@ dialog h3:first-child{margin-top:0}
 .tr-inputs input{min-width:0;width:100%}
 .tr-check{margin-top:8px;min-height:1em;font-size:13px}
 .tr-check .sub{color:var(--ink-2)}
+.tr-card[data-kind=luecke]{border-color:var(--critical);box-shadow:inset 0 0 0 1px var(--critical)}
+.tr-card[data-kind=luecke] .tr-rank{color:var(--critical)}.tr-card[data-kind=luecke] .tr-rank .badge{background:var(--critical);border-color:var(--critical);color:#fff}
+.tr-card.flash{animation:trflash 1.6s ease-out}
+@keyframes trflash{0%,40%{box-shadow:0 0 0 3px var(--brand)}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.tr-card.flash{animation:none;box-shadow:0 0 0 3px var(--brand)}}
 .plan td.st{font-size:13px}
 .plan .val{font-weight:600;font-variant-numeric:tabular-nums}
 .plan .down{color:var(--critical)}.plan .up{color:var(--good-ink)}
