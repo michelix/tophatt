@@ -9089,6 +9089,114 @@
    "El partido del {0} ya cuenta para la nueva semana de entrenamiento desde el {1}: los partidos anteriores se computan en la actualización del {2}, por eso en la nueva semana aún nadie ha jugado ni entrenado.",
    "La partita del {0} conta già per la nuova settimana d'allenamento dal {1}: le partite precedenti vengono conteggiate nell'aggiornamento del {2}, quindi nella nuova settimana nessuno ha ancora giocato o si è allenato.",
    "Mecz {0} liczy się już do nowego tygodnia treningowego od {1}: wcześniejsze mecze są rozliczane w aktualizacji {2}, dlatego w nowym tygodniu nikt jeszcze nie grał ani nie trenował."
+  ],
+  "Trainingsformationen für „{0}“ ({1} volle Trainingsplätze)": [
+   "Training formations for “{0}” ({1} full training slots)",
+   "Formaciones de entrenamiento para «{0}» ({1} plazas completas)",
+   "Moduli d'allenamento per «{0}» ({1} posti pieni)",
+   "Formacje treningowe dla „{0}” ({1} pełnych miejsc treningowych)"
+  ],
+  "gegen Stärkere": [
+   "vs stronger teams",
+   "contra rivales más fuertes",
+   "contro squadre più forti",
+   "na silniejszych"
+  ],
+  "gegen Schwächere": [
+   "vs weaker teams",
+   "contra rivales más débiles",
+   "contro squadre più deboli",
+   "na słabszych"
+  ],
+  "Passt am besten": [
+   "Best fit",
+   "La mejor opción",
+   "La più adatta",
+   "Pasuje najlepiej"
+  ],
+  "Desorganisation droht": [
+   "Risk of disorganisation",
+   "Riesgo de desorganización",
+   "Rischio di disorganizzazione",
+   "Grozi dezorganizacja"
+  ],
+  "Abwehr": [
+   "Defence",
+   "Defensa",
+   "Difesa",
+   "Obrona"
+  ],
+  "Angriff": [
+   "Attack",
+   "Ataque",
+   "Attacco",
+   "Atak"
+  ],
+  "Stärker, aber kaum eingespielt": [
+   "Stronger, but hardly practised",
+   "Más fuertes, pero poco rodadas",
+   "Più forti, ma poco rodati",
+   "Silniejsze, ale słabo zgrane"
+  ],
+  "HatStats gehen von einer eingespielten Mannschaft aus. Unter Erfahrung {0} (passabel) droht im Spiel Desorganisation, die meist mehr kostet als die paar HatStats.": [
+   "HatStats assume a practised team. Below experience {0} (passable) the team risks disorganisation in the match, which usually costs more than those few HatStats.",
+   "Los HatStats suponen un equipo rodado. Por debajo de experiencia {0} (aceptable) hay riesgo de desorganización en el partido, que suele costar más que esos pocos HatStats.",
+   "Gli HatStats presuppongono una squadra rodata. Sotto l'esperienza {0} (passabile) in partita c'è rischio di disorganizzazione, che di solito costa più di quei pochi HatStats.",
+   "HatStats zakładają zgrany zespół. Poniżej doświadczenia {0} (przyzwoite) w meczu grozi dezorganizacja, która zwykle kosztuje więcej niż te kilka HatStats."
+  ],
+  "{0} weitere Formationen, alle schwächer ({1} bis {2} HatStats) und mit wenig Erfahrung ({3} bis {4})": [
+   "{0} more formations, all weaker ({1} to {2} HatStats) and with little experience ({3} to {4})",
+   "{0} formaciones más, todas más débiles ({1} a {2} HatStats) y con poca experiencia ({3} a {4})",
+   "Altri {0} moduli, tutti più deboli (da {1} a {2} HatStats) e con poca esperienza (da {3} a {4})",
+   "{0} kolejnych formacji, wszystkie słabsze ({1} do {2} HatStats) i z małym doświadczeniem ({3} do {4})"
+  ],
+  "{0} weitere Formationen, alle schwächer ({1} HatStats) und mit wenig Erfahrung ({2} bis {3})": [
+   "{0} more formations, all weaker ({1} HatStats) and with little experience ({2} to {3})",
+   "{0} formaciones más, todas más débiles ({1} HatStats) y con poca experiencia ({2} a {3})",
+   "Altri {0} moduli, tutti più deboli ({1} HatStats) e con poca esperienza (da {2} a {3})",
+   "{0} kolejnych formacji, wszystkie słabsze ({1} HatStats) i z małym doświadczeniem ({2} do {3})"
+  ],
+  "{0} weitere Formationen, alle schwächer ({1} bis {2} HatStats) und mit wenig Erfahrung ({3})": [
+   "{0} more formations, all weaker ({1} to {2} HatStats) and with little experience ({3})",
+   "{0} formaciones más, todas más débiles ({1} a {2} HatStats) y con poca experiencia ({3})",
+   "Altri {0} moduli, tutti più deboli (da {1} a {2} HatStats) e con poca esperienza ({3})",
+   "{0} kolejnych formacji, wszystkie słabsze ({1} do {2} HatStats) i z małym doświadczeniem ({3})"
+  ],
+  "Gegen {0} bringt {1} die meisten erwarteten Punkte ({2}), mit {3}.": [
+   "Against {0}, {1} brings the most expected points ({2}), with {3}.",
+   "Contra {0}, {1} da más puntos esperados ({2}), con {3}.",
+   "Contro {0}, {1} porta più punti attesi ({2}), con {3}.",
+   "Przeciw {0} najwięcej oczekiwanych punktów daje {1} ({2}), z {3}."
+  ],
+  "Ohne Daten zum Gegner (Gegner-Check in HO) ist das nur ein Richtwert.": [
+   "Without data on the opponent (opponent check in HO) this is only a rough guide.",
+   "Sin datos del rival (análisis del rival en HO) es solo orientativo.",
+   "Senza dati sull'avversario (analisi avversario in HO) è solo indicativo.",
+   "Bez danych o rywalu (analiza rywala w HO) to tylko wartość orientacyjna."
+  ],
+  "einen typischen Ligagegner": [
+   "a typical league opponent",
+   "un rival típico de la liga",
+   "un avversario tipico del campionato",
+   "typowego rywala z ligi"
+  ],
+  "Einspielen: {0} hat noch zu wenig Erfahrung. Am besten risikoarm in Freundschaftsspielen oder im Pokal gegen schwächere Gegner spielen, bis Erfahrung {1} erreicht ist.": [
+   "Practise: {0} still lacks experience. Best play it at low risk in friendlies or in the cup against weaker opponents until experience {1} is reached.",
+   "Rodar: {0} aún tiene poca experiencia. Mejor jugarla con poco riesgo en amistosos o en la copa contra rivales más débiles hasta llegar a experiencia {1}.",
+   "Rodare: {0} ha ancora poca esperienza. Meglio giocarlo a basso rischio in amichevole o in coppa contro avversari più deboli finché non raggiunge l'esperienza {1}.",
+   "Zgrywanie: {0} ma jeszcze za mało doświadczenia. Najlepiej grać nią bez ryzyka w towarzyskich lub w pucharze ze słabszymi, aż osiągnie doświadczenie {1}."
+  ],
+  "Einspielen: {0} haben noch zu wenig Erfahrung. Am besten risikoarm in Freundschaftsspielen oder im Pokal gegen schwächere Gegner spielen, bis Erfahrung {1} erreicht ist.": [
+   "Practise: {0} still lack experience. Best play them at low risk in friendlies or in the cup against weaker opponents until experience {1} is reached.",
+   "Rodar: {0} aún tienen poca experiencia. Mejor jugarlas con poco riesgo en amistosos o en la copa contra rivales más débiles hasta llegar a experiencia {1}.",
+   "Rodare: {0} hanno ancora poca esperienza. Meglio giocarli a basso rischio in amichevole o in coppa contro avversari più deboli finché non raggiungono l'esperienza {1}.",
+   "Zgrywanie: {0} mają jeszcze za mało doświadczenia. Najlepiej grać nimi bez ryzyka w towarzyskich lub w pucharze ze słabszymi, aż osiągną doświadczenie {1}."
+  ],
+  "⚠ Desorganisation droht": [
+   "⚠ Risk of disorganisation",
+   "⚠ Riesgo de desorganización",
+   "⚠ Rischio di disorganizzazione",
+   "⚠ Grozi dezorganizacja"
   ]
  }
 }
