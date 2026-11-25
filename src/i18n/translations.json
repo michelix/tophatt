@@ -9365,6 +9365,60 @@
    "Aún no tiene plaza de entrenamiento planificada esta semana",
    "Non è ancora previsto alcun posto d'allenamento per lui questa settimana",
    "W tym tygodniu treningowym nie zaplanowano mu jeszcze miejsca treningowego"
+  ],
+  "Schon gespielt:": [
+   "Already played:",
+   "Ya jugado:",
+   "Già giocato:",
+   "Już rozegrane:"
+  ],
+  "voll trainiert": [
+   "fully trained",
+   "entrenamiento completo",
+   "allenati completamente",
+   "pełny trening"
+  ],
+  "geplant:": [
+   "planned:",
+   "planificado:",
+   "pianificato:",
+   "zaplanowane:"
+  ],
+  "von höchstens {0} voll": [
+   "of at most {0} full",
+   "de como máximo {0} completos",
+   "su al massimo {0} pieni",
+   "z maksymalnie {0} pełnych"
+  ],
+  "von höchstens {0} voll, {1} halb": [
+   "of at most {0} full, {1} half",
+   "de como máximo {0} completos, {1} a medias",
+   "su al massimo {0} pieni, {1} a metà",
+   "z maksymalnie {0} pełnych, {1} połowicznie"
+  ],
+  "voll geplant": [
+   "full planned",
+   "completo planificado",
+   "pieno pianificato",
+   "pełny zaplanowany"
+  ],
+  "{0} % geplant": [
+   "{0} % planned",
+   "{0} % planificado",
+   "{0} % pianificato",
+   "{0} % zaplanowane"
+  ],
+  "Geplant mit deiner Liga-Aufstellung und dem zweiten Spiel, noch nicht gespielt": [
+   "Planned with your league lineup and the second match, not played yet",
+   "Planificado con tu alineación de liga y el segundo partido, aún no jugado",
+   "Pianificato con la tua formazione di campionato e la seconda partita, non ancora giocato",
+   "Zaplanowane z twoim składem ligowym i drugim meczem, jeszcze nie rozegrane"
+  ],
+  "voll: dunkel = schon gespielt, hell = geplant": [
+   "full: dark = already played, light = planned",
+   "completo: oscuro = ya jugado, claro = planificado",
+   "pieno: scuro = già giocato, chiaro = pianificato",
+   "pełny: ciemny = już rozegrane, jasny = zaplanowane"
   ]
  }
 }

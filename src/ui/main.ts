@@ -2852,14 +2852,17 @@ function renderTrainingWeek() {
       return `<div class="tw-tl ${cls}"><span class="dot"></span><div class="d">${s.t === "Freundschaftsspiel" ? "frei wählbar" : dayTime(s.d)}</div><div class="t">${esc(s.t)}</div><div class="x">${esc(s.x)}</div></div>`;
     })
     .join("");
-  const meter = Array.from({ length: maxFull }, (_, i) => `<i class="${i < fullCount ? "f" : ""}"></i>`).join("");
+  // schon gespielt (laut HRF) gegenüber nur geplant (eigene Aufstellungen)
+  const playedFactor = (id: number) => weekFactor(state.week!.played.get(id));
+  const playedFull = rows.filter((r) => playedFactor(r.player.id) >= DONE_FACTOR).length;
+  const meter = Array.from({ length: maxFull }, (_, i) => `<i class="${i < playedFull ? "f" : i < fullCount ? "p" : ""}"></i>`).join("");
   const hero = `<div class="tw-hero">
     <div>
       <div class="k">Eingestelltes Training</div>
       <div class="big">${esc(t.name)}</div>
       <div class="sub2">Voll: ${esc(list(t.full))}${t.partly.length ? ` · halb: ${esc(list(t.partly))}` : ""}<br>Nächstes Update ${countdown(w.end)}</div>
-      <div class="tw-meter" title="voll trainierte Spieler diese Woche">${meter}</div>
-      <div class="sub2"><b>${fullCount}</b> von höchstens ${maxFull} Spielern voll trainiert${halfCount ? `, ${halfCount} halb` : ""} (gespielt und geplant)</div>
+      <div class="tw-meter" title="voll: dunkel = schon gespielt, hell = geplant">${meter}</div>
+      <div class="sub2">Schon gespielt: <b>${playedFull}</b> voll trainiert · geplant: <b>${fullCount}</b> von höchstens ${maxFull} voll${halfCount ? `, ${halfCount} halb` : ""}</div>
     </div>
     <div class="tw-timeline">${timeline}</div>
   </div>`;
@@ -2942,8 +2945,12 @@ function renderTrainingWeek() {
     const p = r.player;
     if (p.injury > 0) return statusChip("critical", `verletzt ${p.injury} W.`, "+");
     if (state.noTrain.has(p.id) && r.factor === 0) return `<span class="tw-nt" title="Auf der Liste „Nicht trainieren“">nicht trainieren</span>`;
-    if (r.factor >= 1) return statusChip("good", "voll", "✓");
-    if (r.factor > 0) return statusChip("warning", `${Math.round(r.factor * 100)} %`, "½");
+    // Status = schon gespielt (laut HRF); was nur geplant ist, steht hell daneben
+    const pf = playedFactor(p.id);
+    const planned = r.factor > pf + 0.05 ? `<span class="tw-plan" title="Geplant mit deiner Liga-Aufstellung und dem zweiten Spiel, noch nicht gespielt">${r.factor >= 1 ? "voll" : `${Math.round(r.factor * 100)} %`} geplant</span>` : "";
+    if (pf >= DONE_FACTOR) return statusChip("good", "voll", "✓");
+    if (pf > 0) return `${statusChip("warning", `${Math.round(pf * 100)} %`, "½")}${planned ? ` ${planned}` : ""}`;
+    if (planned) return planned;
     if (p.injury === 0 && !bruisedOk()) return statusChip("warning", "angeschlagen", "!");
     const kt = p.keeper >= Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
     if (kt && t.skill !== "keeper") return `<span class="muted">Torwart</span>`;
