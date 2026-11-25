@@ -32,7 +32,7 @@ import { type SquadPlan, planWholeSquad } from "../core/squadplan";
 import { type PlanFilter, planViewHtml } from "./plan-view";
 import { avatarHtml, cutoutAvatars } from "./avatar";
 import { LEVEL_DE } from "../core/staff";
-import { type PortfolioEntry, ROLE_DE as PF_ROLE_DE, SETTLED_EXPERIENCE, trainingPortfolio } from "../core/portfolio";
+import { type PortfolioEntry, ROLE_DE as PF_ROLE_DE, SETTLED_EXPERIENCE, attackOf, defenceOf, trainingPortfolio } from "../core/portfolio";
 import { fixed, loc } from "../core/locale";
 import { LANGS, currentLang, setLang, startI18n, type Lang } from "./i18n";
 
@@ -881,118 +881,117 @@ function formationCard(o: {
 
 const fmtRange = (a: number, b: number, d = 0) => (Math.abs(a - b) < 0.5 ? fixed(a, d) : `${fixed(Math.min(a, b), d)} bis ${fixed(Math.max(a, b), d)}`);
 
+const ROLE_ICON: Record<PortfolioEntry["role"], string> = { stronger: "▲", even: "●", weaker: "▼" };
+
+/** Formationswahl einklappen (gemerkt im Browser) */
+function formationPanelCollapsed(): boolean {
+  try {
+    return localStorage.getItem("tophatt.fpCollapsed") === "1";
+  } catch {
+    return false;
+  }
+}
+
+let formationPlanCache: { key: string; plans: Map<string, MatchPlan>; opp: string; known: boolean } | null = null;
+/** beste Taktik und Siegchance je Formation gegen den nächsten Gegner (beste Elf der Formation) */
+function formationPlans(codes: string[]) {
+  const hrf = state.hrf!;
+  const opp = planOpponent();
+  const fs = codes.map((c) => state.formations.find((x) => x.code === c)).filter((x): x is State["formations"][number] => !!x);
+  const key = JSON.stringify([fs.map((f) => [f.code, f.positions.map((p) => [p.playerId, p.role])]), state.settings.location, opp?.label, opp?.ratings, styleRange(hrf.team)]);
+  if (formationPlanCache?.key === key) return formationPlanCache;
+  const plans = new Map<string, MatchPlan>();
+  const m = state.match;
+  if (opp) {
+    const byId = playersById();
+    for (const f of fs) plans.set(f.code, planMatch(f.positions, byId, state.settings, teamState(), { ratings: opp.ratings, tactic: opp.tactic, level: 8 }, { cup: m?.type === 3, styleRange: styleRange(hrf.team) }));
+  }
+  const name = m ? (m.homeId === hrf.team.teamId ? m.awayName : m.homeName) : "den Gegner";
+  formationPlanCache = { key, plans, opp: opp?.known ? name : "einen typischen Ligagegner", known: !!opp?.known };
+  return formationPlanCache;
+}
+
 /**
- * Formationswahl für die beste Elf: eingespielte Formationen (Erfahrung ab 6), Trainingsformationen je nach Gegner,
- * stärkere aber kaum eingespielte Formationen mit Warnung und der Rest eingeklappt.
+ * Formationswahl für die beste Elf, kompakt: eine Reihe Kacheln, jede Formation nur einmal (Empfehlung, mit Training,
+ * Trainingsformationen je nach Gegner, eingespielte und stärkere, aber kaum eingespielte). Darunter eine Zeile mit
+ * Details zur gewählten Formation, dann die übrigen als Mini-Kacheln. Erklärungen hinter ⓘ, Panel einklappbar.
  */
 function formationCardsHtml(): string {
   const F = [...state.formations].sort((a, b) => b.hatStats - a.hatStats);
   const best = state.league?.lineup.formation;
   if (!F.length || !best) return `<div class="trmode fpanel"><p class="sub" style="margin:0">Formationen werden berechnet …</p></div>`;
-  const t = TRAININGS[state.hrf!.team.trainingType];
+  const hrf = state.hrf!;
+  const t = TRAININGS[hrf.team.trainingType];
   const current = state.formation || best;
-  const min = Math.min(...F.map((x) => x.hatStats));
-  const max = Math.max(...F.map((x) => x.hatStats));
   const bestHs = state.league!.hatStats;
   const minExp = Number($<HTMLSelectElement>("#minExp").value);
   const lc = leagueChoice();
   const trainPick = lc && lc.pick.formation !== best ? lc.pick.formation : "";
-  const card = (x: (typeof F)[number], extra: { badges?: { text: string; cls?: string }[]; body?: string } = {}) =>
-    formationCard({
-      f: x.code,
-      hatStats: x.hatStats,
-      exp: x.experience,
-      on: x.code === current,
-      reco: x.code === best,
-      min,
-      max,
-      attr: `data-fc="${x.code === best ? "" : x.code}"`,
-      delta: x.code === best ? undefined : x.hatStats - bestHs,
-      slots: t ? formationSlots(t, x.code) : undefined,
-      badges: [
-        ...(extra.badges ?? []),
-        ...(x.code === trainPick ? [{ text: "Mit Training", cls: "train" }] : []),
-        ...(x.experience < SETTLED_EXPERIENCE ? [{ text: "⚠ Desorganisation droht", cls: "warn" }] : []),
-      ],
-      body: extra.body,
-    });
-  const good = F.filter((x) => x.experience >= SETTLED_EXPERIENCE || x.code === best);
-  const weak = F.filter((x) => !good.includes(x));
-  const stronger = weak.filter((x) => x.hatStats > bestHs + 0.5);
-  const rest = weak.filter((x) => !stronger.includes(x));
-  const why = `Empfehlung ${formationLabel(best)}: die stärkste Elf nach HatStats${minExp ? ` unter den Formationen mit Erfahrung ab ${minExp}` : ""}.`;
-  const strongerWhy = `HatStats gehen von einer eingespielten Mannschaft aus. Unter Erfahrung ${SETTLED_EXPERIENCE} (passabel) droht im Spiel Desorganisation, die meist mehr kostet als die paar HatStats.`;
-  const restSummary = rest.length
-    ? `${rest.length} weitere Formationen, alle schwächer (${fmtRange(Math.min(...rest.map((x) => x.hatStats)), Math.max(...rest.map((x) => x.hatStats)))} HatStats) und mit wenig Erfahrung (${fmtRange(Math.min(...rest.map((x) => x.experience)), Math.max(...rest.map((x) => x.experience)))})`
-    : "";
-  return `<div class="trmode fpanel">
-    <div class="trmode-top"><b>Formation</b><span>${esc(why)} Antippen stellt die beste Elf für diese Formation auf.</span></div>
-    ${trainPick ? `<p class="sub tf-why"><b>Mit Training:</b> <span>${esc(lc!.reason)}</span> <span>Knopf „Stärkste Elf + Training“.</span></p>` : ""}
-    <div class="tf-group"><div class="tf-head">Eingespielt (Erfahrung ab ${SETTLED_EXPERIENCE})</div><div class="tf-grid">${good.map((x) => card(x)).join("")}</div></div>
-    ${portfolioHtml(card)}
-    ${stronger.length ? `<div class="tf-group"><div class="tf-head">Stärker, aber kaum eingespielt</div><p class="sub tf-why">${esc(strongerWhy)}</p><div class="tf-grid">${stronger.map((x) => card(x)).join("")}</div></div>` : ""}
-    ${rest.length ? `<details class="tf-more"${rest.some((x) => x.code === current) ? " open" : ""}><summary>${esc(restSummary)}</summary><div class="tf-group"><div class="tf-grid">${rest.map((x) => card(x)).join("")}</div></div></details>` : ""}
-  </div>`;
-}
-
-let portfolioCache: { key: string; rows: { entry: PortfolioEntry; plan: MatchPlan | null }[]; opp: string; known: boolean } | null = null;
-/** Trainingsformationen mit Siegchance gegen den nächsten Gegner (beste Taktik je Formation) */
-function portfolioRows() {
-  const hrf = state.hrf!;
-  const t = TRAININGS[hrf.team.trainingType];
-  if (!t || !state.formations.length) return null;
-  const entries = trainingPortfolio(state.formations, t);
-  if (!entries.length) return null;
-  const opp = planOpponent();
-  const key = JSON.stringify([entries.map((e) => [e.formation, e.positions.map((p) => [p.playerId, p.role])]), state.settings.location, opp?.label, opp?.ratings, styleRange(hrf.team)]);
-  if (portfolioCache?.key === key) return portfolioCache;
-  const byId = playersById();
-  const m = state.match;
-  const rows = entries.map((entry) => ({
-    entry,
-    plan: opp ? planMatch(entry.positions, byId, state.settings, teamState(), { ratings: opp.ratings, tactic: opp.tactic, level: 8 }, { cup: m?.type === 3, styleRange: styleRange(hrf.team) }) : null,
-  }));
-  const name = m ? (m.homeId === hrf.team.teamId ? m.awayName : m.homeName) : "den Gegner";
-  portfolioCache = { key, rows, opp: opp?.known ? name : "einen typischen Ligagegner", known: !!opp?.known };
-  return portfolioCache;
-}
-
-/** Gruppe „Trainingsformationen“: je eine Formation gegen Stärkere, ausgeglichen und gegen Schwächere */
-function portfolioHtml(card: (x: State["formations"][number], extra?: { badges?: { text: string; cls?: string }[]; body?: string }) => string): string {
-  const hrf = state.hrf!;
-  const t = TRAININGS[hrf.team.trainingType];
-  const P = portfolioRows();
-  if (!t || !P) return "";
+  const portfolio = t ? trainingPortfolio(state.formations, t) : [];
+  const roleOf = new Map(portfolio.map((p) => [p.formation, p.role]));
+  const settled = (x: (typeof F)[number]) => x.experience >= SETTLED_EXPERIENCE;
+  // Hauptreihe: Empfehlung zuerst, dann alle eingespielten, mit Training, Trainingsformationen und stärkere, nach HatStats
+  const mainCodes = new Set([best, trainPick, ...portfolio.map((p) => p.formation), ...F.filter((x) => settled(x) || x.hatStats > bestHs + 0.5).map((x) => x.code)].filter(Boolean));
+  if (!mainCodes.has(current)) mainCodes.add(current);
+  const main = F.filter((x) => mainCodes.has(x.code)).sort((a, b) => (a.code === best ? -1 : b.code === best ? 1 : b.hatStats - a.hatStats));
+  const rest = F.filter((x) => !mainCodes.has(x.code));
+  const P = formationPlans(main.map((x) => x.code));
+  const top = P.plans.size > 1 ? [...P.plans].reduce((a, b) => (b[1].best.prediction.points > a[1].best.prediction.points ? b : a))[0] : "";
   const pct = (x: number) => `${Math.round(x * 100)} %`;
-  const withPlan = P.rows.filter((r) => r.plan);
-  const top = withPlan.length > 1 ? withPlan.reduce((a, b) => (b.plan!.best.prediction.points > a.plan!.best.prediction.points ? b : a)) : null;
-  const maxV = Math.max(...P.rows.flatMap((r) => [r.entry.midfield * 3, r.entry.defence, r.entry.attack]), 1);
-  const bar = (label: string, v: number, cls: string, scale = 1) => `<span class="pf-bar ${cls}"><b>${label}</b><i style="width:${Math.round((100 * v * scale) / maxV)}%"></i><em>${fixed(v, scale > 1 ? 2 : 1)}</em></span>`;
-  const cards = P.rows
-    .map((r) => {
-      const f = state.formations.find((x) => x.code === r.entry.formation)!;
-      const e = r.entry;
-      const b = r.plan?.best;
-      const body = `<span class="pf-bars">${bar("Mittelfeld", e.midfield, "m", 3)}${bar("Abwehr", e.defence, "d")}${bar("Angriff", e.attack, "a")}</span>${
-        b ? `<span class="pf-win">Sieg <b>${pct(b.prediction.win)}</b> · ${esc(b.label)}</span>` : ""
-      }`;
-      return card(f, { badges: [{ text: PF_ROLE_DE[e.role], cls: "role" }, ...(r === top ? [{ text: "Passt am besten", cls: "train" }] : [])], body });
-    })
-    .join("");
-  const low = P.rows.filter((r) => r.entry.experience < SETTLED_EXPERIENCE).map((r) => formationLabel(r.entry.formation));
+  const signed = (d: number) => (Math.abs(d) < 0.05 ? "" : ` <span class="tf-d">${d > 0 ? "+" : "−"}${fixed(Math.abs(d), Math.abs(d) < 10 ? 1 : 0)}</span>`);
+  const tile = (x: (typeof F)[number]) => {
+    const role = roleOf.get(x.code);
+    const plan = P.plans.get(x.code);
+    const slots = t ? formationSlots(t, x.code) : null;
+    const badges = [
+      ...(x.code === best ? [`<span class="tf-reco">★ Empfehlung</span>`] : []),
+      ...(x.code === trainPick ? [`<span class="tf-reco train">⚑ Mit Training</span>`] : []),
+      ...(x.code === top ? [`<span class="tf-reco train">Passt am besten</span>`] : []),
+      ...(role ? [`<span class="tf-reco role">${ROLE_ICON[role]} ${esc(PF_ROLE_DE[role])}</span>`] : []),
+      ...(!settled(x) ? [`<span class="tf-reco warn">⚠ kaum eingespielt</span>`] : []),
+    ];
+    const dots = slots ? `<span class="tf-dots" title="${slots.full} volle${slots.partly ? `, ${slots.partly} halbe` : ""} Trainingsplätze">${"<i></i>".repeat(slots.full)}${`<i class="half"></i>`.repeat(slots.partly)}</span>` : "";
+    return `<button type="button" class="tf-card fp-tile${x.code === current ? " on" : ""}${x.code === best ? " reco" : ""}${settled(x) ? "" : " dim"}" data-fc="${x.code === best ? "" : x.code}" aria-pressed="${x.code === current}">
+      <span class="tf-badges">${badges.join("")}</span>
+      <span class="tf-f">${formationLabel(x.code)}</span>
+      <span class="fp-l"><b>${x.hatStats.toFixed(0)}</b> HatStats${x.code === best ? "" : signed(x.hatStats - bestHs)}${plan ? ` · Sieg <b>${pct(plan.best.prediction.win)}</b>` : ""}</span>
+      <span class="fp-l${settled(x) ? "" : " warn"}" title="Erfahrung ${x.experience} · ${LEVEL_DE[Math.max(0, Math.min(10, x.experience))]}">${dots} ${settled(x) ? "" : "⚠ "}Erfahrung ${x.experience}</span>
+    </button>`;
+  };
+  // Details der gewählten Formation
+  const cur = F.find((x) => x.code === current);
+  let detail = "";
+  if (cur) {
+    const plan = P.plans.get(cur.code);
+    const maxV = Math.max(...main.flatMap((x) => [x.ratings.midfield * 3, defenceOf(x.ratings), attackOf(x.ratings)]), 1);
+    const bar = (label: string, v: number, cls: string, scale = 1) =>
+      `<span class="fp-bar ${cls}">${label} <b>${fixed(v, scale > 1 ? 2 : 1)}</b><i style="width:${Math.round((60 * v * scale) / maxV)}px"></i></span>`;
+    detail = `<div class="fp-detail"><span><b>${formationLabel(cur.code)}</b>${plan ? ` gegen ${esc(P.opp)}: ${esc(plan.best.label)}` : ""}</span>${bar("Mittelfeld", cur.ratings.midfield, "m", 3)}${bar("Abwehr", defenceOf(cur.ratings), "d")}${bar("Angriff", attackOf(cur.ratings), "a")}${
+      !settled(cur) ? `<span class="warn">Einspielen: risikoarm in Freundschaftsspielen oder im Pokal gegen schwächere Gegner, bis Erfahrung ${SETTLED_EXPERIENCE}.</span>` : ""
+    }</div>`;
+  }
+  const minis = rest.length
+    ? `<div class="fp-minis"><span class="sub">+ ${rest.length} schwächere:</span>${rest.map((x) => `<button type="button" class="tf-card fp-mini${x.code === current ? " on" : ""}" data-fc="${x.code}" title="Erfahrung ${x.experience} · ${LEVEL_DE[Math.max(0, Math.min(10, x.experience))]}">${formationLabel(x.code)} <b>${x.hatStats.toFixed(0)}</b></button>`).join("")}</div>`
+    : "";
+  // Erklärungen hinter ⓘ
   const [lo, hi] = styleRange(hrf.team);
-  const notes = [
-    top
-      ? `Gegen ${P.opp} bringt ${formationLabel(top.entry.formation)} die meisten erwarteten Punkte (${de(top.plan!.best.prediction.points)}), mit ${top.plan!.best.label}.${P.known ? "" : " Ohne Daten zum Gegner (Gegner-Check in HO) ist das nur ein Richtwert."}`
-      : "",
-    low.length
-      ? `Einspielen: ${low.join(", ")} ${low.length === 1 ? "hat" : "haben"} noch zu wenig Erfahrung. Am besten risikoarm in Freundschaftsspielen oder im Pokal gegen schwächere Gegner spielen, bis Erfahrung ${SETTLED_EXPERIENCE} erreicht ist.`
-      : "",
-    lo === hi ? styleNoteFor(hrf.team) : "",
-  ].filter(Boolean);
-  return `<div class="tf-group"><div class="tf-head">Trainingsformationen für „${esc(t.name)}“ (${P.rows[0].entry.full} volle Trainingsplätze)</div>
-    <div class="tf-grid pf-grid">${cards}</div>
-    ${notes.map((n) => `<p class="sub tf-why">${esc(n)}</p>`).join("")}</div>`;
+  const topPlan = top ? P.plans.get(top) : undefined;
+  const info = [
+    `Empfehlung ${formationLabel(best)}: die stärkste Elf nach HatStats${minExp ? ` unter den Formationen mit Erfahrung ab ${minExp}` : ""}.`,
+    ...(trainPick && lc ? [`Mit Training: ${lc.reason}`] : []),
+    ...(portfolio.length && t ? [`Trainingsformationen für „${t.name}“ (${portfolio[0].full} volle Trainingsplätze): ${portfolio.map((p) => `${formationLabel(p.formation)} ${PF_ROLE_DE[p.role]}`).join(", ")}.`] : []),
+    ...(topPlan ? [`Gegen ${P.opp} bringt ${formationLabel(top)} die meisten erwarteten Punkte (${de(topPlan.best.prediction.points)}), mit ${topPlan.best.label}.${P.known ? "" : " Ohne Daten zum Gegner (Gegner-Check in HO) ist das nur ein Richtwert."}`] : []),
+    `HatStats gehen von einer eingespielten Mannschaft aus. Unter Erfahrung ${SETTLED_EXPERIENCE} (passabel) droht im Spiel Desorganisation, die meist mehr kostet als die paar HatStats.`,
+    ...(lo === hi ? [styleNoteFor(hrf.team)] : []),
+  ];
+  const summary = `Empfehlung ${formationLabel(best)}${trainPick && lc ? `, mit Training ${formationLabel(trainPick)} (−${fixed(lc.best.hatStats - lc.pick.hatStats, 1)} HatStats)` : ""}`;
+  const collapsed = formationPanelCollapsed();
+  return `<div class="trmode fpanel fp${collapsed ? " collapsed" : ""}">
+    <div class="fp-head"><b>Formation</b><span class="sub">${collapsed ? `${formationLabel(current)} gewählt · ` : ""}${esc(summary)}</span>
+      <details class="fp-info"><summary title="Erklärung">ⓘ</summary><div>${info.map((x) => `<p class="sub">${esc(x)}</p>`).join("")}</div></details>
+      <button type="button" class="btn fp-toggle" id="fpToggle" aria-expanded="${!collapsed}">${collapsed ? "▾ aufklappen" : "▴ einklappen"}</button></div>
+    ${collapsed ? "" : `<div class="fp-row">${main.map(tile).join("")}</div>${detail}${minis}`}
+  </div>`;
 }
 
 /** Formationswahl im Trainingself-Modus: Karten, gruppiert nach Trainingsplätzen, Empfehlung hervorgehoben */
@@ -2284,6 +2283,14 @@ function initEditor() {
       return;
     }
     if (el.closest("#trainingOff")) $<HTMLButtonElement>("#autoFill").click();
+    if (el.closest("#fpToggle")) {
+      try {
+        localStorage.setItem("tophatt.fpCollapsed", formationPanelCollapsed() ? "0" : "1");
+      } catch {
+        /* ohne Speicher bleibt es offen */
+      }
+      renderFormationPick();
+    }
   });
   $("#pitchOut").addEventListener("change", (e) => {
     const el = e.target as HTMLSelectElement;

@@ -9197,6 +9197,120 @@
    "⚠ Riesgo de desorganización",
    "⚠ Rischio di disorganizzazione",
    "⚠ Grozi dezorganizacja"
+  ],
+  "Empfehlung {0}, mit Training {1} (−{2} HatStats)": [
+   "Recommendation {0}, with training {1} (−{2} HatStats)",
+   "Recomendación {0}, con entrenamiento {1} (−{2} HatStats)",
+   "Raccomandazione {0}, con allenamento {1} (−{2} HatStats)",
+   "Rekomendacja {0}, z treningiem {1} (−{2} HatStats)"
+  ],
+  "Empfehlung {0}": [
+   "Recommendation {0}",
+   "Recomendación {0}",
+   "Raccomandazione {0}",
+   "Rekomendacja {0}"
+  ],
+  "{0} gewählt ·": [
+   "{0} selected ·",
+   "{0} elegida ·",
+   "{0} scelto ·",
+   "{0} wybrana ·"
+  ],
+  "{0} gewählt": [
+   "{0} selected",
+   "{0} elegida",
+   "{0} scelto",
+   "{0} wybrana"
+  ],
+  "▴ einklappen": [
+   "▴ collapse",
+   "▴ contraer",
+   "▴ comprimi",
+   "▴ zwiń"
+  ],
+  "▾ aufklappen": [
+   "▾ expand",
+   "▾ desplegar",
+   "▾ espandi",
+   "▾ rozwiń"
+  ],
+  "Erklärung": [
+   "Explanation",
+   "Explicación",
+   "Spiegazione",
+   "Wyjaśnienie"
+  ],
+  "★ Empfehlung": [
+   "★ Recommendation",
+   "★ Recomendación",
+   "★ Raccomandazione",
+   "★ Rekomendacja"
+  ],
+  "⚑ Mit Training": [
+   "⚑ With training",
+   "⚑ Con entrenamiento",
+   "⚑ Con allenamento",
+   "⚑ Z treningiem"
+  ],
+  "⚠ kaum eingespielt": [
+   "⚠ hardly practised",
+   "⚠ poco rodada",
+   "⚠ poco rodato",
+   "⚠ słabo zgrana"
+  ],
+  "▲ gegen Stärkere": [
+   "▲ vs stronger teams",
+   "▲ contra rivales más fuertes",
+   "▲ contro squadre più forti",
+   "▲ na silniejszych"
+  ],
+  "● ausgeglichen": [
+   "● balanced",
+   "● equilibrada",
+   "● equilibrato",
+   "● zrównoważona"
+  ],
+  "▼ gegen Schwächere": [
+   "▼ vs weaker teams",
+   "▼ contra rivales más débiles",
+   "▼ contro squadre più deboli",
+   "▼ na słabszych"
+  ],
+  "+ {0} schwächere:": [
+   "+ {0} weaker:",
+   "+ {0} más débiles:",
+   "+ {0} più deboli:",
+   "+ {0} słabszych:"
+  ],
+  "gegen {0}: {1}": [
+   "against {0}: {1}",
+   "contra {0}: {1}",
+   "contro {0}: {1}",
+   "przeciw {0}: {1}"
+  ],
+  "Einspielen: risikoarm in Freundschaftsspielen oder im Pokal gegen schwächere Gegner, bis Erfahrung {0}.": [
+   "Practise: at low risk in friendlies or in the cup against weaker opponents, until experience {0}.",
+   "Rodar: con poco riesgo en amistosos o en la copa contra rivales más débiles, hasta experiencia {0}.",
+   "Rodare: a basso rischio in amichevole o in coppa contro avversari più deboli, fino all'esperienza {0}.",
+   "Zgrywanie: bez ryzyka w towarzyskich lub w pucharze ze słabszymi, do doświadczenia {0}."
+  ],
+  "Trainingsformationen für „{0}“ ({1} volle Trainingsplätze): {2}.": [
+   "Training formations for “{0}” ({1} full training slots): {2}.",
+   "Formaciones de entrenamiento para «{0}» ({1} plazas completas): {2}.",
+   "Moduli d'allenamento per «{0}» ({1} posti pieni): {2}.",
+   "Formacje treningowe dla „{0}” ({1} pełnych miejsc treningowych): {2}."
+  ],
+  "Erfahrung {0} · {1}": [
+   "Experience {0} · {1}",
+   "Experiencia {0} · {1}",
+   "Esperienza {0} · {1}",
+   "Doświadczenie {0} · {1}"
+  ],
+  "{0} gegen Stärkere, {1} ausgeglichen, {2} gegen Schwächere": [
+   "{0} vs stronger teams, {1} balanced, {2} vs weaker teams",
+   "{0} contra más fuertes, {1} equilibrada, {2} contra más débiles",
+   "{0} contro i più forti, {1} equilibrato, {2} contro i più deboli",
+   "{0} na silniejszych, {1} zrównoważona, {2} na słabszych"
   ]
  }
 }
