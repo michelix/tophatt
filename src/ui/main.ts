@@ -470,6 +470,21 @@ function trainingWeekNow(): State["week"] {
 }
 
 /**
+ * Abgeschlossene Trainingswoche: Liegt die geplante Woche schon hinter dem nächsten Update (Liga und zweites Spiel
+ * gespielt, Update steht noch aus), die laufende Woche mit den gespielten Minuten laut HRF. Sonst null.
+ */
+function closedWeek(): { window: TrainingWindow; played: Map<number, WeekMinutes> } | null {
+  const hrf = state.hrf!;
+  const t = TRAININGS[hrf.team.trainingType];
+  const w = state.week?.window;
+  if (!t || !w || w.start.getTime() <= Date.now()) return null;
+  const dates = [...(state.ho?.training ?? []), ...(state.ho?.futureTraining ?? [])].map((x) => x.date);
+  const window = trainingWindow(new Date(), dates);
+  if (window.start.getTime() >= w.start.getTime()) return null;
+  return { window, played: playedThisWeek(hrf.players, t, window) };
+}
+
+/**
  * Freundschaftsspiel neu planen: schon gespielte Minuten der Woche plus die eigene Liga-Aufstellung,
  * solange das Ligaspiel noch vor dem nächsten Trainingsupdate liegt.
  */
@@ -2932,7 +2947,7 @@ function renderTrainingWeek() {
     if (p.injury === 0 && !bruisedOk()) return statusChip("warning", "angeschlagen", "!");
     const kt = p.keeper >= Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
     if (kt && t.skill !== "keeper") return `<span class="muted">Torwart</span>`;
-    return r.benefit >= 3 ? `<span class="tw-open">offen</span>` : `<span class="muted">kein</span>`;
+    return r.benefit >= 3 ? `<span class="tw-open" title="In dieser Trainingswoche ist noch kein Trainingsplatz für ihn geplant">offen</span>` : `<span class="muted">kein</span>`;
   };
   const slot = (role: number, src: string[] = []) => {
     if (!role) return src.length ? `<span class="tw-slot played" title="${esc(src.join(", "))}">gespielt</span>` : `<span class="muted">–</span>`;
@@ -2985,7 +3000,29 @@ function renderTrainingWeek() {
     <div class="nt-box">${ntPlayers.map((p) => `<span class="nt-chip">${miniFace(p)}${esc(p.name)}<button type="button" data-ntdel="${p.id}" title="Von der Liste nehmen" aria-label="${esc(p.name)} von der Liste nehmen">✕</button></span>`).join("") || `<span class="muted">Noch niemand.</span>`}
       <label class="nt-add"><select id="ntAdd"><option value="">+ Spieler hinzufügen …</option>${ntOptions}</select></label></div></div>`;
 
-  out.innerHTML = `${hero}<div class="tw-games">${leagueCard}${secondCard}</div>${alert}${noTrainCard}${squads}${rules}`;
+  // Abgeschlossene Woche: Spiele gespielt, Update steht noch aus. Diese Seite plant dann schon die nächste Woche.
+  let closedCard = "";
+  const cw = closedWeek();
+  if (cw) {
+    const names = (rs: Player[], extra?: (p: Player) => string) => rs.map((p) => `${esc(p.name)}${extra ? extra(p) : ""}`).join(", ");
+    const f = (p: Player) => weekFactor(cw.played.get(p.id));
+    const isKeeper = (p: Player) => p.keeper >= Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
+    const full = hrf.players.filter((p) => f(p) >= DONE_FACTOR);
+    const half = hrf.players.filter((p) => f(p) > 0 && f(p) < DONE_FACTOR);
+    const missed = hrf.players
+      .filter((p) => f(p) === 0 && trainingPriority(p, t) >= 3 && !state.noTrain.has(p.id) && (t.skill === "keeper" || !isKeeper(p)))
+      .sort((a, b) => trainingPriority(b, t) - trainingPriority(a, t));
+    closedCard = `<div class="card tw-card tw-closed"><header><h3>Woche bis ${dayOnly(cw.window.end)} abgeschlossen</h3><span class="tw-goal">Update ${dayTime(cw.window.end)}</span></header>
+      <p class="sub">Die Spiele dieser Trainingswoche sind gespielt. Das Training wird im Update am ${dayTime(cw.window.end)} verrechnet, ändern lässt sich daran nichts mehr. Alles darunter plant schon die nächste Woche (${dayOnly(w.start)} bis ${dayOnly(w.end)}).</p>
+      <ul class="tw-closed-list">
+        <li>${statusChip("good", `voll trainiert: ${full.length}`, "✓")} ${names(full) || "–"}</li>
+        ${half.length ? `<li>${statusChip("warning", `halb: ${half.length}`, "½")} ${names(half, (p) => ` (${Math.round(f(p) * 100)} %)`)}</li>` : ""}
+        <li>${statusChip("critical", `verpasst: ${missed.length}`, "✕")} ${names(missed) || "–"}${missed.length ? ` <span class="muted">(spürbarer Trainingsnutzen, aber kein Training: nächste Woche zuerst einplanen)</span>` : ""}</li>
+      </ul>
+      <p class="sub">Grundlage ist das letzte Spiel je Spieler laut HO-Download. Hat jemand in beiden Spielen gespielt, zählt nur das letzte.</p></div>`;
+  }
+
+  out.innerHTML = `${closedCard}${hero}<div class="tw-games">${leagueCard}${secondCard}</div>${alert}${noTrainCard}${squads}${rules}`;
   const dl = $<HTMLButtonElement>("#dlFriendly");
   dl.textContent = second?.kind === "pokal" ? "Pokal-Aufstellung für HO speichern" : "Freundschaftsspiel für HO speichern";
   $("#friendlyIdLabel").firstChild!.textContent = second?.kind === "pokal" ? "Spiel-ID Pokalspiel" : "Spiel-ID Freundschaftsspiel";

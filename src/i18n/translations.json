@@ -9311,6 +9311,60 @@
    "{0} contra más fuertes, {1} equilibrada, {2} contra más débiles",
    "{0} contro i più forti, {1} equilibrato, {2} contro i più deboli",
    "{0} na silniejszych, {1} zrównoważona, {2} na słabszych"
+  ],
+  "Woche bis {0} abgeschlossen": [
+   "Week to {0} completed",
+   "Semana hasta el {0} cerrada",
+   "Settimana fino al {0} conclusa",
+   "Tydzień do {0} zakończony"
+  ],
+  "Update {0}": [
+   "Update {0}",
+   "Actualización {0}",
+   "Aggiornamento {0}",
+   "Aktualizacja {0}"
+  ],
+  "Die Spiele dieser Trainingswoche sind gespielt. Das Training wird im Update am {0} verrechnet, ändern lässt sich daran nichts mehr. Alles darunter plant schon die nächste Woche ({1} bis {2}).": [
+   "The matches of this training week have been played. Training is counted in the update on {0}; nothing can be changed any more. Everything below already plans the next week ({1} to {2}).",
+   "Los partidos de esta semana de entrenamiento ya se jugaron. El entrenamiento se computa en la actualización del {0}; ya no se puede cambiar nada. Todo lo de abajo planifica ya la semana siguiente ({1} a {2}).",
+   "Le partite di questa settimana d'allenamento sono state giocate. L'allenamento viene conteggiato nell'aggiornamento del {0}; non si può più cambiare nulla. Tutto quanto sotto pianifica già la settimana successiva (da {1} a {2}).",
+   "Mecze tego tygodnia treningowego zostały rozegrane. Trening zostanie rozliczony w aktualizacji {0}; niczego już nie można zmienić. Wszystko poniżej planuje już następny tydzień ({1} do {2})."
+  ],
+  "voll trainiert: {0}": [
+   "fully trained: {0}",
+   "entrenamiento completo: {0}",
+   "allenati completamente: {0}",
+   "pełny trening: {0}"
+  ],
+  "halb: {0}": [
+   "half: {0}",
+   "a medias: {0}",
+   "a metà: {0}",
+   "połowicznie: {0}"
+  ],
+  "verpasst: {0}": [
+   "missed: {0}",
+   "sin entrenar: {0}",
+   "persi: {0}",
+   "pominięci: {0}"
+  ],
+  "(spürbarer Trainingsnutzen, aber kein Training: nächste Woche zuerst einplanen)": [
+   "(noticeable training benefit but no training: plan them first next week)",
+   "(beneficio de entrenamiento notable pero sin entrenar: planifícalos primero la semana que viene)",
+   "(beneficio d'allenamento notevole ma nessun allenamento: pianificali per primi la prossima settimana)",
+   "(wyraźna korzyść z treningu, ale bez treningu: w przyszłym tygodniu zaplanuj ich najpierw)"
+  ],
+  "Grundlage ist das letzte Spiel je Spieler laut HO-Download. Hat jemand in beiden Spielen gespielt, zählt nur das letzte.": [
+   "Based on each player's last match from the HO download. If someone played in both matches, only the last one counts.",
+   "Se basa en el último partido de cada jugador según la descarga de HO. Si alguien jugó ambos partidos, solo cuenta el último.",
+   "Si basa sull'ultima partita di ogni giocatore secondo il download di HO. Se qualcuno ha giocato entrambe le partite, conta solo l'ultima.",
+   "Podstawą jest ostatni mecz każdego zawodnika według pobrania z HO. Jeśli ktoś grał w obu meczach, liczy się tylko ostatni."
+  ],
+  "In dieser Trainingswoche ist noch kein Trainingsplatz für ihn geplant": [
+   "No training slot is planned for him in this training week yet",
+   "Aún no tiene plaza de entrenamiento planificada esta semana",
+   "Non è ancora previsto alcun posto d'allenamento per lui questa settimana",
+   "W tym tygodniu treningowym nie zaplanowano mu jeszcze miejsca treningowego"
   ]
  }
 }
