@@ -107,6 +107,17 @@ export function trainingWindow(now: Date, trainingDates: Date[]): TrainingWindow
   return { start, end };
 }
 
+/**
+ * Trainingswoche für die Planung des nächsten eigenen Spiels. Liegt das Spiel nach dem nächsten Trainingsupdate
+ * (z. B. Mittwoch, Liga am Samstag und Pokal am Dienstag schon gespielt), ist die laufende Woche abgeschlossen:
+ * Das Spiel zählt für die Woche danach, in der noch niemand gespielt hat.
+ */
+export function planningWindow(now: Date, trainingDates: Date[], nextMatch?: Date | null): TrainingWindow {
+  const w = trainingWindow(now, trainingDates);
+  if (!nextMatch || isNaN(nextMatch.getTime()) || nextMatch.getTime() < w.end.getTime()) return w;
+  return trainingWindow(nextMatch, trainingDates);
+}
+
 const POS_SHORT: Record<number, string> = { 100: "TW", 101: "AV", 102: "IV", 103: "IV", 104: "IV", 105: "AV", 106: "FL", 107: "ZM", 108: "ZM", 109: "ZM", 110: "FL", 111: "ST", 112: "ST", 113: "ST" };
 export const positionShort = (role: number) => POS_SHORT[role] ?? "";
 

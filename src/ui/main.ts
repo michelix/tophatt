@@ -8,7 +8,7 @@ import { initHistory, importFile as importHistory, recordHrf, renderHistory, syn
 import { Attitude, Location, Role, Tactic, styleRange, type Hrf, type Lineup, type MatchSettings, type Player } from "../core/model";
 import { HATSTATS_OBJECTIVE, formationLabel, hatStatsOf, optimizeLineup, type OptimizeResult } from "../core/optimizer";
 import { type LineupSector, RATING_SECTORS, type RatingSector, type SectorRatings, lineupSector, playerPositionRating, ratingLabel } from "../core/rating";
-import { DONE_FACTOR, FORMATION_PREFERENCE, TRAININGS, type TrainingWindow, type WeekMinutes, addPlanned, formationSlots, maxTrainingSlots, planFriendly, planTrainingLineup, playedThisWeek, positionShort, trainingFor, trainingPriority, trainingWindow, weekFactor, type FriendlyPlan } from "../core/training";
+import { DONE_FACTOR, FORMATION_PREFERENCE, TRAININGS, type TrainingWindow, type WeekMinutes, addPlanned, planningWindow, formationSlots, maxTrainingSlots, planFriendly, planTrainingLineup, playedThisWeek, positionShort, trainingFor, trainingPriority, trainingWindow, weekFactor, type FriendlyPlan } from "../core/training";
 import { type CupPlan, type CupVariant, type LeagueChoice, type SquadTier, type WeekRow, TIER_NAME, chooseLeagueFormation, forgotten, planCup, slotText, suggestSquads, weekRows } from "../core/trainingweek";
 import { advise, type Advice } from "../core/advisor";
 import { type HoData, type HoMatch, MATCH_TYPE_DE, WEATHER_DE, applyHoSubskills, parseHoData, roundOf, standings, upcomingMatches } from "../core/hodata";
@@ -454,13 +454,17 @@ function compute() {
   render();
 }
 
-/** Laufende Trainingswoche (Termine aus HO) und die schon gespielten Minuten laut HRF */
+/**
+ * Trainingswoche des nächsten Spiels (Termine aus HO) und die darin schon gespielten Minuten laut HRF.
+ * Nach dem zweiten Spiel der Woche liegt das nächste Spiel hinter dem Trainingsupdate: Dann gilt schon die
+ * neue Woche, in der noch niemand gespielt hat.
+ */
 function trainingWeekNow(): State["week"] {
   const hrf = state.hrf!;
   const t = TRAININGS[hrf.team.trainingType];
   if (!t) return null;
   const dates = [...(state.ho?.training ?? []), ...(state.ho?.futureTraining ?? [])].map((x) => x.date);
-  const window = trainingWindow(new Date(), dates);
+  const window = planningWindow(new Date(), dates, state.match?.date);
   return { window, played: playedThisWeek(hrf.players, t, window) };
 }
 
@@ -870,15 +874,18 @@ function formationCardsHtml(): string {
       min,
       max,
       attr: `data-fc="${x.code === best ? "" : x.code}"`,
-      extra: x.code === best || Math.abs(d) < 0.5 ? "" : ` <span class="tf-d">${d > 0 ? "+" : "−"}${Math.abs(d).toFixed(0)}</span>`,
+      extra: (x.code === best || Math.abs(d) < 0.5 ? "" : ` <span class="tf-d">${d > 0 ? "+" : "−"}${Math.abs(d).toFixed(0)}</span>`) + (x.code === trainPick ? ` <span class="tf-train">Mit Training</span>` : ""),
     });
   };
   const good = F.filter((x) => x.experience >= 6 || x.code === best);
   const weak = F.filter((x) => !good.includes(x));
   const stronger = weak.filter((x) => x.hatStats > bestHs + 0.5);
+  const lc = leagueChoice();
+  const trainPick = lc && lc.pick.formation !== best ? lc.pick.formation : "";
   const why = `Empfehlung ${formationLabel(best)}: die stärkste Elf nach HatStats${minExp ? ` unter den Formationen mit Erfahrung ab ${minExp}` : ""}.${stronger.length ? ` ${stronger.map((x) => formationLabel(x.code)).join(", ")} ${stronger.length === 1 ? "hätte" : "hätten"} mehr HatStats, aber zu wenig Erfahrung (Gefahr Desorganisation).` : ""}`;
   return `<div class="trmode fpanel">
     <div class="trmode-top"><b>Formation</b><span>${esc(why)} Antippen stellt die beste Elf für diese Formation auf.</span></div>
+    ${trainPick ? `<p class="sub tf-why"><b>Mit Training:</b> <span>${esc(lc!.reason)}</span> <span>Knopf „Stärkste Elf + Training“.</span></p>` : ""}
     <div class="tf-group"><div class="tf-head">Eingespielt (Erfahrung ab 6)</div><div class="tf-grid">${good.map(card).join("")}</div></div>
     ${weak.length ? `<details class="tf-more"${weak.some((x) => x.code === current) ? " open" : ""}><summary>Wenig Erfahrung (unter 6): ${weak.map((x) => formationLabel(x.code)).join(", ")}</summary><div class="tf-group"><div class="tf-grid">${weak.map(card).join("")}</div></div></details>` : ""}
   </div>`;
@@ -940,7 +947,10 @@ function renderFormationPick() {
   const t = state.hrf ? TRAININGS[state.hrf.team.trainingType] : undefined;
   $("#trainingFill").classList.toggle("primary", state.trainingMode);
   $("#unplayedFill").classList.toggle("primary", state.unplayed);
-  $("#autoFill").classList.toggle("primary", !state.trainingMode && !state.unplayed);
+  const lcPick = leagueChoice()?.pick.formation;
+  const trainBest = !state.trainingMode && !state.unplayed && !!lcPick && lcPick !== best && state.formation === lcPick;
+  $("#trainBestFill").classList.toggle("primary", trainBest);
+  $("#autoFill").classList.toggle("primary", !state.trainingMode && !state.unplayed && !trainBest);
   sel.classList.toggle("training", state.trainingMode);
   // Formation wählt man über die Karten darunter; das Auswahlfeld bleibt nur als Rückfall
   const training = !!(state.trainingMode && t && state.week);
@@ -1374,6 +1384,7 @@ function poolHtml(): string {
   const filter = state.week
     ? `<label class="trfilter" title="${esc(why)}"><input type="checkbox" id="hideTrained"${state.hideTrained ? " checked" : ""}> Schon trainierte ausblenden <span class="muted">(<span>${count}</span>)</span></label>
       <label class="trfilter" title="${esc(`Blendet jeden aus, der seit dem Trainingsupdate (${since}) schon gespielt hat, egal ob Liga, Pokal oder Freundschaft und egal auf welcher Position.`)}"><input type="checkbox" id="hidePlayed"${state.hidePlayed ? " checked" : ""}> Schon gespielte ausblenden <span class="muted">(<span>${playedCount ? `${playedCount} haben diese Woche gespielt` : "diese Woche hat noch niemand gespielt"}</span>)</span></label>
+      ${w && w.start.getTime() > Date.now() && state.match ? `<div class="sub trhidden">${esc(`Das Spiel am ${dayOnly(state.match.date)} zählt schon für die neue Trainingswoche ab ${since}: Die Spiele davor werden im Update am ${since} verrechnet, deshalb hat in der neuen Woche noch niemand gespielt oder trainiert.`)}</div>` : ""}
       ${hidden ? `<div class="sub trhidden">${hidden} ausgeblendet</div>` : ""}`
     : "";
   return `<div class="sub" style="margin-bottom:6px">Nicht aufgestellt (${rest}) · ${benchCount} auf der Bank. ${state.editMode ? "Hierher ziehen = vom Feld oder von der Bank nehmen." : "Antippen zeigt die Karte. Zum Aufstellen oben auf „Ändern“ schalten."}</div>${filter}${out.join("") || "<p class='sub'>Alle Spieler sind aufgestellt.</p>"}`;
@@ -2132,6 +2143,18 @@ function initEditor() {
     leaveTrainingMode();
     state.trainingMode = true;
     applyTrainingFormation("");
+  });
+  $("#trainBestFill").addEventListener("click", () => {
+    const lc = leagueChoice();
+    if (!state.league || !lc) return toast(state.formations.length ? "Kein Training eingestellt." : "Formationen werden berechnet …");
+    leaveTrainingMode();
+    state.formation = lc.pick.formation === state.league.lineup.formation ? "" : lc.pick.formation;
+    state.manual = formationPositions();
+    state.manualEdited = !!state.formation;
+    state.pick = null;
+    state.choices = {};
+    editorChanged();
+    toast(lc.reason);
   });
   $("#unplayedFill").addEventListener("click", () => {
     if (!state.hrf || !state.week) return toast("Keine Trainingswoche bekannt.");
