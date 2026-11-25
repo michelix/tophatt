@@ -671,6 +671,7 @@ button.ic-pin{cursor:pointer}
 .tf-card.on{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand)}
 .tf-card.reco{background:color-mix(in srgb,var(--brand) 9%,var(--surface))}
 .tf-f{font-size:16px;font-weight:700}
+.tf-train{font-size:10px;font-weight:700;color:var(--brand);margin-left:4px}
 .tf-reco{font-size:10px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:.04em;line-height:1}
 .trmode.fpanel{border-color:var(--line);border-left-color:var(--line)}
 .tf-d{font-size:11px;color:var(--muted)}
@@ -933,6 +934,7 @@ select.training{border-color:var(--brand);font-weight:600}
         <div class="seg mode-seg" id="modeSeg" role="group" aria-label="Ansehen oder ändern"></div>
         <label class="inline">Formation<select id="formationPick"><option value="">Beste (automatisch)</option></select></label>
         <button class="btn primary" id="autoFill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Automatisch aufstellen</button>
+        <button class="btn btn2" id="trainBestFill" title="Stärkste Elf in der Formation mit den meisten Trainingsplätzen, solange sie höchstens 2 % HatStats weniger hat als die stärkste Formation (nur Formationen ab der eingestellten Mindesterfahrung). Wie die Empfehlung fürs Ligaspiel auf der Seite Trainingswoche."><span>Stärkste Elf + Training</span><small>Trainingsformation</small></button>
         <button class="btn btn2" id="trainingFill" title="Stellt den B-Kader auf (Trainingsgruppe von der Seite Trainingswoche). Auf die Trainingspositionen kommen die, die diese Woche noch nicht trainiert haben und am meisten davon haben. Ohne die Liste „Nicht trainieren“."><span>B-Kader</span><small>Trainingsgruppe</small></button>
         <button class="btn btn2" id="unplayedFill" title="Stellt alle auf, die diese Trainingswoche noch nicht gespielt haben (Liga, Pokal oder Freundschaft), egal welcher Kader: die Besten ins Feld, der Rest auf die Bank, bis zu 3 werden eingewechselt."><span>Noch nicht gespielt</span><small>+ Einwechslungen</small></button>
         <button class="btn" id="clearField">Feld leeren</button>

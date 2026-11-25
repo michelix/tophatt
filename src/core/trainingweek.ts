@@ -90,7 +90,7 @@ export function chooseLeagueFormation(
   const reason =
     pick === best
       ? `${label(best.formation)} ist die stärkste Formation und hat unter den fast gleich starken (bis ${pct(tolerance)} weniger HatStats) die meisten Trainingsplätze.`
-      : `${label(pick.formation)} kostet nur ${(best.hatStats - pick.hatStats).toFixed(0)} HatStats (−${pct(1 - pick.hatStats / best.hatStats)}) gegenüber ${label(best.formation)}, bringt aber ${slotText(pick)} statt ${slotText(best)}. Regel: höchstens ${pct(tolerance)} HatStats für Training abgeben.`;
+      : `${label(pick.formation)} kostet nur ${fixed(best.hatStats - pick.hatStats, best.hatStats - pick.hatStats < 10 ? 1 : 0)} HatStats (−${pct(1 - pick.hatStats / best.hatStats)}) gegenüber ${label(best.formation)}, bringt aber ${slotText(pick)} statt ${slotText(best)}. Regel: höchstens ${pct(tolerance)} HatStats für Training abgeben.`;
   return { best, pick, options: opts, reason };
 }
 

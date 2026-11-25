@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { parseHrf } from "../src/core/hrf";
 import { Role } from "../src/core/model";
-import { TRAININGS, addPlanned, maxTrainingSlots, planFriendly, planTrainingLineup, playedThisWeek, trainingFor, trainingWindow, weekFactor } from "../src/core/training";
+import { TRAININGS, addPlanned, maxTrainingSlots, planFriendly, planTrainingLineup, planningWindow, playedThisWeek, trainingFor, trainingWindow, weekFactor } from "../src/core/training";
 
 const hrf = parseHrf(readFileSync("test/fixtures/team.hrf", "utf8"));
 const PM = 8; // Spielaufbau
@@ -30,6 +30,26 @@ describe("Trainingswoche (Regeln wie HO)", () => {
     const f = trainingWindow(new Date("2026-11-24T10:00:00"), []);
     expect(f.start).toEqual(new Date("2026-11-20T00:30:00"));
     expect(f.end).toEqual(new Date("2026-11-27T00:30:00"));
+  });
+  it("plant nach dem zweiten Spiel der Woche schon die nächste Trainingswoche", () => {
+    const dates = [new Date("2026-11-20T00:30:00"), new Date("2026-11-27T00:30:00"), new Date("2026-12-04T00:30:00")];
+    const wed = new Date("2026-11-25T08:00:00");
+    // Liga Sa 21.11. und Pokal Di 24.11. gespielt, nächstes Spiel Sa 28.11.: zählt für die Woche ab Fr 27.11.
+    const next = planningWindow(wed, dates, new Date("2026-11-28T18:15:00"));
+    expect(next.start).toEqual(dates[1]);
+    expect(next.end).toEqual(dates[2]);
+    // Spiel noch vor dem Update (Pokal am Dienstag geplant): laufende Woche
+    const cur = planningWindow(new Date("2026-11-22T10:00:00"), dates, new Date("2026-11-24T18:30:00"));
+    expect(cur.start).toEqual(dates[0]);
+    // ohne bekanntes Spiel: laufende Woche
+    expect(planningWindow(wed, dates, null).start).toEqual(dates[0]);
+    // ohne HO-Termine: Freitag 00:30 vor dem Spiel
+    expect(planningWindow(wed, [], new Date("2026-11-28T18:15:00")).start).toEqual(new Date("2026-11-27T00:30:00"));
+    // die Spiele der abgeschlossenen Woche zählen dort nicht
+    const p = hrf.players.find((x) => x.lastMatchMinutes)!;
+    const def = TRAININGS[3];
+    const lastWeek = planningWindow(new Date("2026-11-17T12:00:00"), [new Date("2026-11-13T00:30:00"), new Date("2026-11-20T00:30:00")], new Date("2026-11-21T18:15:00"));
+    expect(playedThisWeek([p], def, lastWeek).size).toBe(0);
   });
   it("liest das letzte Spiel aus der HRF und zählt es nur in der laufenden Woche", () => {
     const p = hrf.players.find((x) => x.lastMatchMinutes)!;
