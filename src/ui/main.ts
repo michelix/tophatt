@@ -1045,14 +1045,19 @@ function formationPositions(): FieldPosition[] {
   return (f ? f.positions : state.league!.lineup.positions).map((p) => ({ ...p }));
 }
 
+/** „Stärkste Elf + Training“ ist aktiv: Trainingsformation gewählt, die nicht die stärkste ist */
+function trainBestActive(): boolean {
+  const lcPick = leagueChoice()?.pick.formation;
+  return !state.trainingMode && !state.unplayed && !!lcPick && lcPick !== state.league?.lineup.formation && state.formation === lcPick;
+}
+
 function renderFormationPick() {
   const sel = $<HTMLSelectElement>("#formationPick");
   const best = state.league?.lineup.formation;
   const t = state.hrf ? TRAININGS[state.hrf.team.trainingType] : undefined;
   $("#trainingFill").classList.toggle("primary", state.trainingMode);
   $("#unplayedFill").classList.toggle("primary", state.unplayed);
-  const lcPick = leagueChoice()?.pick.formation;
-  const trainBest = !state.trainingMode && !state.unplayed && !!lcPick && lcPick !== best && state.formation === lcPick;
+  const trainBest = trainBestActive();
   $("#trainBestFill").classList.toggle("primary", trainBest);
   $("#autoFill").classList.toggle("primary", !state.trainingMode && !state.unplayed && !trainBest);
   sel.classList.toggle("training", state.trainingMode);
@@ -2219,7 +2224,8 @@ function initEditor() {
   });
   $("#autoFill").addEventListener("click", () => {
     if (!state.league) return;
-    if (state.trainingMode || state.unplayed) {
+    // aus einem Modus (B-Kader, Noch nicht gespielt, Stärkste Elf + Training) zurück zur besten Elf
+    if (state.trainingMode || state.unplayed || trainBestActive()) {
       leaveTrainingMode();
       state.formation = "";
     }
