@@ -38,7 +38,16 @@ Spielfeld wie in HO (Torwart oben). Oben springt man über die nummerierten Knö
 <summary>1 · Spielfeld und Bank</summary>
 <br>
 
-- Formationsvorschlag als Karten, eingespielte Formationen zuerst; „Automatisch aufstellen“, „B-Kader“, „Noch nicht gespielt“, „Feld leeren“.
+- **Formationen als Kacheln** mit HatStats, Siegchance gegen den nächsten Gegner, Erfahrung und Trainingsplätzen:
+  eingespielte Formationen (Erfahrung ab 6) zuerst, dann je eine **Trainingsformation** gegen Stärkere, Ausgeglichene
+  und Schwächere, „Stärker, aber kaum eingespielt“ mit Hinweis auf Desorganisation, der Rest eingeklappt.
+- **Aufstellen per Knopf:** „Automatisch aufstellen“ (stärkste Elf nach HatStats), „Stärkste Elf + Training“
+  (Formation mit den meisten Trainingsplätzen, solange sie höchstens 2 % HatStats kostet), **„Gegen Gegner“**
+  (Formation, Spieler und Taktik mit der besten Siegchance gegen den nächsten Gegner, mit Vergleich zur stärksten Elf),
+  „B-Kader“, „Noch nicht gespielt“ und „Feld leeren“.
+- **Kapitän und Standards** als Auswahlzeile über dem Spielfeld, „Automatisch“ oder selbst gewählt.
+- Spielerliste mit „Schon trainierte ausblenden“ und „Schon gespielte ausblenden“. Nach dem zweiten Spiel der Woche
+  plant TopHatt schon die nächste Trainingswoche.
 - **Ansehen/Ändern**: Im Ansehen-Modus zeigt ein Spieler beim Darüberfahren seine Karte, Antippen hält sie fest, nichts
   verschiebt sich versehentlich. Im Ändern-Modus Spieler ziehen oder antippen; die Linien zeigen, wo er am besten passt.
 - Rahmenfarbe = Eignung für die Position, Kreisfarbe = Kader (A lila, B blau, Rest grau), Pfeile = geplante Wechsel mit Minute.
@@ -55,6 +64,7 @@ Positionen (in denselben Farben wie die Linien auf dem Feld) und die letzte Bewe
 
 Empfehlung für Taktik, Einstellung und Ausrichtung aus der HO-Spielvorhersage gegen die Gegnerstärke, mit Sieg-,
 Remis- und Niederlagenchance. Ausrichtungen gibt es nur, soweit Trainertyp und Taktik-Assistenten sie erlauben.
+Pressing wird wie in HO aus der Pressingstärke der Elf berechnet und in der Spielvorhersage berücksichtigt.
 
 ![Taktik-Empfehlung](docs/img/taktik.png)
 </details>
@@ -94,7 +104,10 @@ schreibt eine HRF-Datei mit Aufstellung, Taktik, Kapitän, Standards, Bank, Rese
 <summary><b>Gegner-Check</b>: wie stark ist der nächste Gegner?</summary>
 <br>
 
-Stärke des Gegners aus seinen letzten Pflichtspielen (HO-Gegnercheck), Ballbesitz und Duell für Duell gegen die eigene Elf.
+Stärke des Gegners aus seinen letzten Pflichtspielen (HO-Gegnercheck), Ballbesitz und Duell für Duell gegen die eigene Elf,
+dazu Siegchance und Remis mit der besten Taktik. Verglichen wird standardmäßig die Aufstellung, die gerade auf der
+Aufstellungsseite steht; unter „Unsere Seite“ lässt sich stattdessen die beste Elf jeder Formation wählen (mit HatStats,
+Siegchance und Erfahrung). Die Legende zeigt, womit gerechnet wird, z. B. „Wir (deine Aufstellung, 4-4-2)“.
 
 ![Gegner-Check](docs/img/gegner.png)
 </details>
@@ -116,6 +129,8 @@ wahlweise ausgewogen, nach bester Position oder wie aufgestellt.
 <br>
 
 Bewertung je Mannschaftsteil für die eigene Aufstellung, der stärkste Hebel und ein Vergleich aller Formationen.
+Weicht die Elf der Aufstellungsseite von der besten Elf ihrer Formation ab (etwa nach „Gegen Gegner“), steht sie als
+eigene Zeile „Deine Aufstellung“ in der Tabelle. Jede Änderung der Aufstellung kommt sofort an.
 
 ![Schwachstellen](docs/img/schwachstellen.png)
 </details>
@@ -135,6 +150,11 @@ Graph mit Prognose aus dem HO-Trainingsmodell, Altersabbau und Hinweis, wann ein
 <summary><b>Kaderplanung</b>: wo droht in ein, zwei Saisons eine Lücke?</summary>
 <br>
 
+Der ganze Kader gegen den Bedarf (Plätze plus je Platz ein Ersatz): Überzählige mit Gehalt, Lücken und Durchschnittsalter
+auf einen Blick. „Was zu tun ist“ nennt die Schritte: Lücke schließen (mit Aushelfer aus dem Kader oder Suchprofil),
+Nachfolger für nachlassende Stammspieler, Überzählige verkaufen. Je Mannschaftsteil steht jeder Spieler genau einmal mit
+Rolle (Stammspieler, Ersatz, Talent, überzählig) und Stärke heute und in zwei Saisons.
+
 ![Kaderplanung](docs/img/kaderplanung.png)
 </details>
 
@@ -142,7 +162,8 @@ Graph mit Prognose aus dem HO-Trainingsmodell, Altersabbau und Hinweis, wann ein
 <summary><b>Transfers</b>: welche Verstärkung bringt am meisten?</summary>
 <br>
 
-Suchprofile für den Transfermarkt in Kaufreihenfolge mit einem gemeinsamen Budget: Das Höchstgebot hält den Kontostand eine ganze Saison über dem Mindest-Puffer (mit Gehalt und typischen Wocheneinnahmen). Trag den Preis eines echten Kandidaten ein, um ihn zu prüfen, hake ungenutzte Spieler zum Verkauf an und sieh deine bisherigen Transfers aus HO.
+Suchprofile für den Transfermarkt in Kaufreihenfolge, abgestimmt mit der Kaderplanung (Lücken zuerst, Überzählige als
+Verkaufskandidaten), mit einem gemeinsamen Budget: Das Höchstgebot hält den Kontostand eine ganze Saison über dem Mindest-Puffer (mit Gehalt und typischen Wocheneinnahmen). Trag den Preis eines echten Kandidaten ein, um ihn zu prüfen, hake ungenutzte Spieler zum Verkauf an und sieh deine bisherigen Transfers aus HO.
 
 ![Transfers](docs/img/transfers.png)
 </details>
@@ -152,6 +173,9 @@ Suchprofile für den Transfermarkt in Kaufreihenfolge mit einem gemeinsamen Budg
 <br>
 
 A-Kader und B-Kader, Plan für Liga-, Pokal- und Freundschaftsspiel nach Trainingsnutzen. Die Liste „Nicht trainieren“ hält Spieler, die verkauft oder entlassen werden, von den Trainingsplätzen fern. Auf der Aufstellungsseite stellt „Noch nicht gespielt“ alle auf, die diese Woche noch keinen Einsatz hatten, und wechselt bis zu 3 weitere von der Bank ein.
+
+Sind beide Spiele der Woche gespielt, zeigt eine Karte bis zum Trainingsupdate die abgeschlossene Woche: wer voll, halb
+oder gar nicht trainiert hat. Alles darunter plant dann schon die nächste Woche.
 
 ![Trainingswoche](docs/img/training.png)
 </details>
@@ -225,15 +249,18 @@ Die Pfade zu HO stehen oben in `TopHatt.bat` und lassen sich dort anpassen. Spie
 | `src/core/tactics.ts`, `matchplan.ts` | Taktik-Wirkung, Spielvorhersage und Empfehlung für Taktik, Einstellung, Ausrichtung |
 | `src/core/substitutions.ts` | Auswechslungs-Vorschläge nach Kondition, Training und Einsatzzeit |
 | `src/core/orders.ts` | Anweisungen, Elfmeterschützen und Reserve-Reihe im HRF-Format von HO |
+| `src/core/portfolio.ts` | Trainingsformationen gegen Stärkere, Ausgeglichene und Schwächere |
 | `src/core/opponent.ts` | Gegnerstärke aus den Spielbewertungen des Gegners, direkte Duelle |
+| `src/core/opponentfit.ts` | Aufstellung mit der besten Siegchance gegen den nächsten Gegner („Gegen Gegner“) |
 | `src/core/weakness.ts` | Schwachstellen je Mannschaftsteil und stärkster Hebel |
-| `src/core/squad.ts` | Kader nach Mannschaftsteilen und Kaderplanung |
+| `src/core/squad.ts`, `squadplan.ts` | Kader nach Mannschaftsteilen; Kaderplanung mit Rollen, Bedarf und Lücken |
 | `src/core/development.ts` | Trainingszuwachs und Altersabbau (Formeln aus HO) |
 | `src/core/training.ts`, `trainingweek.ts` | Trainingsplätze, A-/B-Kader und Wochenplan |
 | `src/core/staff.ts` | Trainer, Assistenten, Spezialisten: Kosten und Trainingseffizienz |
 | `src/core/finance.ts` | Kontostand, Wochenbilanz und Prognose |
 | `src/core/history.ts` | Wochen-Schnappschüsse für den Verlauf |
 | `src/core/scouting.ts`, `advisor.ts`, `transferplan.ts` | Suchprofile, Transferbudget und Kaufreihenfolge, Trainingshinweise |
+| `src/i18n/translations.json` | Übersetzungen (Englisch, Spanisch, Italienisch, Polnisch) |
 | `src/ui/` | Oberfläche; `build.mjs` packt alles in eine HTML-Datei |
 
 ## Entwickeln

@@ -8,8 +8,7 @@ back as an HRF file that HO uploads to Hattrick. Everything runs locally in the 
 
 ![Lineup page with pitch, formation suggestion, player list and bench](docs/img/en/aufstellung.png)
 
-<sub>All screenshots show a made-up club with made-up players and values; the player pictures are Hattrick avatars from HO.
-The app itself is in German, so the screenshots are too; German labels are given in quotes below.</sub>
+<sub>All screenshots show a made-up club with made-up players and values; the player pictures are Hattrick avatars from HO.</sub>
 
 **Contents:** [Pages](#pages) · [Install](#install) · [Usage](#usage) · [Structure](#structure) · [Development](#development) · [License](#license)
 
@@ -20,7 +19,7 @@ The pages follow the menu on the left of the app. Every section can be expanded.
 ### Match day
 
 <details open>
-<summary><b>Overview</b> („Übersicht“): the next match at a glance</summary>
+<summary><b>Overview</b>: the next match at a glance</summary>
 <br>
 
 Opponent, kick-off, expected HatStats, formation, biggest weak spot and the upcoming matches. Below that, tiles that
@@ -30,7 +29,7 @@ lead straight to the matching page.
 </details>
 
 <details open>
-<summary><b>Lineup</b> („Aufstellung“): six steps to a finished HRF file</summary>
+<summary><b>Lineup</b>: six steps to a finished HRF file</summary>
 <br>
 
 Pitch laid out as in HO (goalkeeper at the top). The numbered buttons at the top jump to each section.
@@ -39,8 +38,17 @@ Pitch laid out as in HO (goalkeeper at the top). The numbered buttons at the top
 <summary>1 · Pitch and bench</summary>
 <br>
 
-- Formation suggestions as cards, familiar formations first; “auto lineup”, “training eleven” and “clear pitch” buttons.
-- **View/Edit** („Ansehen/Ändern“): in view mode, hovering over a player shows their card and a click pins it, so nothing
+- **Formation tiles** with HatStats, win chance against the next opponent, experience and training slots: practised
+  formations (experience 6 and up) first, then one **training formation** each against stronger, even and weaker
+  teams, “Stronger, but hardly practised” with a disorganisation warning, and the rest collapsed.
+- **Line up at the push of a button:** “Field automatically” (strongest XI by HatStats), “Strongest XI + training”
+  (the formation with the most training slots, as long as it costs at most 2 % HatStats), **“Vs. opponent”**
+  (formation, players and tactic with the best win chance against the next opponent, compared with the strongest XI),
+  “B squad”, “Not played yet” and “Clear pitch”.
+- **Captain and set pieces** as a selection row above the pitch, automatic or chosen by you.
+- Player list with “Hide already trained” and “Hide already played”. After the second match of the week, TopHatt
+  already plans the next training week.
+- **View/Edit**: in view mode, hovering over a player shows their card and a click pins it, so nothing
   moves by accident. In edit mode, drag or tap players; lines show where a player fits best.
 - Frame colour = suitability for the position, circle colour = squad group (A purple, B blue, rest grey),
   arrows = planned substitutions with minute.
@@ -57,6 +65,7 @@ colours as the lines on the pitch) and the latest match rating.
 
 Recommended tactic, team attitude and style of play from HO's match prediction against the opponent's strength, with
 win, draw and loss chances. Styles of play are only offered as far as coach type and tactical assistants allow.
+Pressing is calculated as in HO from the team's pressing strength and included in the match prediction.
 
 ![Tactics recommendation](docs/img/en/taktik.png)
 </details>
@@ -93,11 +102,13 @@ The reserves are the second row of the bench: automatically the strongest other 
 </details>
 
 <details>
-<summary><b>Opponent check</b> („Gegner-Check“): how strong is the next opponent?</summary>
+<summary><b>Opponent check</b>: how strong is the next opponent?</summary>
 <br>
 
 The opponent's strength from their latest competitive matches (HO's opponent check), possession, and a duel-by-duel
-comparison against your own eleven.
+comparison against your own eleven, plus win and draw chances with the best tactic. By default it compares the lineup
+currently on the lineup page; under “Our side” you can pick the best XI of any formation instead (with HatStats, win
+chance and experience). The legend shows what is being compared, e.g. “Us (your lineup, 4-4-2)”.
 
 ![Opponent check](docs/img/en/gegner.png)
 </details>
@@ -105,7 +116,7 @@ comparison against your own eleven.
 ### Team
 
 <details>
-<summary><b>Squad</b> („Kader“): who is available, and where?</summary>
+<summary><b>Squad</b>: who is available, and where?</summary>
 <br>
 
 Squad by team section, with a match value from position strength, stamina and injury; every player once, either
@@ -115,16 +126,18 @@ balanced, by best position or as lined up.
 </details>
 
 <details>
-<summary><b>Weak spots</b> („Schwachstellen“): where does the team lose the most?</summary>
+<summary><b>Weak spots</b>: where does the team lose the most?</summary>
 <br>
 
 Rating per team section for your own lineup, the biggest lever, and a comparison of all formations.
+If the XI on the lineup page differs from the best XI of its formation (for example after “Vs. opponent”), it gets its
+own row “Your lineup” in the table. Every change to the lineup shows up immediately.
 
 ![Weak spots](docs/img/en/schwachstellen.png)
 </details>
 
 <details>
-<summary><b>Player development</b> („Spielerentwicklung“): where is a player heading?</summary>
+<summary><b>Player development</b>: where is a player heading?</summary>
 <br>
 
 Chart with a forecast from HO's training model, age decline, and a hint when it is time to sell or find a replacement.
@@ -135,8 +148,13 @@ Chart with a forecast from HO's training model, age decline, and a hint when it 
 ### Planning
 
 <details>
-<summary><b>Squad planning</b> („Kaderplanung“): where will a gap open in one or two seasons?</summary>
+<summary><b>Squad planning</b>: where will a gap open in one or two seasons?</summary>
 <br>
+
+The whole squad against what you need (places plus one backup per place): surplus players with wages, gaps and average
+age at a glance. “What to do” lists the steps: close a gap (with a stand-in from the squad or a search profile), find
+successors for declining starters, sell surplus players. Per team section every player appears exactly once, with a role
+(starter, backup, talent, surplus) and strength today and in two seasons.
 
 ![Squad planning](docs/img/en/kaderplanung.png)
 </details>
@@ -145,22 +163,26 @@ Chart with a forecast from HO's training model, age decline, and a hint when it 
 <summary><b>Transfers</b>: which signing helps the most?</summary>
 <br>
 
-Search profiles for the transfer market in buying order, with one shared budget: the maximum bid keeps your balance above the minimum buffer for a whole season (wage and typical weekly income included). Enter the price of a real candidate to check it, tick unused players to sell, and see your past transfers from HO.
+Search profiles for the transfer market in buying order, in line with squad planning (gaps first, surplus players as
+sale candidates), with one shared budget: the maximum bid keeps your balance above the minimum buffer for a whole season (wage and typical weekly income included). Enter the price of a real candidate to check it, tick unused players to sell, and see your past transfers from HO.
 
 ![Transfers](docs/img/en/transfers.png)
 </details>
 
 <details>
-<summary><b>Training week</b> („Trainingswoche“): who plays where so that as many as possible train?</summary>
+<summary><b>Training week</b>: who plays where so that as many as possible train?</summary>
 <br>
 
 A squad and B squad, and a plan for league, cup and friendly matches by training benefit. A “Do not train” list keeps players you will sell or release off the training places. On the lineup page, “Not played yet” lines up everyone without a match this week and brings up to 3 more on as substitutes.
+
+Once both matches of the week are played, a card shows the completed week until the training update: who trained fully,
+half or not at all. Everything below it already plans the next week.
 
 ![Training week](docs/img/en/training.png)
 </details>
 
 <details>
-<summary><b>Coach & efficiency</b> („Trainer & Effizienz“): is a better coach worth it?</summary>
+<summary><b>Coach & efficiency</b>: is a better coach worth it?</summary>
 <br>
 
 Training efficiency as in Hattrick's sandbox, cost per efficiency point, the cheapest ways to more efficiency, and coach prices.
@@ -171,14 +193,14 @@ Training efficiency as in Hattrick's sandbox, cost per efficiency point, the che
 ### Season and club
 
 <details>
-<summary><b>Fixtures & table</b> („Spielplan & Tabelle“)</summary>
+<summary><b>Fixtures & table</b></summary>
 <br>
 
 ![Fixtures and table](docs/img/en/spielplan.png)
 </details>
 
 <details>
-<summary><b>Finances</b> („Finanzen“): can the club afford it?</summary>
+<summary><b>Finances</b>: can the club afford it?</summary>
 <br>
 
 Cash, weekly balance, staff, and a traffic light with a forecast of whether planned spending leads into debt.
@@ -187,7 +209,7 @@ Cash, weekly balance, staff, and a traffic light with a forecast of whether plan
 </details>
 
 <details>
-<summary><b>History</b> („Verlauf“): is the plan working out over the weeks?</summary>
+<summary><b>History</b>: is the plan working out over the weeks?</summary>
 <br>
 
 One snapshot per training week of training, staff, finances, team and squad; export and import as JSON.
@@ -208,10 +230,10 @@ its Java runtime is reused for the sync. For the app alone, without the HO datab
    for example `F:\claude\hattrick\HO\daten`.
 2. Start **`TopHatt.bat`**. It reads the HO database (read-only, from a copy), writes `tophatt-data.json` into the
    data folder and opens `dist/tophatt.html`.
-3. The first time, connect the folder in the app under “Daten” (works in Chrome and Edge). From then on TopHatt always
-   loads the latest data when opened; “Aktualisieren” (refresh) reads them again. It also works without a folder: drag
+3. The first time, connect the folder in the app under “Data” (works in Chrome and Edge). From then on TopHatt always
+   loads the latest data when opened; “Refresh” reads them again. It also works without a folder: drag
    the HRF file and `tophatt-data.json` into the window.
-4. Check the lineup and click “Für HO speichern” (save for HO). In HO, use File → Import → read HRF, then “send lineup”.
+4. Check the lineup and click “Save for HO”. In HO, use File → Import → read HRF, then “send lineup”.
 
 The paths to HO are at the top of `TopHatt.bat` and can be changed there. The sync reads player pictures from
 `img/playersAvatar` of the local HO installation; they stay on your own computer and do not belong in the repository.
@@ -228,15 +250,18 @@ The paths to HO are at the top of `TopHatt.bat` and can be changed there. The sy
 | `src/core/tactics.ts`, `matchplan.ts` | Tactic effects, match prediction and recommendation for tactic, attitude and style of play |
 | `src/core/substitutions.ts` | Substitution suggestions by stamina, training and playing time |
 | `src/core/orders.ts` | Match orders, penalty takers and bench reserves in HO's HRF format |
+| `src/core/portfolio.ts` | Training formations against stronger, even and weaker opponents |
 | `src/core/opponent.ts` | Opponent strength from their match ratings, direct duels |
+| `src/core/opponentfit.ts` | Lineup with the best win chance against the next opponent (“Vs. opponent”) |
 | `src/core/weakness.ts` | Weak spots per team section and biggest lever |
-| `src/core/squad.ts` | Squad by team section and squad planning |
+| `src/core/squad.ts`, `squadplan.ts` | Squad by team section; squad planning with roles, needs and gaps |
 | `src/core/development.ts` | Training gains and age decline (formulas from HO) |
 | `src/core/training.ts`, `trainingweek.ts` | Training slots, A/B squad and weekly plan |
 | `src/core/staff.ts` | Coach, assistants, specialists: costs and training efficiency |
 | `src/core/finance.ts` | Cash, weekly balance and forecast |
 | `src/core/history.ts` | Weekly snapshots for the history page |
 | `src/core/scouting.ts`, `advisor.ts`, `transferplan.ts` | Search profiles, transfer budget and buying order, training hints |
+| `src/i18n/translations.json` | Translations (English, Spanish, Italian, Polish) |
 | `src/ui/` | User interface; `build.mjs` bundles everything into one HTML file |
 
 ## Development
