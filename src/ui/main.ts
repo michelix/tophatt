@@ -686,10 +686,11 @@ function renderOpponent() {
         <p class="sub">Balken = unser Anteil im direkten Duell, Mitte = ausgeglichen. Ballbesitz nach Mittelfeld³, Chancen vereinfacht nach Angriff/(Angriff+Abwehr). Keine Spielsimulation.</p>
       </div>
       <div>
+        <h3 style="margin-top:0">${esc(name)} · Ø der letzten ${O.matches.length} Spiele</h3>
         <table><tbody>
-          <tr><td class="muted">Formation meist</td><td><b>${esc(O.formation || "?")}</b></td></tr>
-          <tr><td class="muted">Taktik meist</td><td><b>${esc(TACTIC_DE[O.tactic] ?? String(O.tactic))}</b></td></tr>
-          <tr><td class="muted">HatStats Ø</td><td><b>${(4 * (3 * O.average.midfield + O.average.defenceLeft + O.average.defenceCentral + O.average.defenceRight + O.average.attackLeft + O.average.attackCentral + O.average.attackRight)).toFixed(0)}</b> <span class="muted">wir: ${us.hatStats.toFixed(0)}</span></td></tr>
+          <tr><td class="muted">Ihre Formation meist</td><td><b>${esc(O.formation || "?")}</b></td></tr>
+          <tr><td class="muted">Ihre Taktik meist</td><td><b>${esc(TACTIC_DE[O.tactic] ?? String(O.tactic))}</b></td></tr>
+          <tr><td class="muted">Ihre HatStats Ø</td><td><b>${(4 * (3 * O.average.midfield + O.average.defenceLeft + O.average.defenceCentral + O.average.defenceRight + O.average.attackLeft + O.average.attackCentral + O.average.attackRight)).toFixed(0)}</b> <span class="muted">wir: ${us.hatStats.toFixed(0)}</span></td></tr>
         </tbody></table>
         <h3>Ausgewertete Spiele</h3>
         <div class="scroll"><table class="nowrap"><thead><tr><th>Datum</th><th>Gegner</th><th class="num">Ergebnis</th><th>Formation</th><th class="num">Mittelfeld</th></tr></thead><tbody>
