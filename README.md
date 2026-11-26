@@ -226,8 +226,8 @@ its Java runtime is reused for the sync. For the app alone, without the HO datab
 
 ## Usage
 
-1. Download your data in HO as usual (ideally with the opponent check). The `.hrf` file ends up in HO's data folder,
-   for example `F:\claude\hattrick\HO\daten`.
+1. Download your data in HO as usual (ideally with the opponent check). The `.hrf` file ends up in HO's data folder
+   (the folder you chose in HO for saving HRF files).
 2. Start **`TopHatt.bat`**. It reads the HO database (read-only, from a copy), writes `tophatt-data.json` into the
    data folder and opens `dist/tophatt.html`.
 3. The first time, connect the folder in the app under “Data” (works in Chrome and Edge). From then on TopHatt always
@@ -235,7 +235,9 @@ its Java runtime is reused for the sync. For the app alone, without the HO datab
    the HRF file and `tophatt-data.json` into the window.
 4. Check the lineup and click “Save for HO”. In HO, use File → Import → read HRF, then “send lineup”.
 
-The paths to HO are at the top of `TopHatt.bat` and can be changed there. The sync reads player pictures from
+The paths to HO (program folder and data folder) are at the top of `TopHatt.bat`. Ideally, put your own paths into a
+file `TopHatt.local.bat` next to `TopHatt.bat` (two lines `set "HO=…"` and `set "DATEN=…"`); it is not overwritten
+by updates and does not belong in the repository. The sync reads player pictures from
 `img/playersAvatar` of the local HO installation; they stay on your own computer and do not belong in the repository.
 
 ## Structure

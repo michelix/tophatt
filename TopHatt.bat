@@ -2,9 +2,13 @@
 rem TopHatt starten: holt Spielplan, Tabelle und Spielerhistorie aus HO und oeffnet die App.
 rem Die HO-Datenbank wird nur gelesen (ueber eine Kopie), nie veraendert.
 setlocal
-set "HO=F:\claude\hattrick\HO\programm"
-set "DATEN=F:\claude\hattrick\HO\daten"
+rem Pfade anpassen: HO = Programmordner von Hattrick Organizer (mit hsqldb-*.jar, jre und db),
+rem DATEN = Ordner, in dem HO die HRF-Dateien speichert. Eigene Pfade am besten in TopHatt.local.bat
+rem (gleicher Ordner, zwei Zeilen "set HO=..." und "set DATEN=..."); die Datei wird nicht ueberschrieben.
+set "HO=C:\HO"
+set "DATEN=C:\HO\daten"
 set "APP=%~dp0"
+if exist "%APP%TopHatt.local.bat" call "%APP%TopHatt.local.bat"
 
 set "HSQL="
 for %%f in ("%HO%\hsqldb-*.jar") do set "HSQL=%%f"

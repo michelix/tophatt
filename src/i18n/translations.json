@@ -9575,6 +9575,12 @@
    "Recambio para el hueco",
    "Rincalzo per la lacuna",
    "Zastępca na lukę"
+  ],
+  "Hier einmal den HO-Datenordner verbinden (dort, wo HO die .hrf-Dateien speichert).": [
+   "Connect the HO data folder here once (where HO saves the .hrf files).",
+   "Conecta aquí una vez la carpeta de datos de HO (donde HO guarda los archivos .hrf).",
+   "Collega qui una volta la cartella dati di HO (dove HO salva i file .hrf).",
+   "Połącz tutaj raz folder danych HO (tam, gdzie HO zapisuje pliki .hrf)."
   ]
  }
 }
