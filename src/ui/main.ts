@@ -515,9 +515,7 @@ function render() {
   if (!hrf) return;
   $("#teamName").textContent = hrf.team.teamName;
   renderDataChip();
-  renderHero();
-  renderTiles();
-  renderOpponent();
+  if (!state.league) renderMatchup();
   renderLineup();
   renderWeakness();
   renderDevelopment();
@@ -572,10 +570,11 @@ function renderHero() {
   const L = state.league;
   const teamId = hrf.team.teamId;
   const worst = [...state.weak].sort((a, b) => a.delta - b.delta)[0];
-  const stats = L
+  const ours = L ? ourSide() : null;
+  const stats = ours
     ? `<div class="hero-stats">
-        <div class="big">${L.hatStats.toFixed(0)}<small>HatStats erwartet</small></div>
-        <div class="big" style="font-size:24px">${formationLabel(L.lineup.formation)}<small>Formation</small></div>
+        <div class="big">${ours.hatStats.toFixed(0)}<small>HatStats erwartet</small></div>
+        <div class="big" style="font-size:24px">${formationLabel(ours.formation)}<small>Formation</small></div>
         ${worst ? `<div><small class="kicker" style="font-size:11px">Größte Schwachstelle</small><div style="font-size:18px;font-weight:600">${esc(worst.name)} · ${ratingLabel(worst.rating)}</div></div>` : ""}
       </div>`
     : "";
@@ -615,6 +614,26 @@ function renderHero() {
     ${later.length ? `<div class="next-list">${later.map((x) => `<span class="chip">${fmtDate(x.date)} · ${esc(opp(x))}${x.type === 3 ? " · Pokal" : x.type !== 1 ? " · FS" : ""}</span>`).join("")}</div>` : ""}`;
 }
 
+/** Hero, Kacheln und Gegner-Check: alles, was die gerade bearbeitete Aufstellung gegen den Gegner stellt */
+function renderMatchup() {
+  renderHero();
+  renderTiles();
+  renderOpponent();
+}
+
+/**
+ * Unsere Seite im Gegner-Check: die Aufstellung, die gerade im Editor steht (Formation, Spieler, Verhalten,
+ * Taktik und Einstellung aus den Einstellungen). Solange dort keine 11 Spieler stehen, der automatische Vorschlag.
+ */
+function ourSide(): { ratings: SectorRatings; hatStats: number; formation: string; source: string } {
+  const L = state.league!;
+  if (state.manual.length === 11) {
+    const e = manualEval();
+    return { ...e, formation: formationCode(state.manual), source: state.manualEdited ? "deine Aufstellung" : "Vorschlag" };
+  }
+  return { ratings: L.ratings, hatStats: L.hatStats, formation: L.lineup.formation, source: "Vorschlag" };
+}
+
 /** Anteil der Angriffe durch die Mitte mit der gewählten Taktik (für den Gegner-Check) */
 function attackCentral(): number {
   const byId = playersById();
@@ -627,7 +646,7 @@ function attackCentral(): number {
 function heroOpponentNote(name: string): string {
   const O = state.opponent;
   if (!O || !state.league) return `Stärke von ${esc(name)} ist noch nicht bekannt. In HO den Gegnercheck machen und TopHatt.bat starten.`;
-  const v = verdict(duels(state.league.ratings, O.average), attackCentral());
+  const v = verdict(duels(ourSide().ratings, O.average), attackCentral());
   return `Gegen ${esc(name)}: <b>${esc(v.text)}</b> (aus ${O.matches.length} Spielen des Gegners).`;
 }
 
@@ -646,7 +665,8 @@ function renderOpponent() {
     $("#oppOut").innerHTML = `<div class="focus"><b>Noch keine Spiele von ${esc(name)} in HO.</b> In HO unter „Gegnercheck“ die letzten Spiele des Gegners herunterladen, dann TopHatt.bat starten und „Aktualisieren“ klicken.</div>`;
     return;
   }
-  const D = duels(L.ratings, O.average);
+  const us = ourSide();
+  const D = duels(us.ratings, O.average);
   const v = verdict(D, attackCentral());
   const cls = v.edge > 0.52 ? "ok" : "";
   const row = (d: (typeof D)[number]) => `<div class="duel" title="${esc(ratingLabel(d.ours))} gegen ${esc(ratingLabel(d.theirs))}">
@@ -661,7 +681,7 @@ function renderOpponent() {
     <div class="focus ${cls}"><b>Einschätzung: ${esc(v.text)}.</b> Ballbesitz etwa ${Math.round(D[0].share * 100)} %. Bester Angriffsweg: ${esc(bestAttack.label.replace("Unser Angriff ", ""))}. Größte Gefahr: ${esc(danger.label)}.</div>
     <div class="grid2">
       <div>
-        <div class="legend"><span><i style="background:var(--s1)"></i>Wir (erwartet)</span><span><i style="background:var(--s2)"></i>${esc(name)} (Ø)</span></div>
+        <div class="legend"><span><i style="background:var(--s1)"></i>Wir (${esc(us.source)}, ${esc(formationLabel(us.formation))})</span><span><i style="background:var(--s2)"></i>${esc(name)} (Ø)</span></div>
         ${row(D[0])}<h3>Unser Angriff</h3>${D.slice(1, 4).map(row).join("")}<h3>Unsere Abwehr</h3>${D.slice(4).map(row).join("")}
         <p class="sub">Balken = unser Anteil im direkten Duell, Mitte = ausgeglichen. Ballbesitz nach Mittelfeld³, Chancen vereinfacht nach Angriff/(Angriff+Abwehr). Keine Spielsimulation.</p>
       </div>
@@ -669,7 +689,7 @@ function renderOpponent() {
         <table><tbody>
           <tr><td class="muted">Formation meist</td><td><b>${esc(O.formation || "?")}</b></td></tr>
           <tr><td class="muted">Taktik meist</td><td><b>${esc(TACTIC_DE[O.tactic] ?? String(O.tactic))}</b></td></tr>
-          <tr><td class="muted">HatStats Ø</td><td><b>${(4 * (3 * O.average.midfield + O.average.defenceLeft + O.average.defenceCentral + O.average.defenceRight + O.average.attackLeft + O.average.attackCentral + O.average.attackRight)).toFixed(0)}</b> <span class="muted">wir: ${L.hatStats.toFixed(0)}</span></td></tr>
+          <tr><td class="muted">HatStats Ø</td><td><b>${(4 * (3 * O.average.midfield + O.average.defenceLeft + O.average.defenceCentral + O.average.defenceRight + O.average.attackLeft + O.average.attackCentral + O.average.attackRight)).toFixed(0)}</b> <span class="muted">wir: ${us.hatStats.toFixed(0)}</span></td></tr>
         </tbody></table>
         <h3>Ausgewertete Spiele</h3>
         <div class="scroll"><table class="nowrap"><thead><tr><th>Datum</th><th>Gegner</th><th class="num">Ergebnis</th><th>Formation</th><th class="num">Mittelfeld</th></tr></thead><tbody>
@@ -1699,6 +1719,7 @@ function renderLineup() {
     ${anyOwn ? `<button class="btn" id="choicesReset">Kapitän, Standards und Bank wieder automatisch</button>` : ""}`;
   const mi = Number($<HTMLInputElement>("#matchId").value);
   renderOrdersPage();
+  renderMatchup();
   $("#matchIdInfo").textContent = m && mi === m.id ? `Spiel-ID gehört zu: ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : mi ? "Spiel-ID von Hand eingetragen." : "";
 }
 
@@ -3377,7 +3398,7 @@ function renderTiles() {
     const O = state.opponent;
     tiles.push(
       O
-        ? tile("gegner", "Gegner-Check", esc(verdict(duels(L.ratings, O.average), attackCentral()).text), `aus ${O.matches.length} Spielen des Gegners`)
+        ? tile("gegner", "Gegner-Check", esc(verdict(duels(ourSide().ratings, O.average), attackCentral()).text), `aus ${O.matches.length} Spielen des Gegners`)
         : tile("gegner", "Gegner-Check", "keine Daten", "in HO den Gegnercheck machen"),
     );
   }
