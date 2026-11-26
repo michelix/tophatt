@@ -9419,6 +9419,162 @@
    "completo: oscuro = ya jugado, claro = planificado",
    "pieno: scuro = già giocato, chiaro = pianificato",
    "pełny: ciemny = już rozegrane, jasny = zaplanowane"
+  ],
+  "Gegen Gegner": [
+   "Vs. opponent",
+   "Contra el rival",
+   "Contro l'avversario",
+   "Pod rywala"
+  ],
+  "beste Siegchance": [
+   "best win chance",
+   "mejor prob. de victoria",
+   "miglior prob. di vittoria",
+   "najlepsza szansa na wygraną"
+  ],
+  "Formation, Spieler und Taktik mit der besten Siegchance gegen den nächsten Gegner statt der höchsten HatStats (Formationen ab der eingestellten Mindesterfahrung). Bei fast gleicher Siegchance zählen die Trainingsplätze.": [
+   "Formation, players and tactic with the best win chance against the next opponent instead of the highest HatStats (formations from the set minimum experience). If the win chance is almost the same, training slots decide.",
+   "Formación, jugadores y táctica con la mejor probabilidad de victoria contra el próximo rival en lugar de los HatStats más altos (formaciones desde la experiencia mínima ajustada). Con una probabilidad casi igual deciden las plazas de entrenamiento.",
+   "Modulo, giocatori e tattica con la migliore probabilità di vittoria contro il prossimo avversario invece degli HatStats più alti (moduli dall'esperienza minima impostata). A parità quasi di probabilità contano i posti di allenamento.",
+   "Ustawienie, zawodnicy i taktyka z najlepszą szansą na wygraną z następnym rywalem zamiast najwyższych HatStats (ustawienia od ustawionego minimalnego doświadczenia). Przy prawie równej szansie decydują miejsca treningowe."
+  ],
+  "Gegen {0}: {1} mit {2}.": [
+   "Against {0}: {1} with {2}.",
+   "Contra {0}: {1} con {2}.",
+   "Contro {0}: {1} con {2}.",
+   "Przeciw {0}: {1}, {2}."
+  ],
+  "Siegchance {0} statt {1} ({2} %), {3} statt {4} HatStats ({5}) gegenüber der stärksten Aufstellung ({6}).": [
+   "Win chance {0} instead of {1} ({2} %), {3} instead of {4} HatStats ({5}) compared with the strongest lineup ({6}).",
+   "Prob. de victoria {0} en lugar de {1} ({2} %), {3} en lugar de {4} HatStats ({5}) frente a la alineación más fuerte ({6}).",
+   "Prob. di vittoria {0} invece di {1} ({2} %), {3} invece di {4} HatStats ({5}) rispetto alla formazione più forte ({6}).",
+   "Szansa na wygraną {0} zamiast {1} ({2} %), {3} zamiast {4} HatStats ({5}) w porównaniu z najsilniejszym składem ({6})."
+  ],
+  "Stärker": [
+   "Stronger",
+   "Más fuerte",
+   "Più forte",
+   "Silniej"
+  ],
+  "Schwächer": [
+   "Weaker",
+   "Más débil",
+   "Più debole",
+   "Słabiej"
+  ],
+  "Gegen {0} ist die stärkste Aufstellung auch die beste Wahl": [
+   "Against {0} the strongest lineup is also the best choice",
+   "Contra {0} la alineación más fuerte también es la mejor opción",
+   "Contro {0} la formazione più forte è anche la scelta migliore",
+   "Przeciw {0} najsilniejszy skład jest też najlepszym wyborem"
+  ],
+  "({0}, {1}, Siegchance {2}).": [
+   "({0}, {1}, win chance {2}).",
+   "({0}, {1}, prob. de victoria {2}).",
+   "({0}, {1}, prob. di vittoria {2}).",
+   "({0}, {1}, szansa na wygraną {2})."
+  ],
+  "Bei fast gleicher Siegchance hat die Elf mit mehr Trainingsplätzen den Vorzug bekommen ({0}).": [
+   "With an almost equal win chance, the XI with more training slots was preferred ({0}).",
+   "Con una probabilidad casi igual se prefirió el once con más plazas de entrenamiento ({0}).",
+   "A parità quasi di probabilità è stato preferito l'undici con più posti di allenamento ({0}).",
+   "Przy prawie równej szansie wybrano jedenastkę z większą liczbą miejsc treningowych ({0})."
+  ],
+  "Nur in der gewählten Formation gesucht.": [
+   "Searched only in the chosen formation.",
+   "Solo se buscó en la formación elegida.",
+   "Cercato solo nel modulo scelto.",
+   "Szukano tylko w wybranym ustawieniu."
+  ],
+  "„Gegen Gegner“ erneut tippen sucht in allen.": [
+   "Tap “Vs. opponent” again to search all.",
+   "Pulsa otra vez «Contra el rival» para buscar en todas.",
+   "Tocca di nuovo «Contro l'avversario» per cercare in tutti.",
+   "Kliknij ponownie „Pod rywala”, aby szukać we wszystkich."
+  ],
+  "Stärkste Aufstellung passt auch gegen diesen Gegner.": [
+   "The strongest lineup also fits against this opponent.",
+   "La alineación más fuerte también sirve contra este rival.",
+   "La formazione più forte va bene anche contro questo avversario.",
+   "Najsilniejszy skład pasuje też na tego rywala."
+  ],
+  "Gegen {0} aufgestellt: {1}, {2}.": [
+   "Lined up against {0}: {1}, {2}.",
+   "Alineado contra {0}: {1}, {2}.",
+   "Schierato contro {0}: {1}, {2}.",
+   "Ustawiono przeciw {0}: {1}, {2}."
+  ],
+  "Siegchance {0}, Remis {1} mit {2} (beste Taktik, HOs Spielvorhersage).": [
+   "Win chance {0}, draw {1} with {2} (best tactic, HO's match prediction).",
+   "Prob. de victoria {0}, empate {1} con {2} (mejor táctica, predicción de HO).",
+   "Prob. di vittoria {0}, pareggio {1} con {2} (miglior tattica, previsione di HO).",
+   "Szansa na wygraną {0}, remis {1} przy {2} (najlepsza taktyka, prognoza HO)."
+  ],
+  "Wir ({0}, {1})": [
+   "Us ({0}, {1})",
+   "Nosotros ({0}, {1})",
+   "Noi ({0}, {1})",
+   "My ({0}, {1})"
+  ],
+  "deine Aufstellung": [
+   "your lineup",
+   "tu alineación",
+   "la tua formazione",
+   "twój skład"
+  ],
+  "beste Elf": [
+   "best XI",
+   "mejor once",
+   "miglior undici",
+   "najlepsza XI"
+  ],
+  "{0} · Ø der letzten {1} Spiele": [
+   "{0} · Ø of the last {1} matches",
+   "{0} · Ø de los últimos {1} partidos",
+   "{0} · Ø delle ultime {1} partite",
+   "{0} · Ø z ostatnich {1} meczów"
+  ],
+  "Unsere Seite": [
+   "Our side",
+   "Nuestro lado",
+   "Il nostro lato",
+   "Nasza strona"
+  ],
+  "Meine Aufstellung ({0})": [
+   "My lineup ({0})",
+   "Mi alineación ({0})",
+   "La mia formazione ({0})",
+   "Mój skład ({0})"
+  ],
+  "Vorschlag (Aufstellung unvollständig)": [
+   "Suggestion (lineup incomplete)",
+   "Propuesta (alineación incompleta)",
+   "Proposta (formazione incompleta)",
+   "Propozycja (skład niepełny)"
+  ],
+  "Deine Aufstellung ({0})": [
+   "Your lineup ({0})",
+   "Tu alineación ({0})",
+   "La tua formazione ({0})",
+   "Twój skład ({0})"
+  ],
+  "Das ist nicht die beste {0} aus der Tabelle ({1} HatStats), sondern deine Elf mit anderen Spielern oder Positionen.": [
+   "This is not the best {0} from the table ({1} HatStats) but your XI with other players or positions.",
+   "No es el mejor {0} de la tabla ({1} HatStats), sino tu once con otros jugadores o posiciones.",
+   "Non è il miglior {0} della tabella ({1} HatStats), ma il tuo undici con altri giocatori o posizioni.",
+   "To nie najlepsze {0} z tabeli ({1} HatStats), lecz twoja jedenastka z innymi zawodnikami lub pozycjami."
+  ],
+  "„Deine Aufstellung“ ist die Elf von der Aufstellungsseite; sie weicht von der besten {0} ab (z. B. nach „Gegen Gegner“).": [
+   "“Your lineup” is the XI from the lineup page; it differs from the best {0} (e.g. after “Vs. opponent”).",
+   "«Tu alineación» es el once de la página de alineación; difiere del mejor {0} (p. ej. tras «Contra el rival»).",
+   "«La tua formazione» è l'undici della pagina formazione; differisce dal miglior {0} (ad es. dopo «Contro l'avversario»).",
+   "„Twój skład” to jedenastka ze strony składu; różni się od najlepszego {0} (np. po „Pod rywala”)."
+  ],
+  "Ersatz für die Lücke": [
+   "Cover for the gap",
+   "Recambio para el hueco",
+   "Rincalzo per la lacuna",
+   "Zastępca na lukę"
   ]
  }
 }
