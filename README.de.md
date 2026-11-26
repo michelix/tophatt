@@ -225,8 +225,8 @@ dessen Java wird für den Sync mitbenutzt. Nur die App ohne HO-Datenbank: `topha
 
 ## Benutzen
 
-1. In HO wie gewohnt die Daten herunterladen (am besten mit Gegnercheck). Die `.hrf`-Datei landet im HO-Datenordner,
-   hier `F:\claude\hattrick\HO\daten`.
+1. In HO wie gewohnt die Daten herunterladen (am besten mit Gegnercheck). Die `.hrf`-Datei landet im HO-Datenordner
+   (dem Ordner, den du in HO zum Speichern der HRF-Dateien gewählt hast).
 2. **`TopHatt.bat`** starten. Das liest die HO-Datenbank (nur lesend, über eine Kopie), schreibt
    `tophatt-data.json` in den Datenordner und öffnet `dist/tophatt.html`.
 3. Beim ersten Mal in der App unter „Daten“ den Ordner verbinden (geht in Chrome und Edge). Danach lädt TopHatt beim
@@ -234,7 +234,9 @@ dessen Java wird für den Sync mitbenutzt. Nur die App ohne HO-Datenbank: `topha
    `tophatt-data.json` ins Fenster ziehen.
 4. Aufstellung prüfen und „Für HO speichern“. In HO über Datei → Importieren → HRF einlesen und „Aufstellung senden“.
 
-Die Pfade zu HO stehen oben in `TopHatt.bat` und lassen sich dort anpassen. Spielerbilder liest der Sync aus
+Die Pfade zu HO (Programmordner und Datenordner) stehen oben in `TopHatt.bat`. Am besten trägst du deine eigenen
+Pfade in eine Datei `TopHatt.local.bat` neben `TopHatt.bat` ein (zwei Zeilen `set "HO=…"` und `set "DATEN=…"`);
+sie wird bei Updates nicht überschrieben und gehört nicht ins Repository. Spielerbilder liest der Sync aus
 `img/playersAvatar` der lokalen HO-Installation; sie bleiben auf dem eigenen Rechner und gehören nicht ins Repository.
 
 ## Aufbau
