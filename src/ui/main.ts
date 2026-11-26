@@ -176,6 +176,8 @@ interface State {
   trainingMode: boolean;
   /** Noch nicht gespielt: Elf und Bank aus Spielern ohne Einsatz in dieser Woche, Wechsel bringen die Bank */
   unplayed: boolean;
+  /** Modus „Gegen Gegner“: Formationswechsel sucht weiter die beste Siegchance */
+  oppMode: boolean;
   /** zuletzt gegen den Gegner aufgestellte Elf und der Hinweis dazu (gilt, solange genau diese Elf steht) */
   fit: { positions: FieldPosition[]; formation: string; note: string } | null;
   /** Spieler, die nicht mehr trainiert werden sollen (Verkauf, Entlassung), eigene Liste aus der Trainingswoche */
@@ -229,6 +231,7 @@ const state: State = {
   hidePlayed: false,
   trainingMode: false,
   unplayed: false,
+  oppMode: false,
   fit: null,
   noTrain: new Set(),
   squadOwn: {},
@@ -439,8 +442,11 @@ function compute() {
       allowBruised: $<HTMLInputElement>("#bruised").checked,
       tryBehaviours: $<HTMLInputElement>("#behaviours").checked,
     });
-    state.formations = [];
-    if (state.formation) state.formations.push(...bestPerFormation([state.formation]));
+    // alte Formationen bis zur Neuberechnung stehen lassen (sonst verschwinden die Kacheln kurz), außer bei neuen Daten
+    const fresh = state.formation ? bestPerFormation([state.formation]) : [];
+    const keep = formationsHrf === hrf ? state.formations.filter((f) => !fresh.some((x) => x.code === f.code)) : [];
+    formationsHrf = hrf;
+    state.formations = [...keep, ...fresh];
     scheduleFormations();
     if (!state.manualEdited) state.manual = formationPositions();
     state.week = trainingWeekNow();
@@ -772,6 +778,8 @@ function bestPerFormation(codes: readonly string[]) {
 }
 
 let formationTimer = 0;
+/** zu welchen Daten state.formations gehört */
+let formationsHrf: Hrf | null = null;
 /** Alle Formationen im Hintergrund rechnen, damit die Seite sofort reagiert */
 function scheduleFormations() {
   clearTimeout(formationTimer);
@@ -805,6 +813,7 @@ function trainingBadge(id: number): string {
 /** Zurück zur normalen Aufstellung: B-Kader-Modus und „Noch nicht gespielt“ aus, Wechsel wieder nach Spielart */
 function leaveTrainingMode() {
   state.trainingMode = false;
+  state.oppMode = false;
   if (state.unplayed) setSubMode(undefined, "einsatz");
   state.unplayed = false;
 }
@@ -1080,25 +1089,8 @@ function trainingToast(plan: ReturnType<typeof trainingPlan>): string {
   return `B-Kader ${formationLabel(plan.lineup.formation)}: ${n} Spieler bekommen dadurch „${t.name}“-Training. Formation wechseln behält den Modus bei.`;
 }
 
-/** „Gegner berücksichtigen“: nur mit Gegnerdaten möglich, sonst standardmäßig an (eigene Wahl wird gespeichert) */
-function syncOppFit() {
-  const box = $<HTMLInputElement>("#oppFit");
-  const known = !!state.opponent;
-  let stored: string | null = null;
-  try {
-    stored = localStorage.getItem("tophatt.oppFit");
-  } catch {
-    /* ohne Speicher gilt der Standard */
-  }
-  box.disabled = !known;
-  box.checked = known && stored !== "0";
-  $("#oppFitLabel").classList.toggle("muted", !known);
-  $("#oppFitLabel").title = known
-    ? "Formation, Taktik und Spieler nach der besten Siegchance gegen den nächsten Gegner wählen statt nach den höchsten HatStats. Bei fast gleicher Siegchance zählen die Trainingsplätze."
-    : "Keine Daten zum nächsten Gegner: in HO den Gegnercheck machen, TopHatt.bat starten und „Aktualisieren“ klicken.";
-}
-
-const oppFitOn = () => !!state.opponent && $<HTMLInputElement>("#oppFit").checked;
+/** „Gegen Gegner“ ist aktiv, solange genau die dafür aufgestellte Elf steht */
+const oppActive = () => state.oppMode && !!state.fit && sameLineup(state.manual, state.fit.positions);
 
 const sameLineup = (a: FieldPosition[], b: FieldPosition[]) =>
   a.length === b.length && a.every((p) => b.some((q) => q.playerId === p.playerId && q.role === p.role && q.behaviour === p.behaviour));
@@ -1108,7 +1100,7 @@ const sameLineup = (a: FieldPosition[], b: FieldPosition[]) =>
  * Taktik mit den meisten erwarteten Punkten gegen den nächsten Gegner. Dazu ein Hinweis, was das gegenüber der
  * stärksten Aufstellung nach HatStats bringt und kostet.
  */
-function fillAgainstOpponent() {
+function fillAgainstOpponent(formation = "") {
   const hrf = state.hrf!;
   const L = state.league!;
   const opp = planOpponent();
@@ -1118,8 +1110,11 @@ function fillAgainstOpponent() {
     const team = teamState();
     const byId = playersById();
     const oppSide = { ratings: opp.ratings, tactic: opp.tactic, level: 8 };
-    const own = state.formation && state.formation !== state.fit?.formation ? [state.formation] : undefined;
+    const own = formation ? [formation] : undefined;
+    // die stärkste Elf je Formation ist schon gerechnet (gleiche Einstellungen), das spart ein Drittel der Zeit
+    const known = new Map(state.formations.map((f) => [f.code, f.positions]));
     const fit = fitLineup(hrf.players, state.settings, team, oppSide, {
+      base: known,
       formationExperience: hrf.team.formationExperience,
       minExperience: own ? 0 : Number($<HTMLSelectElement>("#minExp").value),
       allowBruised: bruisedOk(),
@@ -1154,16 +1149,20 @@ function fillAgainstOpponent() {
       if (more.length || less.length) parts.push(`${more.length ? `Stärker: ${more.join(", ")}.` : ""}${more.length && less.length ? " " : ""}${less.length ? `Schwächer: ${less.join(", ")}.` : ""}`);
     }
     if (fit.byTraining) parts.push(`Bei fast gleicher Siegchance hat die Elf mit mehr Trainingsplätzen den Vorzug bekommen (${slotText(fit.pick)}).`);
-    if (own) parts.push(`Nur in der gewählten Formation gesucht. Für alle Formationen erst „Beste“ wählen.`);
+    if (own) parts.push(`Nur in der gewählten Formation gesucht. „Gegen Gegner“ erneut tippen sucht in allen.`);
     state.formation = fit.pick.formation === L.lineup.formation ? "" : fit.pick.formation;
     state.manual = fit.pick.positions.map((p) => ({ ...p }));
     state.manualEdited = true;
     state.pick = null;
     state.choices = {};
+    state.oppMode = true;
     state.fit = { positions: fit.pick.positions.map((p) => ({ ...p })), formation: fit.pick.formation, note: parts.join(" ") };
-    $<HTMLSelectElement>("#tactic").value = String(b.settings.tactic);
-    $<HTMLSelectElement>("#style").value = String(b.settings.styleOfPlay);
-    compute();
+    // nur neu rechnen, wenn sich Taktik oder Ausrichtung ändern (das ändert die Bewertungen aller Formationen)
+    if (b.settings.tactic !== s.tactic || b.settings.styleOfPlay !== s.styleOfPlay) {
+      $<HTMLSelectElement>("#tactic").value = String(b.settings.tactic);
+      $<HTMLSelectElement>("#style").value = String(b.settings.styleOfPlay);
+      compute();
+    } else editorChanged();
     toast(unchanged ? "Stärkste Aufstellung passt auch gegen diesen Gegner." : `Gegen ${name} aufgestellt: ${formationLabel(fit.pick.formation)}, ${b.label}.`);
   }, 30);
 }
@@ -1185,10 +1184,12 @@ function renderFormationPick() {
   const t = state.hrf ? TRAININGS[state.hrf.team.trainingType] : undefined;
   $("#trainingFill").classList.toggle("primary", state.trainingMode);
   $("#unplayedFill").classList.toggle("primary", state.unplayed);
-  const trainBest = trainBestActive();
+  const trainBest = trainBestActive() && !oppActive();
   $("#trainBestFill").classList.toggle("primary", trainBest);
-  syncOppFit();
-  $("#autoFill").classList.toggle("primary", !state.trainingMode && !state.unplayed && !trainBest);
+  const opp = oppActive();
+  $("#oppFill").classList.toggle("primary", opp);
+  $<HTMLButtonElement>("#oppFill").disabled = !state.opponent;
+  $("#autoFill").classList.toggle("primary", !state.trainingMode && !state.unplayed && !trainBest && !oppActive());
   sel.classList.toggle("training", state.trainingMode);
   // Formation wählt man über die Karten darunter; das Auswahlfeld bleibt nur als Rückfall
   const training = !!(state.trainingMode && t && state.week);
@@ -1829,7 +1830,7 @@ function renderLineup() {
     ${anyOwn ? `<button class="btn" id="choicesReset">Kapitän, Standards und Bank wieder automatisch</button>` : ""}`;
   const mi = Number($<HTMLInputElement>("#matchId").value);
   renderOrdersPage();
-  $("#oppFitNote").innerHTML = state.fit && sameLineup(state.manual, state.fit.positions) ? `<div class="focus ok">${state.fit.note}</div>` : "";
+  $("#oppFitNote").innerHTML = oppActive() && state.fit ? `<div class="focus ok">${state.fit.note}</div>` : "";
   renderMatchup();
   $("#matchIdInfo").textContent = m && mi === m.id ? `Spiel-ID gehört zu: ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : mi ? "Spiel-ID von Hand eingetragen." : "";
 }
@@ -2353,21 +2354,13 @@ function initEditor() {
     if (!t.isConnected) return; // Element wurde beim Neuzeichnen ersetzt
     if ((state.pick || state.flowPid) && !(e.target as HTMLElement).closest("#aufstellung .editor, #aufstellung .editor-bar")) clearFlow();
   });
-  $("#oppFit").addEventListener("change", () => {
-    try {
-      localStorage.setItem("tophatt.oppFit", $<HTMLInputElement>("#oppFit").checked ? "1" : "0");
-    } catch {
-      /* ohne Speicher gilt die Wahl nur bis zum Neuladen */
-    }
-  });
   $("#autoFill").addEventListener("click", () => {
     if (!state.league) return;
     // aus einem Modus (B-Kader, Noch nicht gespielt, Stärkste Elf + Training) zurück zur besten Elf
-    if (state.trainingMode || state.unplayed || trainBestActive()) {
+    if (state.trainingMode || state.unplayed || state.oppMode || trainBestActive()) {
       leaveTrainingMode();
       state.formation = "";
     }
-    if (oppFitOn()) return fillAgainstOpponent();
     state.manual = formationPositions();
     state.manualEdited = !!state.formation;
     state.pick = null;
@@ -2379,6 +2372,7 @@ function initEditor() {
     state.formation = $<HTMLSelectElement>("#formationPick").value;
     if (state.trainingMode && state.week) return applyTrainingFormation(state.formation);
     if (state.unplayed) return applyUnplayed(state.formation);
+    if (state.oppMode) return fillAgainstOpponent(state.formation || state.league?.lineup.formation);
     state.manual = formationPositions();
     state.manualEdited = !!state.formation;
     state.pick = null;
@@ -2404,6 +2398,12 @@ function initEditor() {
     state.choices = {};
     editorChanged();
     toast(lc.reason);
+  });
+  $("#oppFill").addEventListener("click", () => {
+    if (!state.league) return;
+    if (!state.opponent) return toast("Keine Daten zum Gegner: in HO den Gegnercheck machen und „Aktualisieren“ klicken.");
+    leaveTrainingMode();
+    fillAgainstOpponent();
   });
   $("#unplayedFill").addEventListener("click", () => {
     if (!state.hrf || !state.week) return toast("Keine Trainingswoche bekannt.");
