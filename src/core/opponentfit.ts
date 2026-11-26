@@ -6,7 +6,7 @@
 
 import type { FieldPosition, MatchSettings, Player } from "./model";
 import { RATING_SECTORS, type RatingSector, type SectorRatings, type TeamState } from "./rating";
-import { FORMATIONS, HATSTATS_OBJECTIVE, type Objective, optimizeLineup } from "./optimizer";
+import { Evaluator, FORMATIONS, HATSTATS_OBJECTIVE, type Objective, optimizeLineup } from "./optimizer";
 import { type MatchPlan, type Side, effectiveness, planMatch } from "./matchplan";
 import { type TrainingDef, trainingFor } from "./training";
 
@@ -76,6 +76,8 @@ export interface FitOptions {
   styleRange: [number, number];
   cup?: boolean;
   training?: TrainingDef;
+  /** schon gerechnete stärkste Elf je Formation (mit denselben Einstellungen), spart einen Optimiererlauf */
+  base?: Map<string, FieldPosition[]>;
   /** nur diese Formationen (sonst alle ab der Mindesterfahrung) */
   formations?: string[];
 }
@@ -107,14 +109,17 @@ export function fitLineup(players: Player[], settings: MatchSettings, team: Team
       formations: [f],
     });
   for (const f of codes) {
-    let base;
-    try {
-      base = run(f, HATSTATS_OBJECTIVE);
-    } catch {
-      continue; // zu wenige Spieler für diese Formation
+    let basePositions = opt.base?.get(f);
+    if (!basePositions) {
+      try {
+        basePositions = run(f, HATSTATS_OBJECTIVE).lineup.positions;
+      } catch {
+        continue; // zu wenige Spieler für diese Formation
+      }
     }
-    const target = opponentObjective(base.ratings, opponent.ratings);
-    const lineups = [base.lineup.positions];
+    const field = basePositions.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role, behaviour: p.behaviour }));
+    const target = opponentObjective(new Evaluator(settings, team).ratings(field), opponent.ratings);
+    const lineups = [basePositions];
     for (const w of [0.5, 1]) {
       const r = run(f, blend(HATSTATS_OBJECTIVE, target, w));
       if (!lineups.some((l) => sameLineup(l, r.lineup.positions))) lineups.push(r.lineup.positions);

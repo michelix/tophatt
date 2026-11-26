@@ -442,8 +442,11 @@ function compute() {
       allowBruised: $<HTMLInputElement>("#bruised").checked,
       tryBehaviours: $<HTMLInputElement>("#behaviours").checked,
     });
-    state.formations = [];
-    if (state.formation) state.formations.push(...bestPerFormation([state.formation]));
+    // alte Formationen bis zur Neuberechnung stehen lassen (sonst verschwinden die Kacheln kurz), außer bei neuen Daten
+    const fresh = state.formation ? bestPerFormation([state.formation]) : [];
+    const keep = formationsHrf === hrf ? state.formations.filter((f) => !fresh.some((x) => x.code === f.code)) : [];
+    formationsHrf = hrf;
+    state.formations = [...keep, ...fresh];
     scheduleFormations();
     if (!state.manualEdited) state.manual = formationPositions();
     state.week = trainingWeekNow();
@@ -775,6 +778,8 @@ function bestPerFormation(codes: readonly string[]) {
 }
 
 let formationTimer = 0;
+/** zu welchen Daten state.formations gehört */
+let formationsHrf: Hrf | null = null;
 /** Alle Formationen im Hintergrund rechnen, damit die Seite sofort reagiert */
 function scheduleFormations() {
   clearTimeout(formationTimer);
@@ -1106,7 +1111,10 @@ function fillAgainstOpponent(formation = "") {
     const byId = playersById();
     const oppSide = { ratings: opp.ratings, tactic: opp.tactic, level: 8 };
     const own = formation ? [formation] : undefined;
+    // die stärkste Elf je Formation ist schon gerechnet (gleiche Einstellungen), das spart ein Drittel der Zeit
+    const known = new Map(state.formations.map((f) => [f.code, f.positions]));
     const fit = fitLineup(hrf.players, state.settings, team, oppSide, {
+      base: known,
       formationExperience: hrf.team.formationExperience,
       minExperience: own ? 0 : Number($<HTMLSelectElement>("#minExp").value),
       allowBruised: bruisedOk(),
@@ -1149,9 +1157,12 @@ function fillAgainstOpponent(formation = "") {
     state.choices = {};
     state.oppMode = true;
     state.fit = { positions: fit.pick.positions.map((p) => ({ ...p })), formation: fit.pick.formation, note: parts.join(" ") };
-    $<HTMLSelectElement>("#tactic").value = String(b.settings.tactic);
-    $<HTMLSelectElement>("#style").value = String(b.settings.styleOfPlay);
-    compute();
+    // nur neu rechnen, wenn sich Taktik oder Ausrichtung ändern (das ändert die Bewertungen aller Formationen)
+    if (b.settings.tactic !== s.tactic || b.settings.styleOfPlay !== s.styleOfPlay) {
+      $<HTMLSelectElement>("#tactic").value = String(b.settings.tactic);
+      $<HTMLSelectElement>("#style").value = String(b.settings.styleOfPlay);
+      compute();
+    } else editorChanged();
     toast(unchanged ? "Stärkste Aufstellung passt auch gegen diesen Gegner." : `Gegen ${name} aufgestellt: ${formationLabel(fit.pick.formation)}, ${b.label}.`);
   }, 30);
 }
