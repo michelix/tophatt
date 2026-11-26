@@ -2593,16 +2593,24 @@ function formationCompareHtml(current: string): string {
   const SHORT: Record<RatingSector, string> = {
     defenceRight: "Abw. r", defenceCentral: "Abw. z", defenceLeft: "Abw. l", midfield: "Mittelf.", attackRight: "Angr. r", attackCentral: "Angr. z", attackLeft: "Angr. l",
   };
+  // eigene Aufstellung als eigene Zeile, wenn sie nicht genau die beste Elf ihrer Formation ist (z. B. „Gegen Gegner“)
+  const mineCode = state.manual.length === 11 ? formationCode(state.manual) : "";
+  const bestOfMine = rows.find((r) => r.code === mineCode);
+  const mine = mineCode && bestOfMine && !sameLineup(state.manual, bestOfMine.positions) ? { code: mineCode, ...manualEval() } : null;
+  const mineRow = mine
+    ? `<tr class="${state.weakBasis === "mine" ? "cur" : ""}"><td><button class="linklike" data-weakbasis="mine">Deine Aufstellung (${formationLabel(mine.code)})</button></td>
+        <td class="num">${exp[mine.code] ?? 0}</td><td class="num"><b>${mine.hatStats.toFixed(0)}</b></td>${RATING_SECTORS.map((k) => cell({ ratings: mine.ratings } as (typeof rows)[number], k)).join("")}</tr>`
+    : "";
   return `<div class="scroll"><table class="nowrap fcmp"><thead><tr><th>Formation</th><th class="num">Erfahrung</th><th class="num">HatStats</th>${RATING_SECTORS.map((k) => `<th class="num">${SHORT[k]}</th>`).join("")}</tr></thead><tbody>
-    ${rows
+    ${mineRow}${rows
       .map(
-        (r) => `<tr class="${r.code === current ? "cur" : ""}"><td><button class="linklike" data-weakbasis="${r.code}">${formationLabel(r.code)}</button></td>
+        (r) => `<tr class="${r.code === current && !(mine && state.weakBasis === "mine") ? "cur" : ""}"><td><button class="linklike" data-weakbasis="${r.code}">${formationLabel(r.code)}</button></td>
         <td class="num">${exp[r.code] ?? 0}${(exp[r.code] ?? 0) < 6 ? ' <span class="warnmark" title="Unter 6 droht Desorganisation">⚠</span>' : ""}</td>
         <td class="num"><b>${r.hatStats.toFixed(0)}</b></td>${RATING_SECTORS.map((k) => cell(r, k)).join("")}</tr>`,
       )
       .join("")}
   </tbody></table></div>
-  <p class="sub">Je Formation die beste Elf aus deinem Kader mit den Einstellungen der Aufstellungsseite. Grün = bester Wert dieser Spalte, rot umrandet = Schwachstelle in dieser Formation. ⚠ = Erfahrung unter 6, die Formation muss erst trainiert werden (Freundschaftsspiele in dieser Formation). Klick auf eine Formation zeigt oben ihre Schwachstellen.</p>`;
+  <p class="sub">Je Formation die beste Elf aus deinem Kader mit den Einstellungen der Aufstellungsseite. Grün = bester Wert dieser Spalte, rot umrandet = Schwachstelle in dieser Formation. ⚠ = Erfahrung unter 6, die Formation muss erst trainiert werden (Freundschaftsspiele in dieser Formation). Klick auf eine Formation zeigt oben ihre Schwachstellen.${mine ? ` „Deine Aufstellung“ ist die Elf von der Aufstellungsseite; sie weicht von der besten ${formationLabel(mine.code)} ab (z. B. nach „Gegen Gegner“).` : ""}</p>`;
 }
 
 function renderWeakness() {
@@ -2637,7 +2645,11 @@ function renderWeakness() {
     </div>`;
   }).join("");
   const exp = state.hrf.team.formationExperience[B.formation] ?? 0;
-  const basisNote = `<p class="sub">Grundlage: ${esc(B.label)}, Formation ${formationLabel(B.formation)} (Erfahrung ${exp}), ${hatStatsOf(B.ratings).toFixed(0)} HatStats.${state.weakBasis === "mine" && state.manual.length < 11 ? " Deine Aufstellung hat noch keine 11 Spieler, deshalb wird der Vorschlag gezeigt." : ""}</p>`;
+  const bestSame = state.formations.find((x) => x.code === B.formation);
+  const differs = state.weakBasis === "mine" && state.manual.length === 11 && bestSame && !sameLineup(state.manual, bestSame.positions);
+  const basisNote = `<p class="sub">Grundlage: ${esc(B.label)}, Formation ${formationLabel(B.formation)} (Erfahrung ${exp}), ${hatStatsOf(B.ratings).toFixed(0)} HatStats.${
+    differs ? ` Das ist nicht die beste ${formationLabel(B.formation)} aus der Tabelle (${bestSame!.hatStats.toFixed(0)} HatStats), sondern deine Elf mit anderen Spielern oder Positionen.` : ""
+  }${state.weakBasis === "mine" && state.manual.length < 11 ? " Deine Aufstellung hat noch keine 11 Spieler, deshalb wird der Vorschlag gezeigt." : ""}</p>`;
   $("#weakOut").innerHTML = `${basisNote}${focus}<div class="bars">${rows}</div>
     <p class="sub" style="margin-top:12px">Senkrechter Strich = Durchschnitt (${avg.toFixed(2)}). Das Mittelfeld zählt in den HatStats dreifach und entscheidet über den Ballbesitz, deshalb wird es strenger bewertet.</p>
     <h3>Welche Formation gleicht die Schwachstellen aus?</h3>${formationCompareHtml(B.formation)}`;
