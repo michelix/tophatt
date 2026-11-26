@@ -16,6 +16,8 @@ import { DEV_SKILL_DE, type DevSkill, type PlayerOutlook, type ProjectionPoint, 
 import { type SectorAssessment, assessSectors } from "../core/weakness";
 import { TACTIC_DE, type OpponentProfile, duels, opponentProfile, verdict } from "../core/opponent";
 import { MODELLED_TACTICS, evaluateSettings, planMatch, styleName, type MatchPlan } from "../core/matchplan";
+import { fitLineup } from "../core/opponentfit";
+import { SECTOR_DE } from "../core/weakness";
 import { BACKUP_SHARE, type GroupPlan, GROUPS, GROUP_DE, GROUP_SHORT, GROUP_SKILLS, availability, balancedHome, fitTable, groupValue, planSquad, squadGroups, staminaShare } from "../core/squad";
 import { type LineupChoices, completeLineup, droppedChoices, evaluatePositions, explain, formationCode, lineupProblems, roleShort } from "../core/editor";
 import { FORMATIONS, behavioursFor, rankCaptains, rankSetPieces } from "../core/optimizer";
@@ -174,6 +176,8 @@ interface State {
   trainingMode: boolean;
   /** Noch nicht gespielt: Elf und Bank aus Spielern ohne Einsatz in dieser Woche, Wechsel bringen die Bank */
   unplayed: boolean;
+  /** zuletzt gegen den Gegner aufgestellte Elf und der Hinweis dazu (gilt, solange genau diese Elf steht) */
+  fit: { positions: FieldPosition[]; formation: string; note: string } | null;
   /** Spieler, die nicht mehr trainiert werden sollen (Verkauf, Entlassung), eigene Liste aus der Trainingswoche */
   noTrain: Set<number>;
   /** eigene Kaderzuordnung (A/B/Rest), überschreibt den Vorschlag */
@@ -225,6 +229,7 @@ const state: State = {
   hidePlayed: false,
   trainingMode: false,
   unplayed: false,
+  fit: null,
   noTrain: new Set(),
   squadOwn: {},
   cup: null,
@@ -1075,6 +1080,94 @@ function trainingToast(plan: ReturnType<typeof trainingPlan>): string {
   return `B-Kader ${formationLabel(plan.lineup.formation)}: ${n} Spieler bekommen dadurch „${t.name}“-Training. Formation wechseln behält den Modus bei.`;
 }
 
+/** „Gegner berücksichtigen“: nur mit Gegnerdaten möglich, sonst standardmäßig an (eigene Wahl wird gespeichert) */
+function syncOppFit() {
+  const box = $<HTMLInputElement>("#oppFit");
+  const known = !!state.opponent;
+  let stored: string | null = null;
+  try {
+    stored = localStorage.getItem("tophatt.oppFit");
+  } catch {
+    /* ohne Speicher gilt der Standard */
+  }
+  box.disabled = !known;
+  box.checked = known && stored !== "0";
+  $("#oppFitLabel").classList.toggle("muted", !known);
+  $("#oppFitLabel").title = known
+    ? "Formation, Taktik und Spieler nach der besten Siegchance gegen den nächsten Gegner wählen statt nach den höchsten HatStats. Bei fast gleicher Siegchance zählen die Trainingsplätze."
+    : "Keine Daten zum nächsten Gegner: in HO den Gegnercheck machen, TopHatt.bat starten und „Aktualisieren“ klicken.";
+}
+
+const oppFitOn = () => !!state.opponent && $<HTMLInputElement>("#oppFit").checked;
+
+const sameLineup = (a: FieldPosition[], b: FieldPosition[]) =>
+  a.length === b.length && a.every((p) => b.some((q) => q.playerId === p.playerId && q.role === p.role && q.behaviour === p.behaviour));
+
+/**
+ * Automatisch aufstellen mit Gegner: Formation (ab der Mindesterfahrung, oder die selbst gewählte), Spieler und
+ * Taktik mit den meisten erwarteten Punkten gegen den nächsten Gegner. Dazu ein Hinweis, was das gegenüber der
+ * stärksten Aufstellung nach HatStats bringt und kostet.
+ */
+function fillAgainstOpponent() {
+  const hrf = state.hrf!;
+  const L = state.league!;
+  const opp = planOpponent();
+  if (!opp?.known) return;
+  toast("Rechne Aufstellungen gegen den Gegner durch …");
+  window.setTimeout(() => {
+    const team = teamState();
+    const byId = playersById();
+    const oppSide = { ratings: opp.ratings, tactic: opp.tactic, level: 8 };
+    const own = state.formation && state.formation !== state.fit?.formation ? [state.formation] : undefined;
+    const fit = fitLineup(hrf.players, state.settings, team, oppSide, {
+      formationExperience: hrf.team.formationExperience,
+      minExperience: own ? 0 : Number($<HTMLSelectElement>("#minExp").value),
+      allowBruised: bruisedOk(),
+      styleRange: styleRange(hrf.team),
+      cup: state.match?.type === 3,
+      training: TRAININGS[hrf.team.trainingType],
+      formations: own,
+    });
+    if (!fit) return toast("Keine Formation mit genug Erfahrung gefunden.");
+    const s = state.settings;
+    const strongest = L.lineup.positions;
+    const base = (MODELLED_TACTICS as number[]).includes(s.tactic)
+      ? evaluateSettings(strongest, byId, s, team, oppSide)
+      : planMatch(strongest, byId, s, team, oppSide, { styleRange: styleRange(hrf.team) }).best;
+    const b = fit.pick.plan.best;
+    const m = state.match;
+    const name = m ? (m.homeId === hrf.team.teamId ? m.awayName : m.homeName) : "den Gegner";
+    const pct = (x: number) => `${Math.round(x * 100)} %`;
+    const sign = (d: number, digits = 0) => `${d >= 0 ? "+" : "−"}${fixed(Math.abs(d), digits)}`;
+    const dWin = Math.round(b.prediction.win * 100) - Math.round(base.prediction.win * 100);
+    const dHs = Math.round(b.hatStats) - Math.round(L.hatStats);
+    const unchanged = sameLineup(fit.pick.positions, strongest) && b.settings.tactic === s.tactic && b.settings.styleOfPlay === s.styleOfPlay;
+    const parts: string[] = [];
+    if (unchanged) {
+      parts.push(`<b>Gegen ${esc(name)} ist die stärkste Aufstellung auch die beste Wahl</b> (${formationLabel(fit.pick.formation)}, ${esc(b.label)}, Siegchance ${pct(b.prediction.win)}).`);
+    } else {
+      parts.push(
+        `<b>Gegen ${esc(name)}: ${formationLabel(fit.pick.formation)} mit ${esc(b.label)}.</b> Siegchance ${pct(b.prediction.win)} statt ${pct(base.prediction.win)} (${sign(dWin)} %), ${b.hatStats.toFixed(0)} statt ${L.hatStats.toFixed(0)} HatStats (${sign(dHs)}) gegenüber der stärksten Aufstellung (${formationLabel(L.lineup.formation)}, ${esc(base.label)}).`,
+      );
+      const more = RATING_SECTORS.filter((k) => b.ratings[k] - base.ratings[k] >= 0.25).map((k) => `${SECTOR_DE[k]} ${sign(b.ratings[k] - base.ratings[k], 2)}`);
+      const less = RATING_SECTORS.filter((k) => base.ratings[k] - b.ratings[k] >= 0.25).map((k) => `${SECTOR_DE[k]} ${sign(b.ratings[k] - base.ratings[k], 2)}`);
+      if (more.length || less.length) parts.push(`${more.length ? `Stärker: ${more.join(", ")}.` : ""}${more.length && less.length ? " " : ""}${less.length ? `Schwächer: ${less.join(", ")}.` : ""}`);
+    }
+    if (fit.byTraining) parts.push(`Bei fast gleicher Siegchance hat die Elf mit mehr Trainingsplätzen den Vorzug bekommen (${slotText(fit.pick)}).`);
+    if (own) parts.push(`Nur in der gewählten Formation gesucht. Für alle Formationen erst „Beste“ wählen.`);
+    state.formation = fit.pick.formation === L.lineup.formation ? "" : fit.pick.formation;
+    state.manual = fit.pick.positions.map((p) => ({ ...p }));
+    state.manualEdited = true;
+    state.pick = null;
+    state.choices = {};
+    state.fit = { positions: fit.pick.positions.map((p) => ({ ...p })), formation: fit.pick.formation, note: parts.join(" ") };
+    $<HTMLSelectElement>("#tactic").value = String(b.settings.tactic);
+    $<HTMLSelectElement>("#style").value = String(b.settings.styleOfPlay);
+    compute();
+    toast(unchanged ? "Stärkste Aufstellung passt auch gegen diesen Gegner." : `Gegen ${name} aufgestellt: ${formationLabel(fit.pick.formation)}, ${b.label}.`);
+  }, 30);
+}
+
 function formationPositions(): FieldPosition[] {
   const f = state.formations.find((x) => x.code === state.formation);
   return (f ? f.positions : state.league!.lineup.positions).map((p) => ({ ...p }));
@@ -1094,6 +1187,7 @@ function renderFormationPick() {
   $("#unplayedFill").classList.toggle("primary", state.unplayed);
   const trainBest = trainBestActive();
   $("#trainBestFill").classList.toggle("primary", trainBest);
+  syncOppFit();
   $("#autoFill").classList.toggle("primary", !state.trainingMode && !state.unplayed && !trainBest);
   sel.classList.toggle("training", state.trainingMode);
   // Formation wählt man über die Karten darunter; das Auswahlfeld bleibt nur als Rückfall
@@ -1735,6 +1829,7 @@ function renderLineup() {
     ${anyOwn ? `<button class="btn" id="choicesReset">Kapitän, Standards und Bank wieder automatisch</button>` : ""}`;
   const mi = Number($<HTMLInputElement>("#matchId").value);
   renderOrdersPage();
+  $("#oppFitNote").innerHTML = state.fit && sameLineup(state.manual, state.fit.positions) ? `<div class="focus ok">${state.fit.note}</div>` : "";
   renderMatchup();
   $("#matchIdInfo").textContent = m && mi === m.id ? `Spiel-ID gehört zu: ${fmtDate(m.date)} gegen ${m.homeId === state.hrf!.team.teamId ? m.awayName : m.homeName}` : mi ? "Spiel-ID von Hand eingetragen." : "";
 }
@@ -2258,6 +2353,13 @@ function initEditor() {
     if (!t.isConnected) return; // Element wurde beim Neuzeichnen ersetzt
     if ((state.pick || state.flowPid) && !(e.target as HTMLElement).closest("#aufstellung .editor, #aufstellung .editor-bar")) clearFlow();
   });
+  $("#oppFit").addEventListener("change", () => {
+    try {
+      localStorage.setItem("tophatt.oppFit", $<HTMLInputElement>("#oppFit").checked ? "1" : "0");
+    } catch {
+      /* ohne Speicher gilt die Wahl nur bis zum Neuladen */
+    }
+  });
   $("#autoFill").addEventListener("click", () => {
     if (!state.league) return;
     // aus einem Modus (B-Kader, Noch nicht gespielt, Stärkste Elf + Training) zurück zur besten Elf
@@ -2265,6 +2367,7 @@ function initEditor() {
       leaveTrainingMode();
       state.formation = "";
     }
+    if (oppFitOn()) return fillAgainstOpponent();
     state.manual = formationPositions();
     state.manualEdited = !!state.formation;
     state.pick = null;
