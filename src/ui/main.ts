@@ -148,6 +148,8 @@ interface State {
   formations: { code: string; hatStats: number; experience: number; positions: FieldPosition[]; ratings: SectorRatings }[];
   /** Grundlage der Schwachstellen: "mine" (Aufstellungsseite), "auto" oder ein Formationscode */
   weakBasis: string;
+  /** Gegner-Check: unsere Seite aus der eigenen Aufstellung („mine“) oder der besten Elf einer Formation */
+  oppBasis: string;
   /** Spieler, für den die Linien zu passenden Positionen gezeigt werden */
   flowPid: number | null;
   /** Spielerkarte: Vorschau beim Darüberfahren (Maus), Reiter rechts (Karte/Liste), beim Ziehen ausgeblendet */
@@ -214,6 +216,7 @@ const state: State = {
   formation: "",
   formations: [],
   weakBasis: "mine",
+  oppBasis: "mine",
   flowPid: null,
   inspectPreview: null,
   inspectTab: "card",
@@ -651,19 +654,36 @@ function renderMatchup() {
  * Unsere Seite im Gegner-Check: die Aufstellung, die gerade im Editor steht (Formation, Spieler, Verhalten,
  * Taktik und Einstellung aus den Einstellungen). Solange dort keine 11 Spieler stehen, der automatische Vorschlag.
  */
-function ourSide(): { ratings: SectorRatings; hatStats: number; formation: string; source: string } {
+function ourSide(basis = "mine"): { ratings: SectorRatings; hatStats: number; formation: string; source: string; positions: FieldPosition[] } {
   const L = state.league!;
+  const f = basis !== "mine" ? state.formations.find((x) => x.code === basis) : undefined;
+  if (f) return { ratings: f.ratings, hatStats: f.hatStats, formation: f.code, source: "beste Elf", positions: f.positions };
   if (state.manual.length === 11) {
     const e = manualEval();
-    return { ...e, formation: formationCode(state.manual), source: state.manualEdited ? "deine Aufstellung" : "Vorschlag" };
+    return { ...e, formation: formationCode(state.manual), source: state.manualEdited ? "deine Aufstellung" : "Vorschlag", positions: state.manual };
   }
-  return { ratings: L.ratings, hatStats: L.hatStats, formation: L.lineup.formation, source: "Vorschlag" };
+  return { ratings: L.ratings, hatStats: L.hatStats, formation: L.lineup.formation, source: "Vorschlag", positions: L.lineup.positions };
+}
+
+let oppPlanCache: { key: string; plan: MatchPlan } | null = null;
+/** beste Taktik und Siegchance einer Elf gegen den nächsten Gegner (wie im Matchplan), zwischengespeichert */
+function planFor(positions: FieldPosition[]): MatchPlan | null {
+  const hrf = state.hrf!;
+  const opp = planOpponent();
+  if (!opp || positions.length !== 11) return null;
+  const key = JSON.stringify([positions.map((p) => [p.playerId, p.role, p.behaviour]), state.settings, opp.label, opp.ratings]);
+  if (oppPlanCache?.key !== key)
+    oppPlanCache = {
+      key,
+      plan: planMatch(positions, playersById(), state.settings, teamState(), { ratings: opp.ratings, tactic: opp.tactic, level: 8 }, { cup: state.match?.type === 3, styleRange: styleRange(hrf.team) }),
+    };
+  return oppPlanCache.plan;
 }
 
 /** Anteil der Angriffe durch die Mitte mit der gewählten Taktik (für den Gegner-Check) */
-function attackCentral(): number {
+function attackCentral(positions: FieldPosition[] = state.manual): number {
   const byId = playersById();
-  const field = state.manual.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role }));
+  const field = positions.filter((p) => byId.has(p.playerId)).map((p) => ({ player: byId.get(p.playerId)!, role: p.role }));
   const c = centralShare(state.settings.tactic, tacticLevel(field, state.settings.tactic));
   // auf drei Angriffswege umrechnen: normal 37 % Mitte entspricht einer gleichmäßigen Verteilung
   return (c / 0.37) * (1 / 3);
@@ -691,9 +711,28 @@ function renderOpponent() {
     $("#oppOut").innerHTML = `<div class="focus"><b>Noch keine Spiele von ${esc(name)} in HO.</b> In HO unter „Gegnercheck“ die letzten Spiele des Gegners herunterladen, dann TopHatt.bat starten und „Aktualisieren“ klicken.</div>`;
     return;
   }
-  const us = ourSide();
+  if (state.oppBasis !== "mine" && !state.formations.some((x) => x.code === state.oppBasis)) state.oppBasis = "mine";
+  const us = ourSide(state.oppBasis);
   const D = duels(us.ratings, O.average);
-  const v = verdict(D, attackCentral());
+  const v = verdict(D, attackCentral(us.positions));
+  const exp = state.hrf!.team.formationExperience;
+  const P = formationPlans(state.formations.map((x) => x.code));
+  const pct = (x: number) => `${Math.round(x * 100)} %`;
+  const curPlan = state.oppBasis === "mine" ? planFor(us.positions) : (P.plans.get(us.formation) ?? null);
+  const mineLabel = state.manual.length === 11 ? `Meine Aufstellung (${formationLabel(formationCode(state.manual))})` : "Vorschlag (Aufstellung unvollständig)";
+  const basisPick = `<div class="controls"><label>Unsere Seite<select id="oppBasis">
+      <option value="mine"${state.oppBasis === "mine" ? " selected" : ""}>${esc(mineLabel)}</option>
+      ${[...state.formations]
+        .sort((a, b) => b.hatStats - a.hatStats)
+        .map((f) => {
+          const pl = P.plans.get(f.code);
+          return `<option value="${f.code}"${state.oppBasis === f.code ? " selected" : ""}>Formation ${formationLabel(f.code)} · ${f.hatStats.toFixed(0)} HatStats${pl ? ` · Sieg ${pct(pl.best.prediction.win)}` : ""} · Erfahrung ${exp[f.code] ?? 0}${(exp[f.code] ?? 0) < SETTLED_EXPERIENCE ? " ⚠" : ""}</option>`;
+        })
+        .join("")}
+    </select></label></div>`;
+  const winLine = curPlan
+    ? ` Siegchance ${pct(curPlan.best.prediction.win)}, Remis ${pct(curPlan.best.prediction.draw)} mit ${esc(curPlan.best.label)} (beste Taktik, HOs Spielvorhersage).`
+    : "";
   const cls = v.edge > 0.52 ? "ok" : "";
   const row = (d: (typeof D)[number]) => `<div class="duel" title="${esc(ratingLabel(d.ours))} gegen ${esc(ratingLabel(d.theirs))}">
       <div class="dl">${esc(d.label)}</div>
@@ -704,7 +743,8 @@ function renderOpponent() {
   const bestAttack = [...D.slice(1, 4)].sort((a, b) => b.share - a.share)[0];
   const danger = [...D.slice(4)].sort((a, b) => a.share - b.share)[0];
   $("#oppOut").innerHTML = `
-    <div class="focus ${cls}"><b>Einschätzung: ${esc(v.text)}.</b> Ballbesitz etwa ${Math.round(D[0].share * 100)} %. Bester Angriffsweg: ${esc(bestAttack.label.replace("Unser Angriff ", ""))}. Größte Gefahr: ${esc(danger.label)}.</div>
+    <div class="focus ${cls}"><b>Einschätzung: ${esc(v.text)}.</b> Ballbesitz etwa ${Math.round(D[0].share * 100)} %. Bester Angriffsweg: ${esc(bestAttack.label.replace("Unser Angriff ", ""))}. Größte Gefahr: ${esc(danger.label)}.${winLine}</div>
+    ${basisPick}
     <div class="grid2">
       <div>
         <div class="legend"><span><i style="background:var(--s1)"></i>Wir (${esc(us.source)}, ${esc(formationLabel(us.formation))})</span><span><i style="background:var(--s2)"></i>${esc(name)} (Ø)</span></div>
@@ -942,23 +982,30 @@ function formationPanelCollapsed(): boolean {
   }
 }
 
-let formationPlanCache: { key: string; plans: Map<string, MatchPlan>; opp: string; known: boolean } | null = null;
+/** Pläne je Formation, damit Formationskacheln und Gegner-Check (verschiedene Auswahl) sich den Speicher teilen */
+const formationPlanCache = new Map<string, { key: string; plan: MatchPlan }>();
 /** beste Taktik und Siegchance je Formation gegen den nächsten Gegner (beste Elf der Formation) */
 function formationPlans(codes: string[]) {
   const hrf = state.hrf!;
   const opp = planOpponent();
   const fs = codes.map((c) => state.formations.find((x) => x.code === c)).filter((x): x is State["formations"][number] => !!x);
-  const key = JSON.stringify([fs.map((f) => [f.code, f.positions.map((p) => [p.playerId, p.role])]), state.settings.location, opp?.label, opp?.ratings, styleRange(hrf.team)]);
-  if (formationPlanCache?.key === key) return formationPlanCache;
+  const base = JSON.stringify([state.settings.location, opp?.label, opp?.ratings, styleRange(hrf.team)]);
   const plans = new Map<string, MatchPlan>();
   const m = state.match;
   if (opp) {
     const byId = playersById();
-    for (const f of fs) plans.set(f.code, planMatch(f.positions, byId, state.settings, teamState(), { ratings: opp.ratings, tactic: opp.tactic, level: 8 }, { cup: m?.type === 3, styleRange: styleRange(hrf.team) }));
+    for (const f of fs) {
+      const key = base + JSON.stringify(f.positions.map((p) => [p.playerId, p.role, p.behaviour]));
+      let hit = formationPlanCache.get(f.code);
+      if (hit?.key !== key) {
+        hit = { key, plan: planMatch(f.positions, byId, state.settings, teamState(), { ratings: opp.ratings, tactic: opp.tactic, level: 8 }, { cup: m?.type === 3, styleRange: styleRange(hrf.team) }) };
+        formationPlanCache.set(f.code, hit);
+      }
+      plans.set(f.code, hit.plan);
+    }
   }
   const name = m ? (m.homeId === hrf.team.teamId ? m.awayName : m.homeName) : "den Gegner";
-  formationPlanCache = { key, plans, opp: opp?.known ? name : "einen typischen Ligagegner", known: !!opp?.known };
-  return formationPlanCache;
+  return { plans, opp: opp?.known ? name : "einen typischen Ligagegner", known: !!opp?.known };
 }
 
 /**
@@ -1877,6 +1924,12 @@ function editorChanged() {
 }
 
 function initWeakness() {
+  $("#oppOut").addEventListener("change", (e) => {
+    const sel = (e.target as HTMLElement).closest<HTMLSelectElement>("#oppBasis");
+    if (!sel) return;
+    state.oppBasis = sel.value;
+    renderOpponent();
+  });
   $("#weakBasis").addEventListener("change", () => {
     state.weakBasis = $<HTMLSelectElement>("#weakBasis").value;
     updateAnalysis();
@@ -2474,10 +2527,15 @@ const statusChip = (cls: "good" | "warning" | "serious" | "critical", label: str
  * Schwachstellen, Verstärkungs-Hebel und Suchprofile für dieselbe Grundlage wie die Schwachstellen-Seite
  * (Standard: deine Aufstellung), damit Transfers und Schwachstellen zusammenpassen.
  */
+/** wofür die Schwachstellen zuletzt berechnet wurden (Grundlage und Bewertungen) */
+let analysisKey = "";
+const basisKey = (B: { positions: FieldPosition[]; ratings: SectorRatings }) => JSON.stringify([B.positions.map((p) => [p.playerId, p.role, p.behaviour]), B.ratings]);
+
 function updateAnalysis() {
   const hrf = state.hrf;
   const B = weakBasis();
   if (!hrf || !B) return;
+  analysisKey = basisKey(B);
   const team = teamState();
   state.weak = assessSectors(hrf.players, { positions: B.positions } as Lineup, B.ratings, state.settings, team);
   const weakSet = new Set(state.weak.filter((w) => w.severity !== "good").map((w) => w.sector));
@@ -2550,6 +2608,13 @@ function formationCompareHtml(current: string): string {
 function renderWeakness() {
   const B = weakBasis();
   if (!B || !state.hrf) return;
+  // Grundlage hat sich geändert (Aufstellung bearbeitet, Formationen neu gerechnet): Werte neu bestimmen, sonst
+  // zeigt die Seite die neue Grundlage mit den alten Balken
+  if (basisKey(B) !== analysisKey) {
+    updateAnalysis();
+    renderTiles();
+    renderHero();
+  }
   renderWeakBasisPick();
   const W = state.weak;
   const max = Math.max(8, ...W.map((w) => w.rating));
