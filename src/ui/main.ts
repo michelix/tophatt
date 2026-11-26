@@ -470,6 +470,21 @@ function trainingWeekNow(): State["week"] {
 }
 
 /**
+ * Abgeschlossene Trainingswoche: Liegt die geplante Woche schon hinter dem nächsten Update (Liga und zweites Spiel
+ * gespielt, Update steht noch aus), die laufende Woche mit den gespielten Minuten laut HRF. Sonst null.
+ */
+function closedWeek(): { window: TrainingWindow; played: Map<number, WeekMinutes> } | null {
+  const hrf = state.hrf!;
+  const t = TRAININGS[hrf.team.trainingType];
+  const w = state.week?.window;
+  if (!t || !w || w.start.getTime() <= Date.now()) return null;
+  const dates = [...(state.ho?.training ?? []), ...(state.ho?.futureTraining ?? [])].map((x) => x.date);
+  const window = trainingWindow(new Date(), dates);
+  if (window.start.getTime() >= w.start.getTime()) return null;
+  return { window, played: playedThisWeek(hrf.players, t, window) };
+}
+
+/**
  * Freundschaftsspiel neu planen: schon gespielte Minuten der Woche plus die eigene Liga-Aufstellung,
  * solange das Ligaspiel noch vor dem nächsten Trainingsupdate liegt.
  */
@@ -2837,14 +2852,17 @@ function renderTrainingWeek() {
       return `<div class="tw-tl ${cls}"><span class="dot"></span><div class="d">${s.t === "Freundschaftsspiel" ? "frei wählbar" : dayTime(s.d)}</div><div class="t">${esc(s.t)}</div><div class="x">${esc(s.x)}</div></div>`;
     })
     .join("");
-  const meter = Array.from({ length: maxFull }, (_, i) => `<i class="${i < fullCount ? "f" : ""}"></i>`).join("");
+  // schon gespielt (laut HRF) gegenüber nur geplant (eigene Aufstellungen)
+  const playedFactor = (id: number) => weekFactor(state.week!.played.get(id));
+  const playedFull = rows.filter((r) => playedFactor(r.player.id) >= DONE_FACTOR).length;
+  const meter = Array.from({ length: maxFull }, (_, i) => `<i class="${i < playedFull ? "f" : i < fullCount ? "p" : ""}"></i>`).join("");
   const hero = `<div class="tw-hero">
     <div>
       <div class="k">Eingestelltes Training</div>
       <div class="big">${esc(t.name)}</div>
       <div class="sub2">Voll: ${esc(list(t.full))}${t.partly.length ? ` · halb: ${esc(list(t.partly))}` : ""}<br>Nächstes Update ${countdown(w.end)}</div>
-      <div class="tw-meter" title="voll trainierte Spieler diese Woche">${meter}</div>
-      <div class="sub2"><b>${fullCount}</b> von höchstens ${maxFull} Spielern voll trainiert${halfCount ? `, ${halfCount} halb` : ""} (gespielt und geplant)</div>
+      <div class="tw-meter" title="voll: dunkel = schon gespielt, hell = geplant">${meter}</div>
+      <div class="sub2">Schon gespielt: <b>${playedFull}</b> voll trainiert · geplant: <b>${fullCount}</b> von höchstens ${maxFull} voll${halfCount ? `, ${halfCount} halb` : ""}</div>
     </div>
     <div class="tw-timeline">${timeline}</div>
   </div>`;
@@ -2927,12 +2945,16 @@ function renderTrainingWeek() {
     const p = r.player;
     if (p.injury > 0) return statusChip("critical", `verletzt ${p.injury} W.`, "+");
     if (state.noTrain.has(p.id) && r.factor === 0) return `<span class="tw-nt" title="Auf der Liste „Nicht trainieren“">nicht trainieren</span>`;
-    if (r.factor >= 1) return statusChip("good", "voll", "✓");
-    if (r.factor > 0) return statusChip("warning", `${Math.round(r.factor * 100)} %`, "½");
+    // Status = schon gespielt (laut HRF); was nur geplant ist, steht hell daneben
+    const pf = playedFactor(p.id);
+    const planned = r.factor > pf + 0.05 ? `<span class="tw-plan" title="Geplant mit deiner Liga-Aufstellung und dem zweiten Spiel, noch nicht gespielt">${r.factor >= 1 ? "voll" : `${Math.round(r.factor * 100)} %`} geplant</span>` : "";
+    if (pf >= DONE_FACTOR) return statusChip("good", "voll", "✓");
+    if (pf > 0) return `${statusChip("warning", `${Math.round(pf * 100)} %`, "½")}${planned ? ` ${planned}` : ""}`;
+    if (planned) return planned;
     if (p.injury === 0 && !bruisedOk()) return statusChip("warning", "angeschlagen", "!");
     const kt = p.keeper >= Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
     if (kt && t.skill !== "keeper") return `<span class="muted">Torwart</span>`;
-    return r.benefit >= 3 ? `<span class="tw-open">offen</span>` : `<span class="muted">kein</span>`;
+    return r.benefit >= 3 ? `<span class="tw-open" title="In dieser Trainingswoche ist noch kein Trainingsplatz für ihn geplant">offen</span>` : `<span class="muted">kein</span>`;
   };
   const slot = (role: number, src: string[] = []) => {
     if (!role) return src.length ? `<span class="tw-slot played" title="${esc(src.join(", "))}">gespielt</span>` : `<span class="muted">–</span>`;
@@ -2985,7 +3007,29 @@ function renderTrainingWeek() {
     <div class="nt-box">${ntPlayers.map((p) => `<span class="nt-chip">${miniFace(p)}${esc(p.name)}<button type="button" data-ntdel="${p.id}" title="Von der Liste nehmen" aria-label="${esc(p.name)} von der Liste nehmen">✕</button></span>`).join("") || `<span class="muted">Noch niemand.</span>`}
       <label class="nt-add"><select id="ntAdd"><option value="">+ Spieler hinzufügen …</option>${ntOptions}</select></label></div></div>`;
 
-  out.innerHTML = `${hero}<div class="tw-games">${leagueCard}${secondCard}</div>${alert}${noTrainCard}${squads}${rules}`;
+  // Abgeschlossene Woche: Spiele gespielt, Update steht noch aus. Diese Seite plant dann schon die nächste Woche.
+  let closedCard = "";
+  const cw = closedWeek();
+  if (cw) {
+    const names = (rs: Player[], extra?: (p: Player) => string) => rs.map((p) => `${esc(p.name)}${extra ? extra(p) : ""}`).join(", ");
+    const f = (p: Player) => weekFactor(cw.played.get(p.id));
+    const isKeeper = (p: Player) => p.keeper >= Math.max(p.defending, p.playmaking, p.winger, p.scoring, p.passing);
+    const full = hrf.players.filter((p) => f(p) >= DONE_FACTOR);
+    const half = hrf.players.filter((p) => f(p) > 0 && f(p) < DONE_FACTOR);
+    const missed = hrf.players
+      .filter((p) => f(p) === 0 && trainingPriority(p, t) >= 3 && !state.noTrain.has(p.id) && (t.skill === "keeper" || !isKeeper(p)))
+      .sort((a, b) => trainingPriority(b, t) - trainingPriority(a, t));
+    closedCard = `<div class="card tw-card tw-closed"><header><h3>Woche bis ${dayOnly(cw.window.end)} abgeschlossen</h3><span class="tw-goal">Update ${dayTime(cw.window.end)}</span></header>
+      <p class="sub">Die Spiele dieser Trainingswoche sind gespielt. Das Training wird im Update am ${dayTime(cw.window.end)} verrechnet, ändern lässt sich daran nichts mehr. Alles darunter plant schon die nächste Woche (${dayOnly(w.start)} bis ${dayOnly(w.end)}).</p>
+      <ul class="tw-closed-list">
+        <li>${statusChip("good", `voll trainiert: ${full.length}`, "✓")} ${names(full) || "–"}</li>
+        ${half.length ? `<li>${statusChip("warning", `halb: ${half.length}`, "½")} ${names(half, (p) => ` (${Math.round(f(p) * 100)} %)`)}</li>` : ""}
+        <li>${statusChip("critical", `verpasst: ${missed.length}`, "✕")} ${names(missed) || "–"}${missed.length ? ` <span class="muted">(spürbarer Trainingsnutzen, aber kein Training: nächste Woche zuerst einplanen)</span>` : ""}</li>
+      </ul>
+      <p class="sub">Grundlage ist das letzte Spiel je Spieler laut HO-Download. Hat jemand in beiden Spielen gespielt, zählt nur das letzte.</p></div>`;
+  }
+
+  out.innerHTML = `${closedCard}${hero}<div class="tw-games">${leagueCard}${secondCard}</div>${alert}${noTrainCard}${squads}${rules}`;
   const dl = $<HTMLButtonElement>("#dlFriendly");
   dl.textContent = second?.kind === "pokal" ? "Pokal-Aufstellung für HO speichern" : "Freundschaftsspiel für HO speichern";
   $("#friendlyIdLabel").firstChild!.textContent = second?.kind === "pokal" ? "Spiel-ID Pokalspiel" : "Spiel-ID Freundschaftsspiel";
