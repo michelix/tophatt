@@ -182,6 +182,15 @@ half or not at all. Everything below it already plans the next week.
 </details>
 
 <details>
+<summary><b>Training progress</b>: what has training achieved this season?</summary>
+<br>
+
+All 16 training updates of the season, who played in a training position each week (full or half), every level-up and drop
+since the first HO download of the season, the estimated progress within the current level and when the next level-up
+is due. A line compares actual level-ups with what the training formula expected. Needs the HO player history (TopHatt.bat).
+</details>
+
+<details>
 <summary><b>Coach & efficiency</b>: is a better coach worth it?</summary>
 <br>
 

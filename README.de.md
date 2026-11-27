@@ -181,6 +181,16 @@ oder gar nicht trainiert hat. Alles darunter plant dann schon die nächste Woche
 </details>
 
 <details>
+<summary><b>Trainingsfortschritt</b>: was hat das Training diese Saison gebracht?</summary>
+<br>
+
+Alle 16 Trainingsupdates der Saison, wer pro Woche auf einer Trainingsposition stand (voll oder halb), jeder Aufstieg und
+Rückgang seit dem ersten HO-Download der Saison, der geschätzte Fortschritt in der aktuellen Stufe und wann der nächste
+Aufstieg fällig ist. Eine Linie vergleicht die tatsächlichen Aufstiege mit dem, was die Trainingsformel erwartet hat.
+Braucht die Spielerhistorie aus HO (TopHatt.bat).
+</details>
+
+<details>
 <summary><b>Trainer & Effizienz</b>: lohnt sich ein besserer Trainer?</summary>
 <br>
 

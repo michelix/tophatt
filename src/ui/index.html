@@ -840,6 +840,37 @@ select.training{border-color:var(--brand);font-weight:600}
 .pinfo:hover{border-color:var(--brand);color:var(--brand)}
 .pname-link{color:inherit;text-decoration:none;font-weight:inherit}.pname-link:hover{color:var(--brand);text-decoration:underline}
 @media (max-width:480px){.pc-sk{grid-template-columns:90px minmax(0,1fr) 110px}}
+/* Trainingsfortschritt */
+.pg-kpis{margin:10px 0 4px}
+.pg-h{margin:18px 0 8px;font-size:15px}.pg-h .sub{font-weight:400;margin-left:6px}
+.pg-weeks{display:grid;grid-template-columns:repeat(16,minmax(44px,1fr));gap:4px;overflow-x:auto;padding:2px}
+.pg-wk{border-radius:6px;padding:5px 2px;text-align:center;font-size:11px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.pg-wk b{display:block;font-size:10px;font-weight:500}
+.pg-wk.done{background:color-mix(in srgb,var(--brand) 16%,var(--surface));color:var(--ink);font-weight:600}
+.pg-wk.gap{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--brand) 16%,var(--surface)) 0 6px,var(--surface-2) 6px 12px)}
+.pg-wk.now{box-shadow:inset 0 0 0 2px var(--gold)}
+.pg-note{margin:6px 0 0}
+.pg-mode{margin-bottom:8px}
+.pg-table td{vertical-align:middle}
+.pg-name{display:flex;align-items:center;gap:6px}
+.pg-av{width:26px;height:30px;border-radius:6px;overflow:hidden;flex:none;background:var(--surface-2)}
+.pg-av img,.pg-av svg{width:26px;height:35px;display:block}
+.pg-sq{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:3px;background:var(--surface-2);border:1px solid var(--line);vertical-align:middle}
+.pg-sq.f{background:var(--brand);border-color:var(--brand)}
+.pg-sq.h{background:linear-gradient(135deg,var(--brand) 50%,var(--surface-2) 50%);border-color:var(--brand)}
+.pg-up{color:var(--good-ink);font-weight:700}.pg-down{color:var(--critical);font-weight:700}
+.pg-bar{position:relative;display:inline-block;width:120px;height:9px;background:var(--surface-2);border-radius:5px;overflow:hidden;vertical-align:middle}
+.pg-bar i{position:absolute;left:0;top:0;bottom:0;background:var(--s1);border-radius:5px}
+.pg-pct{font-size:12px;color:var(--ink-2);margin-left:6px}
+.pg-tag{font-size:12px;border-radius:999px;padding:2px 8px;white-space:nowrap;background:var(--surface-2);color:var(--ink-2)}
+.pg-tag.g{background:color-mix(in srgb,var(--good) 16%,var(--surface));color:var(--good-ink)}
+.pg-tag.w{background:color-mix(in srgb,var(--warning) 20%,var(--surface));color:var(--warning-ink)}
+.pg-tag.r{background:color-mix(in srgb,var(--critical) 14%,var(--surface));color:var(--critical)}
+.pg-mini td{vertical-align:middle}
+.pg-chart{width:100%;height:auto;display:block}
+.pg-legend{display:flex;gap:16px;font-size:12px;color:var(--ink-2)}
+.pg-l{display:inline-block;width:18px;height:0;border-top:3px solid var(--brand);vertical-align:middle;margin-right:5px}.pg-l.e{border-top:2.5px dashed var(--s1)}
+@media (max-width:860px){.pg-bottom{grid-template-columns:minmax(0,1fr)}.pg-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Verlauf */
 .hkpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0 6px}
 .hkpi{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -906,6 +937,7 @@ select.training{border-color:var(--brand);font-weight:600}
     <a href="#kaderplanung" data-view="kaderplanung"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Kaderplanung</a>
     <a href="#transfers" data-view="transfers"><svg viewBox="0 0 24 24"><path d="M4 8h14l-4-4M20 16H6l4 4"/></svg>Transfers</a>
     <a href="#training" data-view="training"><svg viewBox="0 0 24 24"><path d="M6 4v16M18 4v16M6 12h12M3 8v8M21 8v8"/></svg>Trainingswoche</a>
+    <a href="#fortschritt" data-view="fortschritt"><svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M6 16v-3M10 16V9M14 16v-5M18 16V5"/></svg>Trainingsfortschritt</a>
     <a href="#trainer" data-view="trainer"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.5"/><path d="M5 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/><path d="M15.5 4.5l3-1.5M18.5 3v3"/></svg>Trainer &amp; Effizienz</a>
     <div class="navgroup">Saison</div>
     <a href="#spielplan" data-view="spielplan"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/></svg>Spielplan &amp; Tabelle</a>
@@ -1044,6 +1076,11 @@ select.training{border-color:var(--brand);font-weight:600}
         <label id="friendlyIdLabel">Spiel-ID Freundschaftsspiel<input id="friendlyMatchId" type="number"></label>
         <button class="btn" id="dlFriendly">Freundschaftsspiel für HO speichern</button>
       </div>
+    </section>
+
+    <section class="card" id="fortschritt" data-view="fortschritt">
+      <header><h2>Trainingsfortschritt</h2><span class="sub">Was das Training seit Saisonbeginn gebracht hat</span></header>
+      <div id="progressOut"></div>
     </section>
 
     <section class="card" id="finanzen" data-view="finanzen"><header><h2>Finanzen</h2><span class="sub">Kontostand, Wochenbilanz und ob sich Trainer &amp; Personal rechnen</span></header><div id="finOut"></div></section>

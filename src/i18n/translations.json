@@ -9581,6 +9581,360 @@
    "Conecta aquí una vez la carpeta de datos de HO (donde HO guarda los archivos .hrf).",
    "Collega qui una volta la cartella dati di HO (dove HO salva i file .hrf).",
    "Połącz tutaj raz folder danych HO (tam, gdzie HO zapisuje pliki .hrf)."
+  ],
+  "Trainingsfortschritt": [
+   "Training progress",
+   "Progreso del entrenamiento",
+   "Progressi dell'allenamento",
+   "Postępy treningu"
+  ],
+  "Was das Training seit Saisonbeginn gebracht hat": [
+   "What training has achieved since the start of the season",
+   "Lo que ha logrado el entrenamiento desde el inicio de la temporada",
+   "Cosa ha portato l'allenamento dall'inizio della stagione",
+   "Co dał trening od początku sezonu"
+  ],
+  "Saison {0}": [
+   "Season {0}",
+   "Temporada {0}",
+   "Stagione {0}",
+   "Sezon {0}"
+  ],
+  "seit dem ersten Training der Saison ({0})": [
+   "since the first training of the season ({0})",
+   "desde el primer entrenamiento de la temporada ({0})",
+   "dal primo allenamento della stagione ({0})",
+   "od pierwszego treningu sezonu ({0})"
+  ],
+  "Trainings diese Saison": [
+   "Trainings this season",
+   "Entrenamientos esta temporada",
+   "Allenamenti in questa stagione",
+   "Treningi w tym sezonie"
+  ],
+  "{0} von {1}": [
+   "{0} of {1}",
+   "{0} de {1}",
+   "{0} su {1}",
+   "{0} z {1}"
+  ],
+  "Training unbekannt": [
+   "Training unknown",
+   "Entrenamiento desconocido",
+   "Allenamento sconosciuto",
+   "Trening nieznany"
+  ],
+  "Aufstiege im trainierten Skill": [
+   "Level-ups in the trained skill",
+   "Subidas en la habilidad entrenada",
+   "Scatti nell'abilità allenata",
+   "Awanse w trenowanej umiejętności"
+  ],
+  "erwartet": [
+   "expected",
+   "esperado",
+   "previsto",
+   "oczekiwane"
+  ],
+  "Spieler im Training": [
+   "Players in training",
+   "Jugadores en entrenamiento",
+   "Giocatori in allenamento",
+   "Zawodnicy w treningu"
+  ],
+  "davon {0} mit vollem Training": [
+   "{0} of them with full training",
+   "{0} de ellos con entrenamiento completo",
+   "di cui {0} con allenamento completo",
+   "w tym {0} z pełnym treningiem"
+  ],
+  "Rückgang": [
+   "Drop",
+   "Bajada",
+   "Calo",
+   "Spadek"
+  ],
+  "kein Rückgang": [
+   "no drop",
+   "sin bajada",
+   "nessun calo",
+   "brak spadku"
+  ],
+  "Saisonverlauf": [
+   "Season timeline",
+   "Desarrollo de la temporada",
+   "Andamento della stagione",
+   "Przebieg sezonu"
+  ],
+  "jede Kachel = ein Trainingsupdate": [
+   "each tile = one training update",
+   "cada casilla = una actualización de entrenamiento",
+   "ogni casella = un aggiornamento dell'allenamento",
+   "każdy kafelek = jedna aktualizacja treningu"
+  ],
+  "geplant": [
+   "planned",
+   "previsto",
+   "previsto",
+   "planowane"
+  ],
+  "kein Training": [
+   "no training",
+   "sin entrenamiento",
+   "nessun allenamento",
+   "brak treningu"
+  ],
+  "Trainierter Skill": [
+   "Trained skill",
+   "Habilidad entrenada",
+   "Abilità allenata",
+   "Trenowana umiejętność"
+  ],
+  "Alle Veränderungen": [
+   "All changes",
+   "Todos los cambios",
+   "Tutte le variazioni",
+   "Wszystkie zmiany"
+  ],
+  "Einsätze W1–W{0}": [
+   "Appearances W1–W{0}",
+   "Partidos S1–S{0}",
+   "Presenze S1–S{0}",
+   "Występy T1–T{0}"
+  ],
+  "Start → jetzt": [
+   "Start → now",
+   "Inicio → ahora",
+   "Inizio → ora",
+   "Start → teraz"
+  ],
+  "Fortschritt im Level": [
+   "Progress within level",
+   "Progreso dentro del nivel",
+   "Progresso nel livello",
+   "Postęp w poziomie"
+  ],
+  "Fortschritt im Level (geschätzt)": [
+   "Progress within level (estimated)",
+   "Progreso dentro del nivel (estimado)",
+   "Progresso nel livello (stimato)",
+   "Postęp w poziomie (szacunek)"
+  ],
+  "Nächster Aufstieg": [
+   "Next level-up",
+   "Próxima subida",
+   "Prossimo scatto",
+   "Następny awans"
+  ],
+  "mind. {0} %": [
+   "at least {0} %",
+   "al menos {0} %",
+   "almeno {0} %",
+   "co najmniej {0} %"
+  ],
+  "in ≈ {0} Woche": [
+   "in ≈ {0} week",
+   "en ≈ {0} semana",
+   "tra ≈ {0} settimana",
+   "za ≈ {0} tydzień"
+  ],
+  "in ≈ {0} Wochen": [
+   "in ≈ {0} weeks",
+   "en ≈ {0} semanas",
+   "tra ≈ {0} settimane",
+   "za ≈ {0} tyg."
+  ],
+  "nur halbes Training": [
+   "half training only",
+   "solo entrenamiento parcial",
+   "solo allenamento parziale",
+   "tylko połowa treningu"
+  ],
+  "Aufstieg {0}": [
+   "Level-up {0}",
+   "Subida {0}",
+   "Scatto {0}",
+   "Awans {0}"
+  ],
+  "Aufstieg ohne Einsatz auf Trainingsposition, prüfen": [
+   "Level-up without playing in a training position, check",
+   "Subida sin jugar en posición de entrenamiento, revisar",
+   "Scatto senza presenze in posizione di allenamento, verificare",
+   "Awans bez gry na pozycji treningowej, sprawdź"
+  ],
+  "volles Training": [
+   "full training",
+   "entrenamiento completo",
+   "allenamento completo",
+   "pełny trening"
+  ],
+  "halbes Training": [
+   "half training",
+   "entrenamiento parcial",
+   "allenamento parziale",
+   "połowa treningu"
+  ],
+  "Kästchen: ausgefüllt = volles Training, halb gefüllt = halbes Training, leer = kein Spiel auf einer Trainingsposition.": [
+   "Boxes: filled = full training, half-filled = half training, empty = no match in a training position.",
+   "Casillas: rellena = entrenamiento completo, medio rellena = entrenamiento parcial, vacía = ningún partido en posición de entrenamiento.",
+   "Caselle: piena = allenamento completo, mezza piena = allenamento parziale, vuota = nessuna partita in posizione di allenamento.",
+   "Kratki: wypełniona = pełny trening, w połowie = połowa treningu, pusta = brak meczu na pozycji treningowej."
+  ],
+  "Fortschritt mit derselben Formel wie bei „Spielerentwicklung“, gezählt ab dem Startstand bzw. dem letzten Aufstieg.": [
+   "Progress uses the same formula as “Player development”, counted from the starting point or the last level-up.",
+   "El progreso usa la misma fórmula que «Desarrollo de jugadores», contado desde el estado inicial o la última subida.",
+   "Il progresso usa la stessa formula di «Sviluppo giocatori», contato dal punto di partenza o dall'ultimo scatto.",
+   "Postęp liczony tą samą formułą co w „Rozwój zawodników”, od stanu początkowego lub ostatniego awansu."
+  ],
+  "Die Spielminuten fehlen in den HO-Daten, jedes Spiel zählt deshalb wie 90 Minuten.": [
+   "Minutes played are missing from the HO data, so every match counts as 90 minutes.",
+   "Los minutos jugados no están en los datos de HO, así que cada partido cuenta como 90 minutos.",
+   "I minuti giocati mancano nei dati di HO, quindi ogni partita conta come 90 minuti.",
+   "W danych HO brakuje rozegranych minut, więc każdy mecz liczy się jak 90 minut."
+  ],
+  "{0} weitere Spieler ohne Training in dieser Saison.": [
+   "{0} more players without training this season.",
+   "{0} jugadores más sin entrenamiento esta temporada.",
+   "Altri {0} giocatori senza allenamento in questa stagione.",
+   "Jeszcze {0} zawodników bez treningu w tym sezonie."
+  ],
+  "Startstand ist der erste HO-Download der Saison ({0}).": [
+   "The starting point is the first HO download of the season ({0}).",
+   "El estado inicial es la primera descarga de HO de la temporada ({0}).",
+   "Il punto di partenza è il primo download HO della stagione ({0}).",
+   "Stan początkowy to pierwsze pobranie HO w sezonie ({0})."
+  ],
+  "Das Training vom {0} steckt darin schon, Aufstiege daraus sind nicht sichtbar.": [
+   "The training of {0} is already included, level-ups from it are not visible.",
+   "El entrenamiento del {0} ya está incluido, sus subidas no se ven.",
+   "L'allenamento del {0} è già incluso, i suoi scatti non sono visibili.",
+   "Trening z {0} jest już w nim uwzględniony, awanse z niego nie są widoczne."
+  ],
+  "Startstand: HO-Download vom {0}.": [
+   "Starting point: HO download of {0}.",
+   "Estado inicial: descarga de HO del {0}.",
+   "Punto di partenza: download HO del {0}.",
+   "Stan początkowy: pobranie HO z {0}."
+  ],
+  "Andere Veränderungen seit Saisonstart": [
+   "Other changes since the start of the season",
+   "Otros cambios desde el inicio de la temporada",
+   "Altre variazioni dall'inizio della stagione",
+   "Inne zmiany od początku sezonu"
+  ],
+  "Keine.": [
+   "None.",
+   "Ninguno.",
+   "Nessuna.",
+   "Brak."
+  ],
+  "Konditionstraining": [
+   "Stamina training",
+   "Entrenamiento de resistencia",
+   "Allenamento resistenza",
+   "Trening kondycji"
+  ],
+  "Altersabbau": [
+   "Age decline",
+   "Declive por edad",
+   "Calo per età",
+   "Spadek z wieku"
+  ],
+  "nicht trainiert": [
+   "not trained",
+   "no entrenado",
+   "non allenato",
+   "nie trenowany"
+  ],
+  "Erwartet und tatsächlich": [
+   "Expected and actual",
+   "Esperado y real",
+   "Previsto ed effettivo",
+   "Oczekiwane i faktyczne"
+  ],
+  "Aufstiege im trainierten Skill, alle Spieler": [
+   "Level-ups in the trained skill, all players",
+   "Subidas en la habilidad entrenada, todos los jugadores",
+   "Scatti nell'abilità allenata, tutti i giocatori",
+   "Awanse w trenowanej umiejętności, wszyscy zawodnicy"
+  ],
+  "tatsächlich": [
+   "actual",
+   "real",
+   "effettivo",
+   "faktyczne"
+  ],
+  "erwartet (Formel)": [
+   "expected (formula)",
+   "esperado (fórmula)",
+   "previsto (formula)",
+   "oczekiwane (wzór)"
+  ],
+  "Liegt „tatsächlich“ über mehrere Wochen deutlich unter „erwartet“, stimmen Einsätze, Trainer oder Intensität nicht.": [
+   "If “actual” stays well below “expected” for several weeks, appearances, coach or intensity are off.",
+   "Si «real» queda claramente por debajo de «esperado» durante varias semanas, fallan los partidos, el entrenador o la intensidad.",
+   "Se «effettivo» resta per più settimane ben sotto «previsto», presenze, allenatore o intensità non vanno.",
+   "Jeśli „faktyczne” przez kilka tygodni jest wyraźnie poniżej „oczekiwane”, coś nie gra z występami, trenerem lub intensywnością."
+  ],
+  "Einzelne Wochen schwanken normal.": [
+   "Single weeks vary normally.",
+   "Las semanas sueltas varían con normalidad.",
+   "Le singole settimane oscillano normalmente.",
+   "Pojedyncze tygodnie normalnie się wahają."
+  ],
+  "Einsätze": [
+   "Appearances",
+   "Partidos",
+   "Presenze",
+   "Występy"
+  ],
+  "Veränderungen": [
+   "Changes",
+   "Cambios",
+   "Variazioni",
+   "Zmiany"
+  ],
+  "In dieser Saison lief noch kein Fertigkeitstraining.": [
+   "No skill training has run this season yet.",
+   "Esta temporada aún no hubo entrenamiento de habilidades.",
+   "In questa stagione non c'è ancora stato allenamento di abilità.",
+   "W tym sezonie nie było jeszcze treningu umiejętności."
+  ],
+  "Seit Saisonstart hat sich keine Stufe verändert.": [
+   "No level has changed since the start of the season.",
+   "Ningún nivel ha cambiado desde el inicio de la temporada.",
+   "Nessun livello è cambiato dall'inizio della stagione.",
+   "Od początku sezonu żaden poziom się nie zmienił."
+  ],
+  "Die Linie erscheint nach dem ersten Training mit HO-Stand davor und danach.": [
+   "The line appears after the first training with an HO download before and after it.",
+   "La línea aparece tras el primer entrenamiento con una descarga de HO antes y después.",
+   "La linea compare dopo il primo allenamento con un download HO prima e dopo.",
+   "Linia pojawi się po pierwszym treningu z pobraniem HO przed nim i po nim."
+  ],
+  "Trainingseinstellung unbekannt.": [
+   "Training setting unknown.",
+   "Configuración de entrenamiento desconocida.",
+   "Impostazione di allenamento sconosciuta.",
+   "Ustawienie treningu nieznane."
+  ],
+  "Für den Trainingsfortschritt braucht TopHatt die Spielerhistorie aus HO. TopHatt.bat starten (oder tophatt-data.json laden).": [
+   "For training progress TopHatt needs the player history from HO. Start TopHatt.bat (or load tophatt-data.json).",
+   "Para el progreso del entrenamiento TopHatt necesita el historial de jugadores de HO. Inicia TopHatt.bat (o carga tophatt-data.json).",
+   "Per i progressi dell'allenamento TopHatt ha bisogno dello storico giocatori di HO. Avvia TopHatt.bat (o carica tophatt-data.json).",
+   "Do postępów treningu TopHatt potrzebuje historii zawodników z HO. Uruchom TopHatt.bat (lub wczytaj tophatt-data.json)."
+  ],
+  "Der Spielplan der aktuellen Saison oder die Spielerhistorie fehlt in den HO-Daten. In HO „Daten herunterladen“ (mit Spielplan) und TopHatt.bat neu starten.": [
+   "The current season's fixtures or the player history are missing from the HO data. In HO use “Download data” (with fixtures) and restart TopHatt.bat.",
+   "Faltan el calendario de la temporada actual o el historial de jugadores en los datos de HO. En HO usa «Descargar datos» (con calendario) y reinicia TopHatt.bat.",
+   "Nei dati HO mancano il calendario della stagione o lo storico giocatori. In HO usa «Scarica dati» (con calendario) e riavvia TopHatt.bat.",
+   "W danych HO brakuje terminarza bieżącego sezonu lub historii zawodników. W HO użyj „Pobierz dane” (z terminarzem) i uruchom ponownie TopHatt.bat."
+  ],
+  "W{0}: {1} tatsächlich, {2} erwartet": [
+   "W{0}: {1} actual, {2} expected",
+   "S{0}: {1} real, {2} esperado",
+   "S{0}: {1} effettivo, {2} previsto",
+   "T{0}: {1} faktyczne, {2} oczekiwane"
   ]
  }
 }

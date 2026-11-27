@@ -28,6 +28,8 @@ import { renderTransfers } from "./transfers-view";
 import { type FinanceSnapshot, type PastWeek, parseFinance, pastWeeks } from "../core/finance";
 import { renderFinance } from "./finance-view";
 import { initTrainerPage, renderTrainerPage } from "./trainer";
+import { renderProgress } from "./progress-view";
+import { seasonProgress } from "../core/progress";
 import { type PlannedMove, currentBackups, initOrdersPage, loadOrders, ordersBlocking, ordersSummary, plannedMoves, renderOrdersPage, setSubMode, staleOrders, withOrders } from "./orders-view";
 import { teamPlayers } from "../core/hodata";
 import { type SquadPlan, planWholeSquad } from "../core/squadplan";
@@ -556,8 +558,30 @@ function render() {
   renderGroups();
   renderFinance($("#finOut"), state.finance, state.financeWeeks);
   renderTrainerPage($("#trainerOut"), hrf.raw);
+  renderProgressPage();
   renderHistory();
   route();
+}
+
+// --- Trainingsfortschritt der Saison ------------------------------------------------
+
+function renderProgressPage() {
+  const hrf = state.hrf!;
+  const ho = state.ho;
+  const setup = state.setup;
+  let data = null;
+  let why = "";
+  if (!ho) why = "Für den Trainingsfortschritt braucht TopHatt die Spielerhistorie aus HO. TopHatt.bat starten (oder tophatt-data.json laden).";
+  else if (!setup) why = "Trainingseinstellung unbekannt.";
+  else {
+    const hrfDate = new Date(hrf.team.hrfDate.replace(" ", "T"));
+    data = seasonProgress(ho, hrf.players, setup, isNaN(hrfDate.getTime()) ? new Date() : hrfDate);
+    if (!data) why = "Der Spielplan der aktuellen Saison oder die Spielerhistorie fehlt in den HO-Daten. In HO „Daten herunterladen“ (mit Spielplan) und TopHatt.bat neu starten.";
+  }
+  renderProgress($("#progressOut"), data, why, {
+    tierBadge,
+    avatar: (id) => `<span class="pg-av" aria-hidden="true">${avatarHtml(id, ho?.avatars, shirtNo(hrf.players.find((p) => p.id === id)!), false)}</span>`,
+  });
 }
 
 function renderDataChip() {
@@ -3546,8 +3570,8 @@ function renderSquad() {
 
 // --- Navigation ------------------------------------------------------------------------
 
-const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "trainer", "spielplan", "finanzen", "verlauf"];
-const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training", historie: "verlauf", anweisungen: "aufstellung", elfmeter: "aufstellung", auswechslungen: "aufstellung" };
+const VIEWS = ["spieltag", "aufstellung", "gegner", "kader", "schwachstellen", "entwicklung", "kaderplanung", "transfers", "training", "fortschritt", "trainer", "spielplan", "finanzen", "verlauf"];
+const VIEW_ALIAS: Record<string, string> = { spiel: "spieltag", "": "spieltag", trainingswoche: "training", freundschaftsspiel: "training", historie: "verlauf", trainingsfortschritt: "fortschritt", anweisungen: "aufstellung", elfmeter: "aufstellung", auswechslungen: "aufstellung" };
 let currentView = "";
 
 function route() {
